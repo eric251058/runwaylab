@@ -11,7 +11,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="zh-CN">
       <body>
-        <main className="min-h-dvh pb-20">{children}</main>
+        <main className="min-h-dvh pb-20 md:pb-0">{children}</main>
         <BottomTabBar />
       </body>
     </html>

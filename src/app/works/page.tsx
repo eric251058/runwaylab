@@ -1,5 +1,68 @@
-import { PageShell } from "@/components/layout/PageShell";
+import Link from "next/link";
+import { DataUnavailable } from "@/components/layout/DataUnavailable";
+import { WorkMasonry } from "@/components/works/WorkMasonry";
+import { getApprovedWorks } from "@/lib/works/queries";
 
-export default function WorksPage() {
-  return <PageShell title="作品库" description="这里会承载审核通过作品的瀑布流展示。" />;
+export const dynamic = "force-dynamic";
+
+const filters = ["最新", "热门", "新人", "编辑推荐", "可孵化", "开放合作", "AI 辅助", "毕业设计"];
+
+type WorksPageProps = {
+  searchParams?: Promise<{
+    sort?: string;
+  }>;
+};
+
+export default async function WorksPage({ searchParams }: WorksPageProps) {
+  const params = await searchParams;
+  const sort = params?.sort === "popular" ? "popular" : "latest";
+  const works = await getApprovedWorks({ take: 36, sort }).catch((error) => {
+    console.error("Failed to load works", error);
+    return null;
+  });
+
+  if (!works) {
+    return <DataUnavailable title="作品库数据暂时没有读到" />;
+  }
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
+      <header className="mb-8 md:mb-12">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">Gallery</p>
+        <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-4xl font-semibold leading-tight text-ink md:text-6xl">线上作品展</h1>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58 md:text-base">
+              从课堂作业、毕业设计到独立系列，发现正在被看见的新锐服装设计作品。
+            </p>
+          </div>
+          <div className="flex rounded-full border border-black/10 bg-white/70 p-1 text-sm font-semibold">
+            <Link href="/works" className={`rounded-full px-4 py-2 ${sort === "latest" ? "bg-ink text-white" : "text-ink/55"}`}>
+              最新
+            </Link>
+            <Link href="/works?sort=popular" className={`rounded-full px-4 py-2 ${sort === "popular" ? "bg-ink text-white" : "text-ink/55"}`}>
+              热门
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="mb-7 flex gap-2 overflow-x-auto pb-2">
+        {filters.map((filter, index) => (
+          <span
+            key={filter}
+            className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ${
+              (sort === "latest" && index === 0) || (sort === "popular" && index === 1)
+                ? "border-ink bg-ink text-white"
+                : "border-black/10 bg-white/70 text-ink/58"
+            }`}
+          >
+            {filter}
+          </span>
+        ))}
+      </div>
+
+      <WorkMasonry works={works} />
+    </div>
+  );
 }

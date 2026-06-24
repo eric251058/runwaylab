@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>设计上岸 RunwayLab</title>
+    <style>
+      :root {
+        --ink: #111;
+        --paper: #f7f4ef;
+        --muted: #7a746b;
+        --line: rgba(17, 17, 17, 0.1);
+        --accent: #b8ff2c;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", Arial, sans-serif;
+      }
+
+      .app {
+        max-width: 480px;
+        min-height: 100vh;
+        margin: 0 auto;
+        padding: 18px 16px 88px;
+      }
+
+      .topbar,
+      .stats,
+      .tabs,
+      .bottom-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .brand {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      .pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.55);
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        margin-top: 22px;
+        border-radius: 28px;
+        min-height: 520px;
+        padding: 24px;
+        background:
+          linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.68)),
+          url("https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80") center/cover;
+        color: white;
+      }
+
+      .hero h1 {
+        position: absolute;
+        left: 24px;
+        right: 24px;
+        bottom: 118px;
+        margin: 0;
+        font-size: 42px;
+        line-height: 1.04;
+        letter-spacing: 0;
+      }
+
+      .hero p {
+        position: absolute;
+        left: 24px;
+        right: 24px;
+        bottom: 62px;
+        margin: 0;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .hero-actions {
+        position: absolute;
+        left: 24px;
+        right: 24px;
+        bottom: 18px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      button {
+        height: 44px;
+        border: 0;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 14px;
+      }
+
+      .primary {
+        background: var(--accent);
+        color: #101010;
+      }
+
+      .secondary {
+        background: rgba(255, 255, 255, 0.18);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+      }
+
+      .stats {
+        gap: 10px;
+        margin: 18px 0 28px;
+      }
+
+      .stat {
+        flex: 1;
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 22px;
+      }
+
+      .stat span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .section {
+        margin-top: 28px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 23px;
+        letter-spacing: 0;
+      }
+
+      .link {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .masonry {
+        columns: 2;
+        column-gap: 12px;
+      }
+
+      .work {
+        display: inline-block;
+        width: 100%;
+        overflow: hidden;
+        margin: 0 0 12px;
+        border-radius: 18px;
+        background: #fff;
+        border: 1px solid rgba(17, 17, 17, 0.06);
+      }
+
+      .work img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 3 / 4;
+        object-fit: cover;
+      }
+
+      .work:nth-child(2n) img {
+        aspect-ratio: 3 / 3.5;
+      }
+
+      .work-body {
+        padding: 11px;
+      }
+
+      .work-title {
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 1.3;
+      }
+
+      .work-meta {
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .metrics {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .challenge,
+      .incubation {
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 18px;
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .challenge h3,
+      .incubation h3 {
+        margin: 0;
+        font-size: 20px;
+      }
+
+      .challenge p,
+      .incubation p {
+        color: var(--muted);
+        line-height: 1.6;
+        font-size: 14px;
+      }
+
+      .tabs {
+        gap: 8px;
+        overflow-x: auto;
+        justify-content: flex-start;
+        padding-bottom: 2px;
+      }
+
+      .tab {
+        white-space: nowrap;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .tab.active {
+        background: var(--ink);
+        color: white;
+      }
+
+      .bottom-nav {
+        position: fixed;
+        left: 50%;
+        bottom: 0;
+        width: min(480px, 100%);
+        height: 68px;
+        transform: translateX(-50%);
+        padding: 0 18px;
+        border-top: 1px solid var(--line);
+        background: rgba(247, 244, 239, 0.94);
+        backdrop-filter: blur(18px);
+      }
+
+      .bottom-nav a {
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .bottom-nav a.active {
+        color: var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">RunwayLab</div>
+        <div class="pill">新人设计挑战进行中</div>
+      </header>
+
+      <section class="hero">
+        <div class="pill">第一届「设计上岸」</div>
+        <h1>让你的服装设计作品，从作业变成机会。</h1>
+        <p>上传作品，参加新人设计挑战，获得曝光、排名、面料匹配和打样孵化机会。</p>
+        <div class="hero-actions">
+          <button class="primary">立即投稿</button>
+          <button class="secondary">查看作品</button>
+        </div>
+      </section>
+
+      <section class="stats">
+        <div class="stat"><strong>21</strong><span>天后截稿</span></div>
+        <div class="stat"><strong>128</strong><span>设计师参赛</span></div>
+        <div class="stat"><strong>36</strong><span>孵化候选</span></div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>精选作品</h2>
+          <span class="link">全部作品</span>
+        </div>
+        <div class="tabs">
+          <span class="tab active">编辑推荐</span>
+          <span class="tab">可孵化</span>
+          <span class="tab">开放合作</span>
+          <span class="tab">AI辅助</span>
+        </div>
+        <div class="masonry" style="margin-top: 14px">
+          <article class="work">
+            <img alt="服装作品" src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=700&q=80" />
+            <div class="work-body">
+              <div class="work-title">雾线廓形实验</div>
+              <div class="work-meta">林知夏 · 东华大学</div>
+              <div class="metrics"><span>♥ 248</span><span>☆ 81</span><span>孵化 42</span></div>
+            </div>
+          </article>
+          <article class="work">
+            <img alt="服装作品" src="https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=700&q=80" />
+            <div class="work-body">
+              <div class="work-title">纸感风衣计划</div>
+              <div class="work-meta">周以宁 · 北京</div>
+              <div class="metrics"><span>♥ 192</span><span>☆ 55</span><span>孵化 31</span></div>
+            </div>
+          </article>
+          <article class="work">
+            <img alt="服装作品" src="https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=700&q=80" />
+            <div class="work-body">
+              <div class="work-title">夜行机能套装</div>
+              <div class="work-meta">许南星 · 杭州</div>
+              <div class="metrics"><span>♥ 168</span><span>☆ 44</span><span>孵化 26</span></div>
+            </div>
+          </article>
+          <article class="work">
+            <img alt="服装作品" src="https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=700&q=80" />
+            <div class="work-body">
+              <div class="work-title">旧衣再生外套</div>
+              <div class="work-meta">陈白露 · 广州</div>
+              <div class="metrics"><span>♥ 143</span><span>☆ 39</span><span>孵化 22</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section challenge">
+        <h3>挑战赛入口</h3>
+        <p>上传 3-9 张作品图，确认原创声明，选择是否需要面料、打样或合作机会。Top 10 可进入首页推荐和孵化候选。</p>
+        <button class="primary" style="width: 100%">参加新人挑战</button>
+      </section>
+
+      <section class="section incubation">
+        <h3>孵化池候选</h3>
+        <p>平台从挑战赛、编辑推荐和用户申请中筛选作品，协助进行面料匹配、打样评估和合作推进。</p>
+        <button class="primary" style="width: 100%">申请孵化评估</button>
+      </section>
+    </div>
+
+    <nav class="bottom-nav">
+      <a class="active" href="#">首页</a>
+      <a href="#">挑战</a>
+      <a href="#">发布</a>
+      <a href="#">孵化</a>
+      <a href="#">我的</a>
+    </nav>
+  </body>
+</html>
