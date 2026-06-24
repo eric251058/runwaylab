@@ -1,0 +1,575 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  STUDENT_DESIGNER
+  NEW_DESIGNER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  OFFLINE
+}
+
+enum ContentStatus {
+  VISIBLE
+  HIDDEN
+  DELETED
+  OFFLINE
+}
+
+enum ChallengeStatus {
+  DRAFT
+  ACTIVE
+  ENDED
+  ARCHIVED
+}
+
+enum IncubationSource {
+  USER_APPLY
+  RECOMMEND_THRESHOLD
+  EDITOR_REVIEW_THRESHOLD
+  CHALLENGE_TOP
+  EDITOR_PICK
+  ADMIN
+}
+
+enum IncubationApplicationStatus {
+  CANDIDATE
+  REVIEWING
+  NOT_SUITABLE
+  ACCEPTED
+}
+
+enum IncubationStatus {
+  CANDIDATE
+  REVIEWING
+  NOT_SUITABLE
+  FABRIC_MATCHING
+  SAMPLE_EVALUATING
+  QUOTE_DISCUSSING
+  PATTERN_EVALUATING
+  SAMPLE_MAKING
+  COOPERATION_DISCUSSING
+  COMPLETED
+}
+
+enum RequestStatus {
+  PENDING
+  CONTACTED
+  EVALUATED
+  QUOTED
+  CLOSED
+  COMPLETED
+}
+
+enum CooperationType {
+  OPEN_COOP
+  COPYRIGHT
+  BRAND_COLLAB
+  SAMPLE_INCUBATION
+  INTERNSHIP
+}
+
+enum ReportTargetType {
+  WORK
+  COMMENT
+  USER
+}
+
+enum ReportReason {
+  PLAGIARISM
+  STOLEN_IMAGE
+  VULGAR
+  AD
+  NON_FASHION
+  AI_UNLABELED
+  INFRINGEMENT
+}
+
+enum ReportStatus {
+  PENDING
+  HANDLED
+  REJECTED
+}
+
+enum NotificationType {
+  WORK_APPROVED
+  WORK_REJECTED
+  INCUBATION_RECOMMENDED
+  INCUBATION_CANDIDATE
+  REQUEST_HANDLED
+  CHALLENGE_RESULT
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  nickname     String
+  avatarUrl    String?
+  role         UserRole   @default(USER)
+  status       UserStatus @default(ACTIVE)
+
+  designerProfile DesignerProfile?
+  sessions        AuthSession[]
+  works           Work[]
+  comments        Comment[]
+  likes           Like[]
+  favorites       Favorite[]
+  challengeEntries ChallengeEntry[]
+  follows         Follow[] @relation("Follower")
+  followers       Follow[] @relation("Following")
+  incubationRecommendations IncubationRecommendation[]
+  incubationApplications    IncubationApplication[]
+  incubationProjects        IncubationProject[] @relation("IncubationProjectDesigner")
+  fabricRequests            FabricRequest[]
+  sampleRequests            SampleRequest[]
+  cooperationRequests       CooperationRequest[]
+  reports                   Report[] @relation("Reporter")
+  notifications             Notification[]
+
+  handledWorks               Work[] @relation("WorkHandledBy")
+  handledComments            Comment[] @relation("CommentHandledBy")
+  handledApplications        IncubationApplication[] @relation("IncubationApplicationHandledBy")
+  handledProjects            IncubationProject[] @relation("IncubationProjectHandledBy")
+  handledFabricRequests      FabricRequest[] @relation("FabricRequestHandledBy")
+  handledSampleRequests      SampleRequest[] @relation("SampleRequestHandledBy")
+  handledCooperationRequests CooperationRequest[] @relation("CooperationRequestHandledBy")
+  handledReports             Report[] @relation("ReportHandledBy")
+  adminLogs                  AdminLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model DesignerProfile {
+  id                String  @id @default(cuid())
+  userId            String  @unique
+  school            String?
+  city              String?
+  designDirection   String?
+  bio               String?
+  cooperationStatus String?
+  portfolioCoverUrl String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Work {
+  id              String @id @default(cuid())
+  userId          String
+  title           String
+  description     String
+  category        String
+  workType        String
+  styleTags       String[]
+  reviewStatus    ReviewStatus @default(PENDING)
+  rejectReason    String?
+  contentStatus   ContentStatus @default(VISIBLE)
+  isOriginal      Boolean @default(false)
+  isAiAssisted    Boolean @default(false)
+  isFeatured      Boolean @default(false)
+  isEditorPick    Boolean @default(false)
+  isOpenCoop      Boolean @default(false)
+  wantsFabric     Boolean @default(false)
+  wantsSample     Boolean @default(false)
+  wantsIncubation Boolean @default(false)
+  incubationStatus IncubationStatus?
+
+  viewCount        Int @default(0)
+  likeCount        Int @default(0)
+  favoriteCount    Int @default(0)
+  commentCount     Int @default(0)
+  shareCount       Int @default(0)
+  incubationRecommendCount Int @default(0)
+
+  adminNote   String?
+  handledAt   DateTime?
+  handledById String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  handledBy User? @relation("WorkHandledBy", fields: [handledById], references: [id])
+  images WorkImage[]
+  comments Comment[]
+  likes Like[]
+  favorites Favorite[]
+  challengeEntries ChallengeEntry[]
+  incubationRecommendations IncubationRecommendation[]
+  incubationApplications IncubationApplication[]
+  incubationProjects IncubationProject[]
+  fabricRequests FabricRequest[]
+  sampleRequests SampleRequest[]
+  cooperationRequests CooperationRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([reviewStatus, contentStatus])
+  @@index([isFeatured])
+  @@index([isEditorPick])
+}
+
+model WorkImage {
+  id        String @id @default(cuid())
+  workId    String
+  imageUrl  String
+  sortOrder Int
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+}
+
+model Challenge {
+  id           String @id @default(cuid())
+  title        String
+  theme        String
+  coverUrl     String?
+  description  String
+  requirements String
+  rewards      String
+  startAt      DateTime
+  endAt        DateTime
+  status       ChallengeStatus @default(DRAFT)
+
+  entries ChallengeEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+model ChallengeEntry {
+  id              String @id @default(cuid())
+  challengeId     String
+  workId          String
+  userId          String
+  popularityScore Int @default(0)
+  incubationScore Int @default(0)
+  adminWeight     Int @default(0)
+  manualRank      Int?
+  awardLevel      String?
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  work      Work      @relation(fields: [workId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([challengeId, workId])
+  @@index([challengeId])
+  @@index([userId])
+}
+
+model Like {
+  id     String @id @default(cuid())
+  userId String
+  workId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, workId])
+  @@index([workId])
+}
+
+model Favorite {
+  id     String @id @default(cuid())
+  userId String
+  workId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, workId])
+  @@index([workId])
+}
+
+model Comment {
+  id          String @id @default(cuid())
+  userId      String
+  workId      String
+  content     String
+  status      ContentStatus @default(VISIBLE)
+  adminNote   String?
+  handledAt   DateTime?
+  handledById String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  handledBy User? @relation("CommentHandledBy", fields: [handledById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([status])
+}
+
+model Follow {
+  id          String @id @default(cuid())
+  followerId  String
+  followingId String
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([followerId, followingId])
+}
+
+model IncubationRecommendation {
+  id     String @id @default(cuid())
+  userId String
+  workId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, workId])
+  @@index([workId])
+}
+
+model IncubationApplication {
+  id          String @id @default(cuid())
+  userId      String
+  workId      String
+  source      IncubationSource
+  status      IncubationApplicationStatus @default(CANDIDATE)
+  adminNote   String?
+  handledAt   DateTime?
+  handledById String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  handledBy User? @relation("IncubationApplicationHandledBy", fields: [handledById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([status])
+}
+
+model IncubationProject {
+  id              String @id @default(cuid())
+  workId          String
+  designerId      String
+  status          IncubationStatus @default(CANDIDATE)
+  platformComment String?
+  nextAction      String?
+  adminNote       String?
+  handledAt       DateTime?
+  handledById     String?
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  designer User @relation("IncubationProjectDesigner", fields: [designerId], references: [id], onDelete: Cascade)
+  handledBy User? @relation("IncubationProjectHandledBy", fields: [handledById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([designerId])
+  @@index([status])
+}
+
+model FabricRequest {
+  id             String @id @default(cuid())
+  userId         String
+  workId         String?
+  category       String?
+  desiredFeeling String[]
+  colorDirection String?
+  budgetRange    String?
+  contact        String
+  remark         String?
+  status         RequestStatus @default(PENDING)
+  adminNote      String?
+  handledAt      DateTime?
+  handledById    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work Work? @relation(fields: [workId], references: [id], onDelete: SetNull)
+  handledBy User? @relation("FabricRequestHandledBy", fields: [handledById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([workId])
+  @@index([status])
+}
+
+model SampleRequest {
+  id              String @id @default(cuid())
+  userId          String
+  workId          String?
+  garmentCategory String?
+  hasPattern      Boolean @default(false)
+  hasFabric       Boolean @default(false)
+  needsFabricHelp Boolean @default(false)
+  budgetRange     String?
+  quantity        Int?
+  expectedDate    DateTime?
+  contact         String
+  remark          String?
+  status          RequestStatus @default(PENDING)
+  adminNote       String?
+  handledAt       DateTime?
+  handledById     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work Work? @relation(fields: [workId], references: [id], onDelete: SetNull)
+  handledBy User? @relation("SampleRequestHandledBy", fields: [handledById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([workId])
+  @@index([status])
+}
+
+model CooperationRequest {
+  id          String @id @default(cuid())
+  userId      String
+  workId      String
+  type        CooperationType
+  contact     String
+  message     String?
+  budgetRange String?
+  status      RequestStatus @default(PENDING)
+  adminNote   String?
+  handledAt   DateTime?
+  handledById String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  handledBy User? @relation("CooperationRequestHandledBy", fields: [handledById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([workId])
+  @@index([status])
+}
+
+model Report {
+  id          String @id @default(cuid())
+  reporterId  String
+  targetType  ReportTargetType
+  targetId    String
+  reason      ReportReason
+  description String?
+  status      ReportStatus @default(PENDING)
+  result      String?
+  adminNote   String?
+  handledAt   DateTime?
+  handledById String?
+
+  reporter User @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  handledBy User? @relation("ReportHandledBy", fields: [handledById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([targetType, targetId])
+  @@index([status])
+}
+
+model Notification {
+  id      String @id @default(cuid())
+  userId  String
+  type    NotificationType
+  title   String
+  content String
+  isRead  Boolean @default(false)
+  linkUrl String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, isRead])
+}
+
+model SystemSetting {
+  id          String @id @default(cuid())
+  key         String @unique
+  value       String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AdminLog {
+  id         String @id @default(cuid())
+  adminId    String
+  action     String
+  targetType String
+  targetId   String
+  detail     Json?
+
+  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+}
