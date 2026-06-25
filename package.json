@@ -2,14 +2,16 @@
   "name": "runwaylab",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.11.0"
+  },
   "scripts": {
-    "dev": "set NEXT_TEST_WASM_DIR=node_modules\\@next\\swc-wasm-nodejs&& set LOCALAPPDATA=.localappdata&& set NEXT_TELEMETRY_DISABLED=1&& next dev",
-    "build": "set NEXT_TEST_WASM_DIR=node_modules\\@next\\swc-wasm-nodejs&& set LOCALAPPDATA=.localappdata&& set NEXT_TELEMETRY_DISABLED=1&& next build",
-    "start": "set NEXT_TEST_WASM_DIR=node_modules\\@next\\swc-wasm-nodejs&& set LOCALAPPDATA=.localappdata&& set NEXT_TELEMETRY_DISABLED=1&& next start",
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "tsx prisma/seed.ts",
     "db:seed": "prisma db seed"
   },
   "dependencies": {
