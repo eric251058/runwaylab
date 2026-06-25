@@ -60,7 +60,7 @@ const initialForm: WorkForm = {
   isAiAssisted: false,
   isOriginal: false,
   opportunities: {
-    participateChallenge: true,
+    participateChallenge: false,
     isOpenCoop: false,
     wantsFabric: false,
     wantsSample: false,
@@ -104,16 +104,45 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
   const [message, setMessage] = useState("");
   const [createdWorkId, setCreatedWorkId] = useState<string | null>(null);
 
-  const canSubmit = useMemo(
-    () =>
-      images.length >= MIN_WORK_IMAGES &&
-      images.length <= MAX_WORK_IMAGES &&
-      form.title.trim().length >= 2 &&
-      form.description.trim().length >= 20 &&
-      form.styleTags.length > 0 &&
-      form.isOriginal,
-    [form, images.length]
-  );
+  const validationReasons = useMemo(() => {
+    const reasons: string[] = [];
+
+    if (images.length < MIN_WORK_IMAGES) {
+      reasons.push(`请至少上传 ${MIN_WORK_IMAGES} 张作品图片`);
+    }
+
+    if (images.length > MAX_WORK_IMAGES) {
+      reasons.push(`最多上传 ${MAX_WORK_IMAGES} 张作品图片`);
+    }
+
+    if (!form.title.trim()) {
+      reasons.push("请填写作品标题");
+    }
+
+    if (!form.description.trim()) {
+      reasons.push("请填写设计理念");
+    }
+
+    if (!form.category) {
+      reasons.push("请选择服装品类");
+    }
+
+    if (!form.workType) {
+      reasons.push("请选择作品类型");
+    }
+
+    if (form.styleTags.length === 0) {
+      reasons.push("请选择至少一个风格标签");
+    }
+
+    if (!form.isOriginal) {
+      reasons.push("请确认作品为本人原创或已获得授权");
+    }
+
+    return reasons;
+  }, [form, images.length]);
+
+  const canSubmit = validationReasons.length === 0;
 
   const uploadFiles = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -198,7 +227,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
 
   const submit = async () => {
     if (!canSubmit) {
-      setMessage("请补全图片、作品信息，并勾选原创声明。");
+      setMessage(validationReasons[0] ?? "请补全作品信息后再提交。");
       return;
     }
 
@@ -388,7 +417,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
         {step === 3 ? (
           <div>
             <h2 className="text-2xl font-semibold text-ink">选择机会</h2>
-            <p className="mt-2 text-sm text-ink/55">这些选择会写入作品状态，帮助后台判断挑战参赛、合作和孵化方向。</p>
+            <p className="mt-2 text-sm text-ink/55">这些选择会写入作品状态，帮助后台判断挑战参赛、合作和孵化方向。这里的选项不是必填，不勾选也可以提交审核。</p>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               {opportunityOptions.map((option) => (
                 <label key={option.key} className="flex items-center gap-3 rounded-[6px] border border-black/8 bg-paper p-4 text-sm font-semibold">
@@ -409,6 +438,17 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
                 </label>
               ))}
             </div>
+          </div>
+        ) : null}
+
+        {step === 3 && validationReasons.length > 0 ? (
+          <div className="mt-5 rounded-[6px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p className="font-semibold">还不能提交，请先完成：</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {validationReasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
           </div>
         ) : null}
 

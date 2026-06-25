@@ -10,8 +10,8 @@ const imageSchema = z.object({
 });
 
 export const workPayloadSchema = z.object({
-  title: z.string().min(2).max(80),
-  description: z.string().min(20).max(2000),
+  title: z.string().trim().min(1).max(80),
+  description: z.string().trim().min(1).max(2000),
   category: z.enum(categoryOptions),
   workType: z.enum(workTypeOptions),
   styleTags: z.array(z.enum(styleTagOptions)).min(1).max(5),
