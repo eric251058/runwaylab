@@ -6,6 +6,8 @@ import { WorkImageCarousel } from "@/components/works/WorkImageCarousel";
 import { WorkInteractionBar } from "@/components/works/WorkInteractionBar";
 import { WorkStatusBadge, getWorkBadges } from "@/components/works/WorkStatusBadge";
 import { initials } from "@/components/works/work-visuals";
+import { getCurrentUser } from "@/lib/auth/session";
+import { prisma } from "@/lib/prisma";
 import { getWorkById } from "@/lib/works/queries";
 
 export const dynamic = "force-dynamic";
@@ -58,6 +60,38 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
   const badges = getWorkBadges(work);
   const activeChallenge = work.challengeEntries[0]?.challenge;
   const incubationProject = work.incubationProjects[0];
+  const currentUser = await getCurrentUser();
+  const [liked, favorited, incubationRecommended] = currentUser
+    ? await Promise.all([
+        prisma.like.findUnique({
+          where: {
+            userId_workId: {
+              userId: currentUser.id,
+              workId: work.id
+            }
+          },
+          select: { id: true }
+        }),
+        prisma.favorite.findUnique({
+          where: {
+            userId_workId: {
+              userId: currentUser.id,
+              workId: work.id
+            }
+          },
+          select: { id: true }
+        }),
+        prisma.incubationRecommendation.findUnique({
+          where: {
+            userId_workId: {
+              userId: currentUser.id,
+              workId: work.id
+            }
+          },
+          select: { id: true }
+        })
+      ])
+    : [null, null, null];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10">
@@ -94,11 +128,23 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
 
           <WorkInteractionBar
             workId={work.id}
+            isLoggedIn={Boolean(currentUser)}
+            initialLiked={Boolean(liked)}
+            initialFavorited={Boolean(favorited)}
+            initialIncubationRecommended={Boolean(incubationRecommended)}
             likeCount={work.likeCount}
             favoriteCount={work.favoriteCount}
             commentCount={work.commentCount}
             shareCount={work.shareCount}
             incubationRecommendCount={work.incubationRecommendCount}
+            comments={work.comments.map((comment) => ({
+              id: comment.id,
+              content: comment.content,
+              createdAt: comment.createdAt.toISOString(),
+              user: {
+                nickname: comment.user.nickname
+              }
+            }))}
           />
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -124,20 +170,6 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
               ))}
             </div>
           </div>
-
-          {work.comments.length ? (
-            <div className="rounded-[6px] bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
-              <h2 className="text-base font-semibold text-ink">最新评论</h2>
-              <div className="mt-4 space-y-4">
-                {work.comments.map((comment) => (
-                  <div key={comment.id} className="border-t border-black/8 pt-4 first:border-t-0 first:pt-0">
-                    <p className="text-sm leading-6 text-ink/66">{comment.content}</p>
-                    <p className="mt-2 text-xs font-semibold text-ink/40">{comment.user.nickname}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
         </section>
       </div>
     </div>
