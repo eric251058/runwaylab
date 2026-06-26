@@ -1,0 +1,14 @@
+.npm-cache-project
+.npm-cache-project/**
+.npm
+.npm/**
+.cache
+.cache/**
+.vercel
+.vercel/**
+node_modules
+.next
+*.zip
+preview
+preview/**
+.env

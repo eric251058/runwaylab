@@ -11,3 +11,11 @@ dist
 *.log
 public/uploads/*
 !public/uploads/.gitkeep
+
+# Local/cache artifacts
+.npm-cache-project/
+.npm/
+.cache/
+.vercel/
+*.zip
+preview/
