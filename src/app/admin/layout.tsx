@@ -20,14 +20,14 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/35">403</p>
           <h1 className="mt-3 text-3xl font-semibold">你没有后台访问权限</h1>
           <p className="mt-4 text-sm leading-6 text-ink/58">
-            当前账号不是管理员账号。请使用 admin@runwaylab.test 登录后再进入作品审核后台。
+            当前账号不是管理员账号。请联系平台管理员开通权限，或切换到已授权的管理员账号。
           </p>
           <div className="mt-6 flex gap-3">
             <Link href="/me" className="rounded-full border border-black/10 px-5 py-2 text-sm font-semibold">
               返回我的页面
             </Link>
             <Link href="/login?next=/admin/works" className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white">
-              切换管理员账号
+              切换账号
             </Link>
           </div>
         </div>

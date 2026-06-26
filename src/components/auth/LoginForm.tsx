@@ -12,18 +12,13 @@ type AuthUser = {
   role: string;
 };
 
-const TEST_ACCOUNTS = [
-  "designer1@runwaylab.test / RunwayLab123!",
-  "admin@runwaylab.test / RunwayLab123!"
-];
-
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>("login");
-  const [email, setEmail] = useState("designer1@runwaylab.test");
+  const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
-  const [password, setPassword] = useState("RunwayLab123!");
+  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -66,15 +61,11 @@ export function LoginForm() {
             登录后发布你的服装设计作品。
           </h1>
           <p className="mt-5 max-w-lg text-sm leading-7 text-white/68">
-            V1.0 先支持邮箱注册和登录。设计师可以投稿、查看审核状态，管理员可以进入后台审核作品。
+            登录后可以发布作品、查看审核状态、参与新人设计挑战，并申请面料匹配与打样评估。
           </p>
-          <div className="mt-8 grid gap-3 text-xs text-white/62">
-            {TEST_ACCOUNTS.map((account) => (
-              <div key={account} className="rounded-[6px] border border-white/12 bg-white/[0.06] px-4 py-3">
-                {account}
-              </div>
-            ))}
-          </div>
+          <p className="mt-6 rounded-[6px] border border-white/12 bg-white/[0.06] px-4 py-3 text-sm leading-6 text-white/68">
+            内测用户请使用自己的邮箱登录。如需测试账号，请联系平台管理员。
+          </p>
         </section>
 
         <form
@@ -131,7 +122,7 @@ export function LoginForm() {
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="designer1@runwaylab.test"
+                placeholder="you@example.com"
                 autoComplete="email"
                 className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-sm outline-none transition focus:border-ink focus:bg-white"
                 required
