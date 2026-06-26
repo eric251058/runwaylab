@@ -7,6 +7,7 @@ import { DesignerCard } from "@/components/designer/DesignerCard";
 import { WorkCard } from "@/components/works/WorkCard";
 import { WorkStatusBadge } from "@/components/works/WorkStatusBadge";
 import { visualFor } from "@/components/works/work-visuals";
+import { getCurrentUser } from "@/lib/auth/session";
 import {
   getActiveChallenge,
   getChallengeEntryCount,
@@ -259,11 +260,19 @@ function IncubationCandidateStrip({ works }: { works: WorkCardData[] }) {
 }
 
 export default async function HomePage() {
-  const data = await loadHomeData();
+  const [data, currentUser] = await Promise.all([loadHomeData(), getCurrentUser()]);
   const challengeHref = data.activeChallenge ? `/challenges/${data.activeChallenge.id}` : "/works";
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-4 md:px-8 md:py-7">
+      <nav className="mb-4 flex items-center justify-end">
+        <Link
+          href={currentUser ? "/me" : "/login?next=/me"}
+          className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 bg-white/85 px-4 text-sm font-semibold text-ink shadow-[0_10px_30px_rgba(16,16,16,0.08)] transition hover:-translate-y-0.5 hover:bg-white"
+        >
+          {currentUser ? "我的" : "登录/注册"}
+        </Link>
+      </nav>
       <header className="grid items-center gap-6 pb-6 md:grid-cols-[0.9fr_1.1fr] md:gap-9">
         <div className="max-w-2xl">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-ink/45">RUNWAYLAB V1.0</p>
