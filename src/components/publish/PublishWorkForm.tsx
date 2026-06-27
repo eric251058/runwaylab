@@ -11,6 +11,7 @@ import {
   type UploadedWorkImage,
   workTypeOptions
 } from "@/lib/works/form-options";
+import { normalizeImageUrl, visualFor } from "@/components/works/work-visuals";
 
 const opportunityOptions = [
   { key: "participateChallenge", label: "参加新人设计挑战" },
@@ -185,7 +186,21 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
         return;
       }
 
-      uploaded.push(data);
+      const imageUrl = normalizeImageUrl(data?.imageUrl);
+
+      if (!imageUrl) {
+        setMessage("图片上传成功，但没有返回可预览的图片地址。");
+        setUploading(false);
+        return;
+      }
+
+      uploaded.push({
+        imageUrl,
+        key: String(data?.key ?? ""),
+        filename: String(data?.filename ?? file.name),
+        size: Number(data?.size ?? file.size),
+        mimeType: String(data?.mimeType ?? file.type)
+      });
     }
 
     setImages((current) => [...current, ...uploaded]);
@@ -338,7 +353,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {images.map((image, index) => (
                 <div key={`${image.imageUrl}-${index}`} className="overflow-hidden rounded-[6px] border border-black/10 bg-paper">
-                  <img src={image.imageUrl} alt="" className="aspect-[4/5] w-full object-cover" />
+                  <img src={visualFor(index, image.imageUrl)} alt="" className="aspect-[4/5] w-full object-cover" />
                   <div className="flex items-center justify-between gap-2 p-3">
                     <span className="text-xs font-semibold text-ink/45">#{index + 1}</span>
                     <div className="flex gap-2">

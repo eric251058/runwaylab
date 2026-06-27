@@ -42,6 +42,7 @@ export async function PATCH(request: Request, context: AdminWorkRouteContext) {
         where: { id },
         data: {
           reviewStatus: ReviewStatus.APPROVED,
+          contentStatus: ContentStatus.VISIBLE,
           rejectReason: null,
           handledById: admin.id,
           handledAt: now

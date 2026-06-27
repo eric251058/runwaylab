@@ -204,6 +204,15 @@ export function getWorkById(id: string) {
   });
 }
 
+export function getWorkDetailById(id: string) {
+  return prisma.work.findUnique({
+    where: {
+      id
+    },
+    include: workDetailInclude
+  });
+}
+
 export async function getActiveChallenge() {
   const setting = await prisma.systemSetting.findUnique({
     where: {

@@ -7,8 +7,9 @@ import { WorkInteractionBar } from "@/components/works/WorkInteractionBar";
 import { WorkStatusBadge, getWorkBadges } from "@/components/works/WorkStatusBadge";
 import { initials } from "@/components/works/work-visuals";
 import { getCurrentUser } from "@/lib/auth/session";
+import { canViewWorkDetail } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { getWorkById } from "@/lib/works/queries";
+import { getWorkDetailById } from "@/lib/works/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,8 @@ function incubationLabel(value?: string | null) {
 
 export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
   const { id } = await params;
-  const work = await getWorkById(id).catch((error) => {
+  const currentUser = await getCurrentUser();
+  const work = await getWorkDetailById(id).catch((error) => {
     console.error("Failed to load work detail", error);
     return undefined;
   });
@@ -56,11 +58,14 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
     notFound();
   }
 
+  if (!canViewWorkDetail(currentUser, work)) {
+    notFound();
+  }
+
   const profile = work.user.designerProfile;
   const badges = getWorkBadges(work);
   const activeChallenge = work.challengeEntries[0]?.challenge;
   const incubationProject = work.incubationProjects[0];
-  const currentUser = await getCurrentUser();
   const [liked, favorited, incubationRecommended] = currentUser
     ? await Promise.all([
         prisma.like.findUnique({

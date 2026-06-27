@@ -8,11 +8,49 @@ const fallbackImages = [
 ];
 
 export function visualFor(index: number, preferredUrl?: string | null) {
-  if (preferredUrl && !preferredUrl.startsWith("/uploads/seed/")) {
-    return preferredUrl;
+  const normalizedUrl = normalizeImageUrl(preferredUrl);
+
+  if (normalizedUrl && !normalizedUrl.startsWith("/uploads/seed/")) {
+    return normalizedUrl;
   }
 
   return fallbackImages[index % fallbackImages.length];
+}
+
+export function normalizeImageUrl(input: string | null | undefined): string {
+  const value = input?.trim();
+
+  if (!value) {
+    return "";
+  }
+
+  const normalized = value.replaceAll("\\", "/");
+
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    return normalized;
+  }
+
+  if (normalized.startsWith("/public/uploads/")) {
+    return normalized.replace(/^\/public\//, "/");
+  }
+
+  if (normalized.startsWith("/uploads/")) {
+    return normalized;
+  }
+
+  if (normalized.startsWith("public/uploads/")) {
+    return `/${normalized.replace(/^public\//, "")}`;
+  }
+
+  if (normalized.startsWith("uploads/")) {
+    return `/${normalized}`;
+  }
+
+  if (normalized.startsWith("/")) {
+    return normalized;
+  }
+
+  return `/${normalized}`;
 }
 
 export function initials(name?: string | null) {
