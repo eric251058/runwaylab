@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     const stored = await getStorageService().put(file, kind);
 
     return NextResponse.json({
+      url: stored.url,
       imageUrl: stored.url,
       key: stored.key,
       filename: file.name,

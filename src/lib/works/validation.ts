@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeImageUrl } from "@/components/works/work-visuals";
 import { MAX_WORK_IMAGES, MIN_WORK_IMAGES, categoryOptions, styleTagOptions, workTypeOptions } from "@/lib/works/form-options";
 
 const imageSchema = z.object({
@@ -7,6 +8,23 @@ const imageSchema = z.object({
   filename: z.string().optional(),
   size: z.number().optional(),
   mimeType: z.string().optional()
+}).transform((image) => ({
+  ...image,
+  imageUrl: normalizeImageUrl(image.imageUrl)
+})).superRefine((image, context) => {
+  if (!image.imageUrl) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Image URL is required."
+    });
+  }
+
+  if (image.imageUrl.startsWith("blob:")) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Blob preview URLs cannot be saved."
+    });
+  }
 });
 
 export const workPayloadSchema = z.object({

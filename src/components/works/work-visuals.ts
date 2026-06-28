@@ -26,6 +26,10 @@ export function normalizeImageUrl(input: string | null | undefined): string {
 
   const normalized = value.replaceAll("\\", "/");
 
+  if (normalized.startsWith("blob:")) {
+    return normalized;
+  }
+
   if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
     return normalized;
   }

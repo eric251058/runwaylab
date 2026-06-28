@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, ImagePlus, Trash2 } from "lucide-react";
+import { normalizeImageUrl, visualFor } from "@/components/works/work-visuals";
 import {
   MAX_WORK_IMAGES,
   MIN_WORK_IMAGES,
@@ -11,7 +12,6 @@ import {
   type UploadedWorkImage,
   workTypeOptions
 } from "@/lib/works/form-options";
-import { normalizeImageUrl, visualFor } from "@/components/works/work-visuals";
 
 const opportunityOptions = [
   { key: "participateChallenge", label: "参加新人设计挑战" },
@@ -36,6 +36,12 @@ type WorkForm = {
   opportunities: Record<OpportunityKey, boolean>;
 };
 
+type PublishWorkImage = UploadedWorkImage & {
+  clientId?: string;
+  previewUrl?: string;
+  isUploading?: boolean;
+};
+
 export type PublishInitialWork = {
   id: string;
   title: string;
@@ -52,6 +58,16 @@ export type PublishInitialWork = {
   images: UploadedWorkImage[];
 };
 
+const initialOpportunities: Record<OpportunityKey, boolean> = {
+  participateChallenge: false,
+  isOpenCoop: false,
+  wantsFabric: false,
+  wantsSample: false,
+  acceptsCopyright: false,
+  acceptsBrandCollab: false,
+  wantsIncubation: false
+};
+
 const initialForm: WorkForm = {
   title: "",
   description: "",
@@ -60,24 +76,35 @@ const initialForm: WorkForm = {
   styleTags: [],
   isAiAssisted: false,
   isOriginal: false,
-  opportunities: {
-    participateChallenge: false,
-    isOpenCoop: false,
-    wantsFabric: false,
-    wantsSample: false,
-    acceptsCopyright: false,
-    acceptsBrandCollab: false,
-    wantsIncubation: false
-  }
+  opportunities: initialOpportunities
 };
 
 type PublishWorkFormProps = {
   initialWork?: PublishInitialWork;
 };
 
+function createClientId() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function toServerImages(images: PublishWorkImage[]): UploadedWorkImage[] {
+  return images
+    .map(({ imageUrl, key, filename, size, mimeType }) => ({
+      imageUrl: normalizeImageUrl(imageUrl),
+      key,
+      filename,
+      size,
+      mimeType
+    }))
+    .filter((image) => image.imageUrl && !image.imageUrl.startsWith("blob:"));
+}
+
 export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
+  const previewUrls = useRef(new Set<string>());
   const [step, setStep] = useState(1);
-  const [images, setImages] = useState<UploadedWorkImage[]>(initialWork?.images ?? []);
+  const [images, setImages] = useState<PublishWorkImage[]>(initialWork?.images ?? []);
   const [form, setForm] = useState<WorkForm>(
     initialWork
       ? {
@@ -89,12 +116,10 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
           isAiAssisted: initialWork.isAiAssisted,
           isOriginal: initialWork.isOriginal,
           opportunities: {
-            participateChallenge: false,
+            ...initialOpportunities,
             isOpenCoop: initialWork.isOpenCoop,
             wantsFabric: initialWork.wantsFabric,
             wantsSample: initialWork.wantsSample,
-            acceptsCopyright: false,
-            acceptsBrandCollab: false,
             wantsIncubation: initialWork.wantsIncubation
           }
         }
@@ -105,6 +130,21 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
   const [message, setMessage] = useState("");
   const [createdWorkId, setCreatedWorkId] = useState<string | null>(null);
 
+  useEffect(() => {
+    const currentPreviewUrls = previewUrls.current;
+
+    return () => {
+      currentPreviewUrls.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
+      currentPreviewUrls.clear();
+    };
+  }, []);
+
+  const revokePreviewUrl = (previewUrl?: string) => {
+    if (!previewUrl) return;
+    URL.revokeObjectURL(previewUrl);
+    previewUrls.current.delete(previewUrl);
+  };
+
   const validationReasons = useMemo(() => {
     const reasons: string[] = [];
 
@@ -114,6 +154,10 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
 
     if (images.length > MAX_WORK_IMAGES) {
       reasons.push(`最多上传 ${MAX_WORK_IMAGES} 张作品图片`);
+    }
+
+    if (images.some((image) => image.isUploading || !image.imageUrl)) {
+      reasons.push("图片仍在上传中，请稍候");
     }
 
     if (!form.title.trim()) {
@@ -141,7 +185,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
     }
 
     return reasons;
-  }, [form, images.length]);
+  }, [form, images]);
 
   const canSubmit = validationReasons.length === 0;
 
@@ -149,27 +193,46 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
     if (!files?.length) return;
     setMessage("");
 
-    if (images.length + files.length > MAX_WORK_IMAGES) {
+    const selectedFiles = Array.from(files);
+
+    if (images.length + selectedFiles.length > MAX_WORK_IMAGES) {
       setMessage(`最多上传 ${MAX_WORK_IMAGES} 张作品图片。`);
       return;
     }
 
-    setUploading(true);
-    const uploaded: UploadedWorkImage[] = [];
-
-    for (const file of Array.from(files)) {
+    for (const file of selectedFiles) {
       if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
         setMessage("图片格式仅支持 jpg、jpeg、png、webp。");
-        setUploading(false);
         return;
       }
 
       if (file.size > 10 * 1024 * 1024) {
         setMessage("单张图片最大 10MB。");
-        setUploading(false);
         return;
       }
+    }
 
+    const localImages: PublishWorkImage[] = selectedFiles.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      previewUrls.current.add(previewUrl);
+
+      return {
+        clientId: createClientId(),
+        previewUrl,
+        isUploading: true,
+        imageUrl: "",
+        key: "",
+        filename: file.name,
+        size: file.size,
+        mimeType: file.type
+      };
+    });
+
+    setImages((current) => [...current, ...localImages]);
+    setUploading(true);
+
+    for (const [fileIndex, file] of selectedFiles.entries()) {
+      const localImage = localImages[fileIndex];
       const payload = new FormData();
       payload.append("file", file);
       payload.append("kind", "work");
@@ -182,41 +245,58 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
 
       if (!response.ok) {
         setMessage(data?.message ?? "图片上传失败。");
+        setImages((current) =>
+          current.map((image) => (image.clientId === localImage.clientId ? { ...image, isUploading: false } : image))
+        );
         setUploading(false);
         return;
       }
 
-      const imageUrl = normalizeImageUrl(data?.imageUrl);
+      const imageUrl = normalizeImageUrl(data?.imageUrl ?? data?.url);
 
       if (!imageUrl) {
-        setMessage("图片上传成功，但没有返回可预览的图片地址。");
+        setMessage("图片上传成功，但没有返回可提交的图片地址。");
+        setImages((current) =>
+          current.map((image) => (image.clientId === localImage.clientId ? { ...image, isUploading: false } : image))
+        );
         setUploading(false);
         return;
       }
 
-      uploaded.push({
-        imageUrl,
-        key: String(data?.key ?? ""),
-        filename: String(data?.filename ?? file.name),
-        size: Number(data?.size ?? file.size),
-        mimeType: String(data?.mimeType ?? file.type)
-      });
+      setImages((current) =>
+        current.map((image) =>
+          image.clientId === localImage.clientId
+            ? {
+                ...image,
+                imageUrl,
+                key: String(data?.key ?? ""),
+                filename: String(data?.filename ?? file.name),
+                size: Number(data?.size ?? file.size),
+                mimeType: String(data?.mimeType ?? file.type),
+                isUploading: false
+              }
+            : image
+        )
+      );
     }
 
-    setImages((current) => [...current, ...uploaded]);
     setUploading(false);
   };
 
   const removeImage = async (index: number) => {
     const image = images[index];
+    revokePreviewUrl(image.previewUrl);
     setImages((current) => current.filter((_, itemIndex) => itemIndex !== index));
-    await fetch("/api/upload", {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ key: image.key, imageUrl: image.imageUrl })
-    }).catch(() => undefined);
+
+    if (image.key || image.imageUrl) {
+      await fetch("/api/upload", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ key: image.key, imageUrl: image.imageUrl })
+      }).catch(() => undefined);
+    }
   };
 
   const moveImage = (index: number, direction: -1 | 1) => {
@@ -262,7 +342,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
         styleTags: form.styleTags,
         isAiAssisted: form.isAiAssisted,
         isOriginal: form.isOriginal,
-        images,
+        images: toServerImages(images),
         ...form.opportunities
       })
     });
@@ -285,7 +365,9 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
           <Check size={24} />
         </div>
         <h1 className="mt-6 text-4xl font-semibold text-ink">{initialWork ? "你的作品已重新提交审核。" : "你的作品已提交审核。"}</h1>
-        <p className="mt-4 text-sm leading-6 text-ink/58">作品审核通过后，将进入作品库、挑战页和个人主页。你也可以继续完善合作和孵化需求。</p>
+        <p className="mt-4 text-sm leading-6 text-ink/58">
+          作品审核通过后，将进入作品库、挑战页和个人主页。你也可以继续完善合作和孵化需求。
+        </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/me" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
             查看我的作品
@@ -298,6 +380,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
             <button
               type="button"
               onClick={() => {
+                images.forEach((image) => revokePreviewUrl(image.previewUrl));
                 setImages([]);
                 setForm(initialForm);
                 setCreatedWorkId(null);
@@ -341,21 +424,35 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
                 <h2 className="text-2xl font-semibold text-ink">上传作品图片</h2>
-                <p className="mt-2 text-sm text-ink/55">上传 {MIN_WORK_IMAGES}-{MAX_WORK_IMAGES} 张，支持 jpg、jpeg、png、webp，单张最大 10MB。</p>
+                <p className="mt-2 text-sm text-ink/55">
+                  上传 {MIN_WORK_IMAGES}-{MAX_WORK_IMAGES} 张，支持 jpg、jpeg、png、webp，单张最大 10MB。
+                </p>
               </div>
               <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-white">
                 <ImagePlus size={16} />
                 {uploading ? "上传中..." : "选择图片"}
-                <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={(event) => uploadFiles(event.target.files)} />
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  className="hidden"
+                  onChange={(event) => {
+                    void uploadFiles(event.target.files);
+                    event.target.value = "";
+                  }}
+                />
               </label>
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {images.map((image, index) => (
-                <div key={`${image.imageUrl}-${index}`} className="overflow-hidden rounded-[6px] border border-black/10 bg-paper">
-                  <img src={visualFor(index, image.imageUrl)} alt="" className="aspect-[4/5] w-full object-cover" />
+                <div key={image.clientId ?? `${image.imageUrl}-${index}`} className="overflow-hidden rounded-[6px] border border-black/10 bg-paper">
+                  <img src={image.previewUrl ?? visualFor(index, image.imageUrl)} alt="" className="aspect-[4/5] w-full object-cover" />
                   <div className="flex items-center justify-between gap-2 p-3">
-                    <span className="text-xs font-semibold text-ink/45">#{index + 1}</span>
+                    <span className="text-xs font-semibold text-ink/45">
+                      #{index + 1}
+                      {image.isUploading ? " 上传中" : ""}
+                    </span>
                     <div className="flex gap-2">
                       <button type="button" onClick={() => moveImage(index, -1)} className="rounded-full border border-black/10 px-3 py-1 text-xs font-semibold">
                         上移
@@ -363,7 +460,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
                       <button type="button" onClick={() => moveImage(index, 1)} className="rounded-full border border-black/10 px-3 py-1 text-xs font-semibold">
                         下移
                       </button>
-                      <button type="button" onClick={() => removeImage(index)} className="rounded-full border border-black/10 px-2 py-1 text-xs text-red-600">
+                      <button type="button" onClick={() => void removeImage(index)} className="rounded-full border border-black/10 px-2 py-1 text-xs text-red-600">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -432,7 +529,9 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
         {step === 3 ? (
           <div>
             <h2 className="text-2xl font-semibold text-ink">选择机会</h2>
-            <p className="mt-2 text-sm text-ink/55">这些选择会写入作品状态，帮助后台判断挑战参赛、合作和孵化方向。这里的选项不是必填，不勾选也可以提交审核。</p>
+            <p className="mt-2 text-sm text-ink/55">
+              这些选项会写入作品状态，帮助后台判断挑战参赛、合作和孵化方向。这里的选项不是必填，不勾选也可以提交审核。
+            </p>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               {opportunityOptions.map((option) => (
                 <label key={option.key} className="flex items-center gap-3 rounded-[6px] border border-black/8 bg-paper p-4 text-sm font-semibold">
@@ -491,7 +590,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
               <ArrowRight size={15} />
             </button>
           ) : (
-            <button type="button" disabled={submitting || !canSubmit} onClick={submit} className="inline-flex h-11 items-center rounded-full bg-accent px-6 text-sm font-semibold text-ink disabled:opacity-40">
+            <button type="button" disabled={submitting || !canSubmit} onClick={() => void submit()} className="inline-flex h-11 items-center rounded-full bg-accent px-6 text-sm font-semibold text-ink disabled:opacity-40">
               {submitting ? "提交中..." : "提交审核"}
             </button>
           )}
