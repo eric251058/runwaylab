@@ -2,6 +2,7 @@ import {
   ChallengeStatus,
   IncubationApplicationStatus,
   IncubationStatus,
+  UserRole,
   type Prisma
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -101,13 +102,59 @@ export type RecommendedDesigner = Prisma.DesignerProfileGetPayload<{
   };
 }>;
 
-type WorkSort = "latest" | "popular";
+export type WorkSort = "latest" | "popular";
+export type WorkFilter = "newcomer" | "editor" | "incubatable" | "cooperation" | "ai" | "graduation";
 
-export function getApprovedWorks(options: { take?: number; sort?: WorkSort } = {}) {
-  const { take = 30, sort = "latest" } = options;
+const workFilterWhere: Record<WorkFilter, Prisma.WorkWhereInput> = {
+  newcomer: {
+    user: {
+      role: {
+        in: [UserRole.STUDENT_DESIGNER, UserRole.NEW_DESIGNER]
+      }
+    }
+  },
+  editor: {
+    isEditorPick: true
+  },
+  incubatable: {
+    OR: [
+      { wantsIncubation: true },
+      { incubationStatus: { not: null } },
+      {
+        incubationApplications: {
+          some: {
+            status: {
+              in: [IncubationApplicationStatus.CANDIDATE, IncubationApplicationStatus.REVIEWING]
+            }
+          }
+        }
+      }
+    ]
+  },
+  cooperation: {
+    isOpenCoop: true
+  },
+  ai: {
+    isAiAssisted: true
+  },
+  graduation: {
+    OR: [{ workType: { contains: "毕业" } }, { category: { contains: "毕业" } }, { styleTags: { has: "毕业设计" } }]
+  }
+};
+
+function getApprovedWorksWhere(filter?: WorkFilter): Prisma.WorkWhereInput {
+  return filter
+    ? {
+        AND: [approvedVisibleWorkWhere, workFilterWhere[filter]]
+      }
+    : approvedVisibleWorkWhere;
+}
+
+export function getApprovedWorks(options: { take?: number; sort?: WorkSort; filter?: WorkFilter } = {}) {
+  const { take = 30, sort = "latest", filter } = options;
 
   return prisma.work.findMany({
-    where: approvedVisibleWorkWhere,
+    where: getApprovedWorksWhere(filter),
     include: workCardInclude,
     orderBy:
       sort === "popular"

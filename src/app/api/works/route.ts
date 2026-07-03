@@ -99,5 +99,19 @@ export async function POST(request: Request) {
     return created;
   });
 
-  return NextResponse.json({ work }, { status: 201 });
+  return NextResponse.json(
+    {
+      work: {
+        ...work,
+        images: work.images.map((image) => ({
+          ...image,
+          imageUrl: image.imageUrl,
+          url: image.imageUrl,
+          src: image.imageUrl,
+          sortOrder: image.sortOrder
+        }))
+      }
+    },
+    { status: 201 }
+  );
 }

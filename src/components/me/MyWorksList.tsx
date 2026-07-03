@@ -16,7 +16,7 @@ export type MyWorkItem = {
   wantsFabric: boolean;
   wantsSample: boolean;
   wantsIncubation: boolean;
-  images: Array<{ imageUrl: string }>;
+  images: Array<{ imageUrl?: string | null; url?: string | null; src?: string | null; sortOrder?: number | null }>;
   challengeEntries: Array<{ id: string }>;
 };
 
@@ -52,7 +52,7 @@ export function MyWorksList({ works }: MyWorksListProps) {
     <div className="grid gap-4">
       {works.map((work, index) => (
         <article key={work.id} className="grid gap-4 rounded-[6px] bg-white p-4 shadow-[0_18px_50px_rgba(16,16,16,0.08)] md:grid-cols-[140px_1fr_auto] md:items-center">
-          <img src={visualFor(index, work.images[0]?.imageUrl)} alt={work.title} className="aspect-[4/3] w-full rounded-[4px] object-cover md:aspect-square" />
+          <img src={visualFor(index, work.images[0])} alt={work.title} className="aspect-[4/3] w-full rounded-[4px] object-cover md:aspect-square" />
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${reviewStatusClass(work.reviewStatus)}`}>{reviewStatusLabel(work.reviewStatus)}</span>

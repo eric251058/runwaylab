@@ -82,7 +82,18 @@ export async function PATCH(request: Request, context: WorkRouteContext) {
     });
   });
 
-  return NextResponse.json({ work: updated });
+  return NextResponse.json({
+    work: {
+      ...updated,
+      images: updated.images.map((image) => ({
+        ...image,
+        imageUrl: image.imageUrl,
+        url: image.imageUrl,
+        src: image.imageUrl,
+        sortOrder: image.sortOrder
+      }))
+    }
+  });
 }
 
 export async function DELETE(_request: Request, context: WorkRouteContext) {

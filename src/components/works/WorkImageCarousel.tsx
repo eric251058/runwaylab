@@ -2,12 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { visualFor } from "@/components/works/work-visuals";
+import { getWorkImageUrl, visualFor } from "@/components/works/work-visuals";
 
 type WorkImageCarouselProps = {
   images: Array<{
     id?: string;
-    imageUrl: string;
+    imageUrl?: string | null;
+    url?: string | null;
+    src?: string | null;
+    sortOrder?: number | null;
   }>;
   title: string;
 };
@@ -17,8 +20,8 @@ export function WorkImageCarousel({ images, title }: WorkImageCarouselProps) {
     () =>
       images.length
         ? images.map((image, index) => ({
-            id: image.id ?? `${image.imageUrl}-${index}`,
-            src: visualFor(index, image.imageUrl)
+            id: image.id ?? `${getWorkImageUrl(image)}-${index}`,
+            src: visualFor(index, image)
           }))
         : [{ id: "fallback", src: visualFor(0) }],
     [images]

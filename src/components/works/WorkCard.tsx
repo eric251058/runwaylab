@@ -12,7 +12,7 @@ type WorkCardProps = {
 
 export function WorkCard({ work, index = 0, compact = false }: WorkCardProps) {
   const profile = work.user.designerProfile;
-  const imageUrl = visualFor(index, work.images[0]?.imageUrl);
+  const imageUrl = visualFor(index, work.images[0]);
   const badges = getWorkBadges(work);
   const location = [profile?.school, profile?.city].filter(Boolean).join(" / ") || "新锐设计师";
 

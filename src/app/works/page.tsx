@@ -1,22 +1,52 @@
 import Link from "next/link";
 import { DataUnavailable } from "@/components/layout/DataUnavailable";
 import { WorkMasonry } from "@/components/works/WorkMasonry";
-import { getApprovedWorks } from "@/lib/works/queries";
+import { getApprovedWorks, type WorkFilter, type WorkSort } from "@/lib/works/queries";
 
 export const dynamic = "force-dynamic";
 
-const filters = ["最新", "热门", "新人", "编辑推荐", "可孵化", "开放合作", "AI 辅助", "毕业设计"];
+const filterControls: Array<
+  | {
+      label: string;
+      href: string;
+      sort: WorkSort;
+      filter?: never;
+    }
+  | {
+      label: string;
+      href: string;
+      filter: WorkFilter;
+      sort?: never;
+    }
+> = [
+  { label: "最新", href: "/works?sort=latest", sort: "latest" },
+  { label: "热门", href: "/works?sort=popular", sort: "popular" },
+  { label: "新人", href: "/works?filter=newcomer", filter: "newcomer" },
+  { label: "编辑推荐", href: "/works?filter=editor", filter: "editor" },
+  { label: "可孵化", href: "/works?filter=incubatable", filter: "incubatable" },
+  { label: "开放合作", href: "/works?filter=cooperation", filter: "cooperation" },
+  { label: "AI 辅助", href: "/works?filter=ai", filter: "ai" },
+  { label: "毕业设计", href: "/works?filter=graduation", filter: "graduation" }
+];
+
+const filterValues = new Set<WorkFilter>(["newcomer", "editor", "incubatable", "cooperation", "ai", "graduation"]);
 
 type WorksPageProps = {
   searchParams?: Promise<{
     sort?: string;
+    filter?: string;
   }>;
 };
 
+function getFilter(value?: string): WorkFilter | undefined {
+  return value && filterValues.has(value as WorkFilter) ? (value as WorkFilter) : undefined;
+}
+
 export default async function WorksPage({ searchParams }: WorksPageProps) {
   const params = await searchParams;
-  const sort = params?.sort === "popular" ? "popular" : "latest";
-  const works = await getApprovedWorks({ take: 36, sort }).catch((error) => {
+  const sort: WorkSort = params?.sort === "popular" ? "popular" : "latest";
+  const filter = getFilter(params?.filter);
+  const works = await getApprovedWorks({ take: 36, sort, filter }).catch((error) => {
     console.error("Failed to load works", error);
     return null;
   });
@@ -37,10 +67,10 @@ export default async function WorksPage({ searchParams }: WorksPageProps) {
             </p>
           </div>
           <div className="flex rounded-full border border-black/10 bg-white/70 p-1 text-sm font-semibold">
-            <Link href="/works" className={`rounded-full px-4 py-2 ${sort === "latest" ? "bg-ink text-white" : "text-ink/55"}`}>
+            <Link href="/works?sort=latest" className={`rounded-full px-4 py-2 ${!filter && sort === "latest" ? "bg-ink text-white" : "text-ink/55"}`}>
               最新
             </Link>
-            <Link href="/works?sort=popular" className={`rounded-full px-4 py-2 ${sort === "popular" ? "bg-ink text-white" : "text-ink/55"}`}>
+            <Link href="/works?sort=popular" className={`rounded-full px-4 py-2 ${!filter && sort === "popular" ? "bg-ink text-white" : "text-ink/55"}`}>
               热门
             </Link>
           </div>
@@ -48,21 +78,34 @@ export default async function WorksPage({ searchParams }: WorksPageProps) {
       </header>
 
       <div className="mb-7 flex gap-2 overflow-x-auto pb-2">
-        {filters.map((filter, index) => (
-          <span
-            key={filter}
-            className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ${
-              (sort === "latest" && index === 0) || (sort === "popular" && index === 1)
-                ? "border-ink bg-ink text-white"
-                : "border-black/10 bg-white/70 text-ink/58"
-            }`}
-          >
-            {filter}
-          </span>
-        ))}
+        {filterControls.map((control) => {
+          const active = control.filter ? filter === control.filter : !filter && sort === control.sort;
+
+          return (
+            <Link
+              key={control.label}
+              href={control.href}
+              className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                active ? "border-ink bg-ink text-white" : "border-black/10 bg-white/70 text-ink/58 hover:border-ink/40 hover:text-ink"
+              }`}
+            >
+              {control.label}
+            </Link>
+          );
+        })}
       </div>
 
-      <WorkMasonry works={works} />
+      {works.length ? (
+        <WorkMasonry works={works} />
+      ) : (
+        <div className="rounded-[6px] border border-dashed border-black/15 bg-white px-6 py-16 text-center">
+          <p className="text-base font-semibold text-ink">这个筛选下暂时没有作品</p>
+          <p className="mt-2 text-sm text-ink/50">可以切换到最新或热门继续浏览。</p>
+          <Link href="/works?sort=latest" className="mt-5 inline-flex h-10 items-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
+            查看最新作品
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

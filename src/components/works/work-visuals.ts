@@ -7,8 +7,26 @@ const fallbackImages = [
   "https://images.unsplash.com/photo-1516762689617-e1cffcef479d?auto=format&fit=crop&w=900&q=80"
 ];
 
-export function visualFor(index: number, preferredUrl?: string | null) {
-  const normalizedUrl = normalizeImageUrl(preferredUrl);
+export type WorkImageLike = {
+  imageUrl?: string | null;
+  url?: string | null;
+  src?: string | null;
+};
+
+export function getWorkImageUrl(input?: string | WorkImageLike | null): string {
+  if (!input) {
+    return "";
+  }
+
+  if (typeof input === "string") {
+    return input;
+  }
+
+  return input.imageUrl ?? input.url ?? input.src ?? "";
+}
+
+export function visualFor(index: number, preferredUrl?: string | WorkImageLike | null) {
+  const normalizedUrl = normalizeImageUrl(getWorkImageUrl(preferredUrl));
 
   if (normalizedUrl && !normalizedUrl.startsWith("/uploads/seed/")) {
     return normalizedUrl;

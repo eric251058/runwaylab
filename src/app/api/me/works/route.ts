@@ -31,5 +31,16 @@ export async function GET() {
     }
   });
 
-  return NextResponse.json({ works });
+  return NextResponse.json({
+    works: works.map((work) => ({
+      ...work,
+      images: work.images.map((image) => ({
+        ...image,
+        imageUrl: image.imageUrl,
+        url: image.imageUrl,
+        src: image.imageUrl,
+        sortOrder: image.sortOrder
+      }))
+    }))
+  });
 }
