@@ -194,10 +194,10 @@ export default async function MePage() {
   }));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12">
-      <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div className="mx-auto max-w-6xl px-3 py-5 md:px-8 md:py-12">
+      <header className="mb-5 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">My RunwayLab</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink/40 md:text-xs">My RunwayLab</p>
           <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">我的页面</h1>
           <p className="mt-4 text-sm text-ink/58">查看我的作品、收藏、需求申请和孵化进度。</p>
         </div>
@@ -206,7 +206,7 @@ export default async function MePage() {
         </Link>
       </header>
 
-      <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
+      <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-2 md:mx-0 md:mb-6 md:px-0">
         {["我的作品", "我的参赛", "我的收藏", "面料需求", "打样需求", "孵化申请"].map((item, index) => (
           <span key={item} className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold ${index === 0 ? "bg-ink text-white" : "bg-white text-ink/45"}`}>
             {item}

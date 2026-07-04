@@ -56,17 +56,17 @@ export default async function WorksPage({ searchParams }: WorksPageProps) {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
-      <header className="mb-8 md:mb-12">
+    <div className="mx-auto max-w-7xl px-3 py-5 md:px-8 md:py-12">
+      <header className="mb-5 md:mb-12">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">Gallery</p>
-        <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div className="mt-2 flex flex-col gap-4 md:mt-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-4xl font-semibold leading-tight text-ink md:text-6xl">线上作品展</h1>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58 md:text-base">
               从课堂作业、毕业设计到独立系列，发现正在被看见的新锐服装设计作品。
             </p>
           </div>
-          <div className="flex rounded-full border border-black/10 bg-white/70 p-1 text-sm font-semibold">
+          <div className="flex w-fit rounded-full border border-black/10 bg-white/70 p-1 text-sm font-semibold">
             <Link href="/works?sort=latest" className={`rounded-full px-4 py-2 ${!filter && sort === "latest" ? "bg-ink text-white" : "text-ink/55"}`}>
               最新
             </Link>
@@ -77,7 +77,7 @@ export default async function WorksPage({ searchParams }: WorksPageProps) {
         </div>
       </header>
 
-      <div className="mb-7 flex gap-2 overflow-x-auto pb-2">
+      <div className="sticky top-0 z-20 -mx-3 mb-4 flex gap-2 overflow-x-auto bg-paper/95 px-3 py-2 backdrop-blur md:static md:mx-0 md:mb-7 md:bg-transparent md:px-0 md:pb-2">
         {filterControls.map((control) => {
           const active = control.filter ? filter === control.filter : !filter && sort === control.sort;
 
@@ -98,7 +98,7 @@ export default async function WorksPage({ searchParams }: WorksPageProps) {
       {works.length ? (
         <WorkMasonry works={works} />
       ) : (
-        <div className="rounded-[6px] border border-dashed border-black/15 bg-white px-6 py-16 text-center">
+        <div className="rounded-[6px] border border-dashed border-black/15 bg-white px-6 py-12 text-center md:py-16">
           <p className="text-base font-semibold text-ink">这个筛选下暂时没有作品</p>
           <p className="mt-2 text-sm text-ink/50">可以切换到最新或热门继续浏览。</p>
           <Link href="/works?sort=latest" className="mt-5 inline-flex h-10 items-center rounded-full bg-ink px-5 text-sm font-semibold text-white">

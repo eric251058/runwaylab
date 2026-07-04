@@ -99,30 +99,30 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
     : [null, null, null];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10">
-      <Link href="/works" className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-ink/55 hover:text-ink">
+    <div className="mx-auto max-w-7xl px-4 py-4 md:px-8 md:py-10">
+      <Link href="/works" className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-ink/55 hover:text-ink md:mb-5">
         <ArrowLeft size={16} />
         返回作品库
       </Link>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
+      <div className="grid gap-5 md:gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
         <WorkImageCarousel images={work.images} title={work.title} />
 
-        <section className="space-y-6">
+        <section className="space-y-4 md:space-y-6">
           <div>
-            <div className="mb-4 flex flex-wrap gap-2">
+            <div className="mb-3 flex flex-wrap gap-2 md:mb-4">
               {badges.map((badge) => (
                 <WorkStatusBadge key={badge.label} kind={badge.kind}>
                   {badge.label}
                 </WorkStatusBadge>
               ))}
             </div>
-            <h1 className="text-4xl font-semibold leading-tight text-ink md:text-5xl">{work.title}</h1>
-            <p className="mt-4 text-base leading-7 text-ink/62">{work.description}</p>
+            <h1 className="text-3xl font-semibold leading-tight text-ink md:text-5xl">{work.title}</h1>
+            <p className="mt-3 text-sm leading-6 text-ink/62 md:mt-4 md:text-base md:leading-7">{work.description}</p>
           </div>
 
-          <Link href={`/designers/${work.user.id}`} className="flex items-center gap-4 rounded-[6px] bg-white p-4 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
-            <div className="flex size-14 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white">{initials(work.user.nickname)}</div>
+          <Link href={`/designers/${work.user.id}`} className="flex items-center gap-3 rounded-[6px] bg-white p-3 shadow-[0_12px_34px_rgba(16,16,16,0.08)] md:gap-4 md:p-4 md:shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
+            <div className="flex size-12 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white md:size-14">{initials(work.user.nickname)}</div>
             <div className="min-w-0">
               <p className="font-semibold text-ink">{work.user.nickname}</p>
               <p className="mt-1 truncate text-sm text-ink/50">
@@ -152,7 +152,7 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
             }))}
           />
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3">
             {field("品类", work.category)}
             {field("作品类型", work.workType)}
             {field("AI 辅助", work.isAiAssisted)}

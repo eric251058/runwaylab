@@ -190,13 +190,13 @@ export function WorkInteractionBar({
   };
 
   return (
-    <aside className="space-y-4 rounded-[6px] bg-white p-4 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
-      <div className="grid grid-cols-5 gap-2">
+    <aside className="space-y-3 rounded-[6px] bg-white p-3 shadow-[0_12px_34px_rgba(16,16,16,0.08)] md:space-y-4 md:p-4 md:shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         <button
           type="button"
           disabled={busy === "like"}
           onClick={toggleLike}
-          className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-[5px] border text-xs font-medium transition disabled:opacity-50 ${
+          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-[5px] border text-xs font-medium transition disabled:opacity-50 md:min-h-16 ${
             liked ? "border-red-200 bg-red-50 text-red-700" : "border-black/8 bg-paper/60 text-ink hover:border-ink/30 hover:bg-white"
           }`}
         >
@@ -209,7 +209,7 @@ export function WorkInteractionBar({
           type="button"
           disabled={busy === "favorite"}
           onClick={toggleFavorite}
-          className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-[5px] border text-xs font-medium transition disabled:opacity-50 ${
+          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-[5px] border text-xs font-medium transition disabled:opacity-50 md:min-h-16 ${
             favorited ? "border-amber-200 bg-amber-50 text-amber-800" : "border-black/8 bg-paper/60 text-ink hover:border-ink/30 hover:bg-white"
           }`}
         >
@@ -220,7 +220,7 @@ export function WorkInteractionBar({
 
         <a
           href="#comments"
-          className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-[5px] border border-black/8 bg-paper/60 text-xs font-medium text-ink transition hover:border-ink/30 hover:bg-white"
+          className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-[5px] border border-black/8 bg-paper/60 text-xs font-medium text-ink transition hover:border-ink/30 hover:bg-white md:min-h-16"
         >
           <MessageCircle size={17} />
           <span>评论</span>
@@ -233,7 +233,7 @@ export function WorkInteractionBar({
             navigator.clipboard?.writeText(window.location.href).catch(() => undefined);
             setMessage("作品链接已复制。");
           }}
-          className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-[5px] border border-black/8 bg-paper/60 text-xs font-medium text-ink transition hover:border-ink/30 hover:bg-white"
+          className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-[5px] border border-black/8 bg-paper/60 text-xs font-medium text-ink transition hover:border-ink/30 hover:bg-white md:min-h-16"
         >
           <Share2 size={17} />
           <span>分享</span>
@@ -244,7 +244,7 @@ export function WorkInteractionBar({
           type="button"
           disabled={busy === "incubation" || incubationRecommended}
           onClick={recommendIncubation}
-          className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-[5px] border text-xs font-medium transition disabled:opacity-75 ${
+          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-[5px] border text-xs font-medium transition disabled:opacity-75 md:min-h-16 ${
             incubationRecommended ? "border-lime-200 bg-lime-50 text-lime-800" : "border-black/8 bg-paper/60 text-ink hover:border-ink/30 hover:bg-white"
           }`}
         >
@@ -276,7 +276,7 @@ export function WorkInteractionBar({
       </div>
 
       {cooperationOpen ? (
-        <div className="rounded-[6px] border border-black/8 bg-paper p-4">
+        <div className="rounded-[6px] border border-black/8 bg-paper p-3 md:p-4">
           <h3 className="text-sm font-semibold text-ink">提交合作意向</h3>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             <label className="block">
@@ -333,12 +333,12 @@ export function WorkInteractionBar({
 
       <section id="comments" className="rounded-[6px] border border-black/8 bg-paper p-4">
         <h2 className="text-base font-semibold text-ink">评论</h2>
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <input
             value={commentContent}
             onChange={(event) => setCommentContent(event.target.value)}
             placeholder={isLoggedIn ? "写下你对这件作品的看法" : "登录后可以评论"}
-            className="min-w-0 flex-1 rounded-full border border-black/10 bg-white px-4 text-sm outline-none focus:border-ink"
+            className="min-h-10 min-w-0 flex-1 rounded-full border border-black/10 bg-white px-4 text-sm outline-none focus:border-ink"
           />
           <button
             type="button"

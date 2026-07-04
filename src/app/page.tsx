@@ -204,24 +204,24 @@ function HeroWorkStack({ works, challengeId }: { works: WorkCardData[]; challeng
   const [main, second, third] = works.length ? works : Array.from({ length: 3 }, (_, index) => makeFallbackWork(index));
 
   return (
-    <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr] md:min-h-[430px]">
+    <div className="grid gap-2 sm:grid-cols-[1.2fr_0.8fr] md:min-h-[430px] md:gap-3">
       <Link href={`/works/${main.id}`} className="group relative overflow-hidden rounded-[6px] bg-zinc-200 shadow-[0_24px_80px_rgba(16,16,16,0.16)]">
-        <img src={visualFor(0, main.images[0]?.imageUrl)} alt={main.title} className="h-full min-h-[360px] w-full object-cover transition duration-500 group-hover:scale-105" />
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 to-transparent p-5 text-white">
-          <div className="mb-3 flex flex-wrap gap-2">
+        <img src={visualFor(0, main.images[0]?.imageUrl)} alt={main.title} className="h-full min-h-[260px] w-full object-cover transition duration-500 group-hover:scale-105 md:min-h-[360px]" />
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 to-transparent p-4 text-white md:p-5">
+          <div className="mb-2 flex flex-wrap gap-2 md:mb-3">
             {main.isEditorPick ? <WorkStatusBadge kind="editorPick">编辑推荐</WorkStatusBadge> : null}
             {main.challengeEntries.length ? <WorkStatusBadge kind="challenge">参赛中</WorkStatusBadge> : null}
           </div>
-          <h3 className="text-xl font-semibold">{main.title}</h3>
+          <h3 className="line-clamp-2 text-lg font-semibold md:text-xl">{main.title}</h3>
           <p className="mt-2 text-sm text-white/70">{main.user.nickname} / {main.user.designerProfile?.school ?? main.user.designerProfile?.city ?? "新锐设计师"}</p>
         </div>
       </Link>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-1">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-1 md:gap-3">
         {[second, third].map((work, index) => (
           <Link key={work.id} href={`/works/${work.id}`} className="group relative overflow-hidden rounded-[6px] bg-zinc-200 shadow-[0_16px_50px_rgba(16,16,16,0.12)]">
             <img src={visualFor(index + 2, work.images[0]?.imageUrl)} alt={work.title} className="aspect-[4/5] h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 text-white">
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-white md:p-3">
               <p className="line-clamp-1 text-sm font-semibold">{work.title}</p>
               <p className="mt-1 text-xs text-white/65">{work.incubationRecommendCount} 人推荐孵化</p>
             </div>
@@ -264,8 +264,8 @@ export default async function HomePage() {
   const challengeHref = data.activeChallenge ? `/challenges/${data.activeChallenge.id}` : "/works";
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-4 md:px-8 md:py-7">
-      <nav className="mb-4 flex items-center justify-end">
+    <div className="mx-auto max-w-7xl px-3 py-3 md:px-8 md:py-7">
+      <nav className="mb-2 flex items-center justify-end md:mb-4">
         <Link
           href={currentUser ? "/me" : "/login?next=/me"}
           className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 bg-white/85 px-4 text-sm font-semibold text-ink shadow-[0_10px_30px_rgba(16,16,16,0.08)] transition hover:-translate-y-0.5 hover:bg-white"
@@ -273,24 +273,27 @@ export default async function HomePage() {
           {currentUser ? "我的" : "登录/注册"}
         </Link>
       </nav>
-      <header className="grid items-center gap-6 pb-6 md:grid-cols-[0.9fr_1.1fr] md:gap-9">
+      <header className="grid items-center gap-4 pb-5 md:grid-cols-[0.9fr_1.1fr] md:gap-9 md:pb-6">
         <div className="max-w-2xl">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-ink/45">RUNWAYLAB V1.0</p>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink/45 md:mb-3 md:text-xs">RUNWAYLAB V1.0</p>
           <h1 className="text-4xl font-semibold leading-[1.02] text-ink md:text-6xl">让你的服装设计作品，从作业变成机会。</h1>
-          <p className="mt-5 max-w-xl text-base leading-7 text-ink/62">
+          <p className="mt-3 line-clamp-2 max-w-xl text-sm leading-6 text-ink/62 md:mt-5 md:text-base md:leading-7">
             上传作品，参加新人设计挑战，获得曝光、排名、面料匹配和打样孵化机会。
           </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <Link href="/publish" className="inline-flex h-12 items-center justify-center rounded-full bg-ink px-6 text-sm font-semibold text-white shadow-[0_14px_36px_rgba(16,16,16,0.18)]">
+          <div className="mt-5 grid grid-cols-3 gap-2 md:mt-7 md:flex md:flex-wrap md:gap-3">
+            <Link href="/works" className="inline-flex h-11 items-center justify-center rounded-full border border-black/15 bg-white px-3 text-xs font-semibold text-ink md:h-12 md:px-6 md:text-sm">
+              看作品
+            </Link>
+            <Link href="/publish" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-3 text-xs font-semibold text-white shadow-[0_14px_36px_rgba(16,16,16,0.18)] md:h-12 md:px-6 md:text-sm">
               立即投稿
             </Link>
-            <Link href={challengeHref} className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-6 text-sm font-semibold text-ink">
+            <Link href={challengeHref} className="inline-flex h-11 items-center justify-center gap-1 rounded-full bg-accent px-3 text-xs font-semibold text-ink md:h-12 md:gap-2 md:px-6 md:text-sm">
               查看参赛作品
               <ArrowRight size={16} />
             </Link>
           </div>
 
-          <div className="mt-7 grid grid-cols-3 gap-2 text-xs text-ink/55">
+          <div className="mt-4 grid grid-cols-3 gap-2 text-[11px] text-ink/55 md:mt-7 md:text-xs">
             <div className="rounded-[6px] bg-white/80 p-3">
               <p className="text-lg font-semibold text-ink">{data.challengeEntryCount}</p>
               <p className="mt-1">参赛作品</p>
@@ -309,12 +312,12 @@ export default async function HomePage() {
         <HeroWorkStack works={data.featuredWorks.slice(0, 3)} challengeId={data.activeChallenge?.id} />
       </header>
 
-      <div className="space-y-11 md:space-y-16">
+      <div className="space-y-8 md:space-y-16">
         <ChallengeHero challenge={data.activeChallenge} entryCount={data.challengeEntryCount} />
 
         <section>
           <SectionTitle eyebrow="Featured Today" title="今日精选作品" href="/works" />
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-5 lg:grid-cols-3">
             {data.featuredWorks.slice(0, 6).map((work, index) => (
               <WorkCard key={work.id} work={work} index={index} compact />
             ))}

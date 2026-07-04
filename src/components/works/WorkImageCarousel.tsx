@@ -34,8 +34,8 @@ export function WorkImageCarousel({ images, title }: WorkImageCarouselProps) {
   };
 
   return (
-    <section className="space-y-3">
-      <div className="relative overflow-hidden rounded-[6px] bg-zinc-200">
+    <section className="-mx-4 space-y-3 md:mx-0">
+      <div className="relative overflow-hidden bg-zinc-200 md:rounded-[6px]">
         <img src={active.src} alt={title} className="aspect-[4/5] w-full object-cover md:aspect-[16/11]" />
         {slides.length > 1 ? (
           <>
@@ -43,7 +43,7 @@ export function WorkImageCarousel({ images, title }: WorkImageCarouselProps) {
               type="button"
               aria-label="上一张"
               onClick={() => go(-1)}
-              className="absolute left-3 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-ink shadow-lg backdrop-blur"
+              className="absolute left-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-ink shadow-lg backdrop-blur md:size-10"
             >
               <ChevronLeft size={18} />
             </button>
@@ -51,7 +51,7 @@ export function WorkImageCarousel({ images, title }: WorkImageCarouselProps) {
               type="button"
               aria-label="下一张"
               onClick={() => go(1)}
-              className="absolute right-3 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-ink shadow-lg backdrop-blur"
+              className="absolute right-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-ink shadow-lg backdrop-blur md:size-10"
             >
               <ChevronRight size={18} />
             </button>
@@ -60,13 +60,13 @@ export function WorkImageCarousel({ images, title }: WorkImageCarouselProps) {
       </div>
 
       {slides.length > 1 ? (
-        <div className="grid grid-cols-5 gap-2">
+        <div className="flex gap-2 overflow-x-auto px-4 pb-1 md:grid md:grid-cols-5 md:px-0">
           {slides.slice(0, 5).map((slide, index) => (
             <button
               key={slide.id}
               type="button"
               onClick={() => setActiveIndex(index)}
-              className={`overflow-hidden rounded-[4px] border ${activeIndex === index ? "border-ink" : "border-transparent"}`}
+              className={`w-16 shrink-0 overflow-hidden rounded-[4px] border md:w-auto ${activeIndex === index ? "border-ink" : "border-transparent"}`}
               aria-label={`查看第 ${index + 1} 张作品图`}
             >
               <img src={slide.src} alt="" className="aspect-square w-full object-cover" />

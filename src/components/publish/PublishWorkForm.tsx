@@ -360,7 +360,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
 
   if (step === 4) {
     return (
-      <div className="mx-auto flex min-h-[75dvh] max-w-3xl flex-col justify-center px-4 py-12 text-center">
+      <div className="mx-auto flex min-h-[68dvh] max-w-3xl flex-col justify-center px-4 py-8 text-center md:min-h-[75dvh] md:py-12">
         <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-accent text-ink">
           <Check size={24} />
         </div>
@@ -401,24 +401,24 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12">
-      <header className="mb-8">
+    <div className="mx-auto max-w-6xl px-3 py-5 pb-28 md:px-8 md:py-12">
+      <header className="mb-5 md:mb-8">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">Publish</p>
         <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">{initialWork ? "编辑作品" : "发布作品"}</h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">
+        <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4 md:line-clamp-none">
           不需要是完整成衣。草图、效果图、AI辅助设计、毕业作品和面料实验都可以发布。
         </p>
       </header>
 
-      <div className="mb-6 grid grid-cols-4 gap-2">
+      <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 md:mx-0 md:mb-6 md:grid md:grid-cols-4 md:px-0">
         {["上传图片", "基础信息", "选择机会", "提交审核"].map((label, index) => (
-          <div key={label} className={`rounded-[6px] px-3 py-2 text-xs font-semibold ${step === index + 1 ? "bg-ink text-white" : "bg-white text-ink/45"}`}>
+          <div key={label} className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold md:rounded-[6px] ${step === index + 1 ? "bg-ink text-white" : "bg-white text-ink/45"}`}>
             {index + 1}. {label}
           </div>
         ))}
       </div>
 
-      <section className="rounded-[6px] bg-white p-5 shadow-[0_18px_60px_rgba(16,16,16,0.08)] md:p-7">
+      <section className="rounded-[6px] bg-white p-4 shadow-[0_18px_60px_rgba(16,16,16,0.08)] md:p-7">
         {step === 1 ? (
           <div>
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -444,16 +444,16 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
               </label>
             </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-2 md:mt-6 md:gap-4 lg:grid-cols-3">
               {images.map((image, index) => (
                 <div key={image.clientId ?? `${image.imageUrl}-${index}`} className="overflow-hidden rounded-[6px] border border-black/10 bg-paper">
-                  <img src={image.previewUrl ?? visualFor(index, image.imageUrl)} alt="" className="aspect-[4/5] w-full object-cover" />
-                  <div className="flex items-center justify-between gap-2 p-3">
+                  <img src={image.previewUrl ?? visualFor(index, image.imageUrl)} alt="" className="aspect-square w-full object-cover md:aspect-[4/5]" />
+                  <div className="flex flex-col gap-2 p-2 md:flex-row md:items-center md:justify-between md:p-3">
                     <span className="text-xs font-semibold text-ink/45">
                       #{index + 1}
                       {image.isUploading ? " 上传中" : ""}
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 md:gap-2">
                       <button type="button" onClick={() => moveImage(index, -1)} className="rounded-full border border-black/10 px-3 py-1 text-xs font-semibold">
                         上移
                       </button>
@@ -568,7 +568,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
 
         {message ? <p className="mt-5 rounded-[6px] bg-red-50 px-4 py-3 text-sm text-red-700">{message}</p> : null}
 
-        <div className="mt-7 flex flex-wrap justify-between gap-3 border-t border-black/8 pt-5">
+        <div className="sticky bottom-20 z-30 -mx-4 mt-6 flex justify-between gap-3 border-t border-black/8 bg-white/95 px-4 py-3 shadow-[0_-12px_36px_rgba(16,16,16,0.08)] backdrop-blur md:static md:mx-0 md:mt-7 md:flex-wrap md:bg-transparent md:px-0 md:pt-5 md:shadow-none">
           <button type="button" disabled={step === 1} onClick={() => setStep((current) => Math.max(1, current - 1))} className="inline-flex h-11 items-center gap-2 rounded-full border border-black/15 bg-white px-5 text-sm font-semibold disabled:opacity-30">
             <ArrowLeft size={15} />
             上一步
