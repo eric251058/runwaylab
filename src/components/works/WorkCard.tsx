@@ -21,11 +21,11 @@ export function WorkCard({ work, index = 0, compact = false }: WorkCardProps) {
       href={`/works/${work.id}`}
       className="group mb-2 block break-inside-avoid overflow-hidden rounded-[6px] bg-white shadow-[0_10px_30px_rgba(16,16,16,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(16,16,16,0.14)] md:mb-5 md:shadow-[0_18px_50px_rgba(16,16,16,0.08)]"
     >
-      <div className="relative overflow-hidden bg-zinc-200">
+      <div className={compact ? "relative aspect-[4/5] overflow-hidden bg-zinc-200" : "relative aspect-[3/4] overflow-hidden bg-zinc-200 md:aspect-[4/5]"}>
         <img
           src={imageUrl}
           alt={work.title}
-          className={compact ? "aspect-[4/5] w-full object-cover transition duration-500 group-hover:scale-105" : "aspect-[4/5] w-full object-cover transition duration-500 group-hover:scale-105 md:aspect-[3/4]"}
+          className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-105"
         />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 md:p-3">
           <div className="flex flex-wrap gap-1.5">

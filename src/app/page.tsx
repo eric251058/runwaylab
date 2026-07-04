@@ -205,8 +205,8 @@ function HeroWorkStack({ works, challengeId }: { works: WorkCardData[]; challeng
 
   return (
     <div className="grid gap-2 sm:grid-cols-[1.2fr_0.8fr] md:min-h-[430px] md:gap-3">
-      <Link href={`/works/${main.id}`} className="group relative overflow-hidden rounded-[6px] bg-zinc-200 shadow-[0_24px_80px_rgba(16,16,16,0.16)]">
-        <img src={visualFor(0, main.images[0]?.imageUrl)} alt={main.title} className="h-full min-h-[260px] w-full object-cover transition duration-500 group-hover:scale-105 md:min-h-[360px]" />
+      <Link href={`/works/${main.id}`} className="group relative aspect-[4/5] overflow-hidden rounded-[6px] bg-zinc-200 shadow-[0_24px_80px_rgba(16,16,16,0.16)] md:aspect-[4/3]">
+        <img src={visualFor(0, main.images[0]?.imageUrl)} alt={main.title} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-105" />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 to-transparent p-4 text-white md:p-5">
           <div className="mb-2 flex flex-wrap gap-2 md:mb-3">
             {main.isEditorPick ? <WorkStatusBadge kind="editorPick">编辑推荐</WorkStatusBadge> : null}
@@ -219,8 +219,8 @@ function HeroWorkStack({ works, challengeId }: { works: WorkCardData[]; challeng
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-1 md:gap-3">
         {[second, third].map((work, index) => (
-          <Link key={work.id} href={`/works/${work.id}`} className="group relative overflow-hidden rounded-[6px] bg-zinc-200 shadow-[0_16px_50px_rgba(16,16,16,0.12)]">
-            <img src={visualFor(index + 2, work.images[0]?.imageUrl)} alt={work.title} className="aspect-[4/5] h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+          <Link key={work.id} href={`/works/${work.id}`} className="group relative aspect-[4/5] overflow-hidden rounded-[6px] bg-zinc-200 shadow-[0_16px_50px_rgba(16,16,16,0.12)]">
+            <img src={visualFor(index + 2, work.images[0]?.imageUrl)} alt={work.title} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-105" />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-white md:p-3">
               <p className="line-clamp-1 text-sm font-semibold">{work.title}</p>
               <p className="mt-1 text-xs text-white/65">{work.incubationRecommendCount} 人推荐孵化</p>
@@ -243,7 +243,9 @@ function IncubationCandidateStrip({ works }: { works: WorkCardData[] }) {
         const project = work.incubationProjects[0];
         return (
           <Link key={work.id} href={`/works/${work.id}`} className="overflow-hidden rounded-[6px] bg-white shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
-            <img src={visualFor(index + 4, work.images[0]?.imageUrl)} alt={work.title} className="aspect-[4/5] w-full object-cover" />
+            <div className="aspect-[4/5] overflow-hidden">
+              <img src={visualFor(index + 4, work.images[0]?.imageUrl)} alt={work.title} className="h-full w-full object-cover object-center" />
+            </div>
             <div className="space-y-2 p-4">
               <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-ink">{work.title}</h3>
               <div className="flex items-center justify-between text-xs font-semibold text-ink/48">

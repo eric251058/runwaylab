@@ -52,7 +52,9 @@ export function MyWorksList({ works }: MyWorksListProps) {
     <div className="grid gap-3 md:gap-4">
       {works.map((work, index) => (
         <article key={work.id} className="grid grid-cols-[96px_1fr] gap-3 rounded-[6px] bg-white p-3 shadow-[0_12px_34px_rgba(16,16,16,0.08)] md:grid-cols-[140px_1fr_auto] md:items-center md:gap-4 md:p-4 md:shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
-          <img src={getWorkImageUrl(work.images[0])} alt={work.title} className="aspect-square w-full rounded-[4px] object-cover" />
+          <div className="aspect-square overflow-hidden rounded-[4px] bg-zinc-200 md:aspect-[4/3]">
+            <img src={getWorkImageUrl(work.images[0])} alt={work.title} className="h-full w-full object-cover object-center" />
+          </div>
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${reviewStatusClass(work.reviewStatus)}`}>{reviewStatusLabel(work.reviewStatus)}</span>

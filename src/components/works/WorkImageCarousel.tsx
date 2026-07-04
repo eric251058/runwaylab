@@ -35,8 +35,8 @@ export function WorkImageCarousel({ images, title }: WorkImageCarouselProps) {
 
   return (
     <section className="-mx-4 space-y-3 md:mx-0">
-      <div className="relative overflow-hidden bg-zinc-200 md:rounded-[6px]">
-        <img src={active.src} alt={title} className="aspect-[4/5] w-full object-cover md:aspect-[16/11]" />
+      <div className="relative aspect-[4/5] overflow-hidden bg-zinc-200 md:aspect-[4/3] md:rounded-[6px]">
+        <img src={active.src} alt={title} className="h-full w-full object-cover object-center" />
         {slides.length > 1 ? (
           <>
             <button
@@ -66,10 +66,10 @@ export function WorkImageCarousel({ images, title }: WorkImageCarouselProps) {
               key={slide.id}
               type="button"
               onClick={() => setActiveIndex(index)}
-              className={`w-16 shrink-0 overflow-hidden rounded-[4px] border md:w-auto ${activeIndex === index ? "border-ink" : "border-transparent"}`}
+              className={`aspect-square w-16 shrink-0 overflow-hidden rounded-[4px] border md:w-auto ${activeIndex === index ? "border-ink" : "border-transparent"}`}
               aria-label={`查看第 ${index + 1} 张作品图`}
             >
-              <img src={slide.src} alt="" className="aspect-square w-full object-cover" />
+              <img src={slide.src} alt="" className="h-full w-full object-cover object-center" />
             </button>
           ))}
         </div>

@@ -447,7 +447,9 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-2 md:mt-6 md:gap-4 lg:grid-cols-3">
               {images.map((image, index) => (
                 <div key={image.clientId ?? `${image.imageUrl}-${index}`} className="overflow-hidden rounded-[6px] border border-black/10 bg-paper">
-                  <img src={image.previewUrl ?? visualFor(index, image.imageUrl)} alt="" className="aspect-square w-full object-cover md:aspect-[4/5]" />
+                  <div className="aspect-[3/4] overflow-hidden bg-zinc-200 md:aspect-[4/5]">
+                    <img src={image.previewUrl ?? visualFor(index, image.imageUrl)} alt="" className="h-full w-full object-cover object-center" />
+                  </div>
                   <div className="flex flex-col gap-2 p-2 md:flex-row md:items-center md:justify-between md:p-3">
                     <span className="text-xs font-semibold text-ink/45">
                       #{index + 1}
