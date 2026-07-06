@@ -201,9 +201,14 @@ export default async function MePage() {
           <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">我的页面</h1>
           <p className="mt-4 text-sm text-ink/58">查看我的作品、收藏、需求申请和孵化进度。</p>
         </div>
-        <Link href="/publish" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
-          发布作品
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/me/profile" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
+            编辑个人资料
+          </Link>
+          <Link href="/publish" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
+            发布作品
+          </Link>
+        </div>
       </header>
 
       <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-2 md:mx-0 md:mb-6 md:px-0">

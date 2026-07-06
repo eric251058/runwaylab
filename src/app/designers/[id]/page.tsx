@@ -60,6 +60,15 @@ function stat(label: string, value: number, Icon: typeof Images) {
   );
 }
 
+function splitStyleTags(value?: string | null) {
+  return (
+    value
+      ?.split(/[,，/]/)
+      .map((tag) => tag.trim())
+      .filter(Boolean) ?? []
+  );
+}
+
 export default async function DesignerPage({ params }: DesignerPageProps) {
   const { id } = await params;
   const data = await Promise.all([
@@ -124,9 +133,7 @@ export default async function DesignerPage({ params }: DesignerPageProps) {
   const avatarUrl = normalizeImageUrl(user.avatarUrl);
   const location = [profile?.school, profile?.city].filter(Boolean).join(" / ") || "未填写学校和城市";
   const bio = profile?.bio?.trim() || "这个设计师还没有填写简介";
-  const styleTags = Array.from(
-    new Set([profile?.designDirection, ...works.flatMap((work) => work.styleTags)].filter((tag): tag is string => Boolean(tag)))
-  ).slice(0, 8);
+  const styleTags = Array.from(new Set([...splitStyleTags(profile?.designDirection), ...works.flatMap((work) => work.styleTags)])).slice(0, 8);
 
   return (
     <main className="mx-auto max-w-7xl px-3 py-5 md:px-8 md:py-10">

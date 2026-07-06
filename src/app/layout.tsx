@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthNav } from "@/components/layout/AuthNav";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
 
 export const metadata: Metadata = {
@@ -11,6 +12,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="zh-CN">
       <body>
+        <AuthNav />
         <main className="min-h-dvh pb-20 md:pb-0">{children}</main>
         <BottomTabBar />
       </body>
