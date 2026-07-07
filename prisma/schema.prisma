@@ -69,6 +69,24 @@ enum IncubationStatus {
   COMPLETED
 }
 
+enum WorkIncubationStatus {
+  DISPLAYING
+  CANDIDATE
+  FABRIC_MATCHING
+  SAMPLE_MATCHING
+  PRODUCTION_MATCHING
+  PRESALE_TESTING
+  COLLABORATION_REACHED
+}
+
+enum ProposalStatus {
+  PENDING
+  INTERESTED
+  ACCEPTED
+  REJECTED
+  INVALID
+}
+
 enum RequestStatus {
   PENDING
   CONTACTED
@@ -126,32 +144,32 @@ model User {
   role         UserRole   @default(USER)
   status       UserStatus @default(ACTIVE)
 
-  designerProfile DesignerProfile?
-  sessions        AuthSession[]
-  works           Work[]
-  comments        Comment[]
-  likes           Like[]
-  favorites       Favorite[]
-  challengeEntries ChallengeEntry[]
-  follows         Follow[] @relation("Follower")
-  followers       Follow[] @relation("Following")
+  designerProfile           DesignerProfile?
+  sessions                  AuthSession[]
+  works                     Work[]
+  comments                  Comment[]
+  likes                     Like[]
+  favorites                 Favorite[]
+  challengeEntries          ChallengeEntry[]
+  follows                   Follow[]                   @relation("Follower")
+  followers                 Follow[]                   @relation("Following")
   incubationRecommendations IncubationRecommendation[]
   incubationApplications    IncubationApplication[]
-  incubationProjects        IncubationProject[] @relation("IncubationProjectDesigner")
+  incubationProjects        IncubationProject[]        @relation("IncubationProjectDesigner")
   fabricRequests            FabricRequest[]
   sampleRequests            SampleRequest[]
   cooperationRequests       CooperationRequest[]
-  reports                   Report[] @relation("Reporter")
+  reports                   Report[]                   @relation("Reporter")
   notifications             Notification[]
 
-  handledWorks               Work[] @relation("WorkHandledBy")
-  handledComments            Comment[] @relation("CommentHandledBy")
+  handledWorks               Work[]                  @relation("WorkHandledBy")
+  handledComments            Comment[]               @relation("CommentHandledBy")
   handledApplications        IncubationApplication[] @relation("IncubationApplicationHandledBy")
-  handledProjects            IncubationProject[] @relation("IncubationProjectHandledBy")
-  handledFabricRequests      FabricRequest[] @relation("FabricRequestHandledBy")
-  handledSampleRequests      SampleRequest[] @relation("SampleRequestHandledBy")
-  handledCooperationRequests CooperationRequest[] @relation("CooperationRequestHandledBy")
-  handledReports             Report[] @relation("ReportHandledBy")
+  handledProjects            IncubationProject[]     @relation("IncubationProjectHandledBy")
+  handledFabricRequests      FabricRequest[]         @relation("FabricRequestHandledBy")
+  handledSampleRequests      SampleRequest[]         @relation("SampleRequestHandledBy")
+  handledCooperationRequests CooperationRequest[]    @relation("CooperationRequestHandledBy")
+  handledReports             Report[]                @relation("ReportHandledBy")
   adminLogs                  AdminLog[]
 
   createdAt DateTime @default(now())
@@ -190,50 +208,56 @@ model DesignerProfile {
 }
 
 model Work {
-  id              String @id @default(cuid())
-  userId          String
-  title           String
-  description     String
-  category        String
-  workType        String
-  styleTags       String[]
-  reviewStatus    ReviewStatus @default(PENDING)
-  rejectReason    String?
-  contentStatus   ContentStatus @default(VISIBLE)
-  isOriginal      Boolean @default(false)
-  isAiAssisted    Boolean @default(false)
-  isFeatured      Boolean @default(false)
-  isEditorPick    Boolean @default(false)
-  isOpenCoop      Boolean @default(false)
-  wantsFabric     Boolean @default(false)
-  wantsSample     Boolean @default(false)
-  wantsIncubation Boolean @default(false)
+  id               String            @id @default(cuid())
+  userId           String
+  title            String
+  description      String
+  category         String
+  workType         String
+  styleTags        String[]
+  reviewStatus     ReviewStatus      @default(PENDING)
+  rejectReason     String?
+  contentStatus    ContentStatus     @default(VISIBLE)
+  isOriginal       Boolean           @default(false)
+  isAiAssisted     Boolean           @default(false)
+  isFeatured       Boolean           @default(false)
+  isEditorPick     Boolean           @default(false)
+  isOpenCoop       Boolean           @default(false)
+  wantsFabric      Boolean           @default(false)
+  wantsSample      Boolean           @default(false)
+  wantsIncubation  Boolean           @default(false)
   incubationStatus IncubationStatus?
 
-  viewCount        Int @default(0)
-  likeCount        Int @default(0)
-  favoriteCount    Int @default(0)
-  commentCount     Int @default(0)
-  shareCount       Int @default(0)
+  viewCount                Int @default(0)
+  likeCount                Int @default(0)
+  favoriteCount            Int @default(0)
+  commentCount             Int @default(0)
+  shareCount               Int @default(0)
   incubationRecommendCount Int @default(0)
 
   adminNote   String?
   handledAt   DateTime?
   handledById String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  handledBy User? @relation("WorkHandledBy", fields: [handledById], references: [id])
-  images WorkImage[]
-  comments Comment[]
-  likes Like[]
-  favorites Favorite[]
-  challengeEntries ChallengeEntry[]
+  user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  handledBy                 User?                      @relation("WorkHandledBy", fields: [handledById], references: [id])
+  images                    WorkImage[]
+  comments                  Comment[]
+  likes                     Like[]
+  favorites                 Favorite[]
+  challengeEntries          ChallengeEntry[]
   incubationRecommendations IncubationRecommendation[]
-  incubationApplications IncubationApplication[]
-  incubationProjects IncubationProject[]
-  fabricRequests FabricRequest[]
-  sampleRequests SampleRequest[]
-  cooperationRequests CooperationRequest[]
+  incubationApplications    IncubationApplication[]
+  incubationProjects        IncubationProject[]
+  workIncubation            WorkIncubation?
+  fabricProposals           FabricProposal[]
+  sampleProposals           SampleProposal[]
+  factoryProposals          FactoryProposal[]
+  buyerIntents              BuyerIntent[]
+  presaleIntents            PresaleIntent[]
+  fabricRequests            FabricRequest[]
+  sampleRequests            SampleRequest[]
+  cooperationRequests       CooperationRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -242,6 +266,20 @@ model Work {
   @@index([reviewStatus, contentStatus])
   @@index([isFeatured])
   @@index([isEditorPick])
+}
+
+model WorkIncubation {
+  id        String               @id @default(cuid())
+  workId    String               @unique
+  status    WorkIncubationStatus @default(DISPLAYING)
+  adminNote String?
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
 }
 
 model WorkImage {
@@ -259,7 +297,7 @@ model WorkImage {
 }
 
 model Challenge {
-  id           String @id @default(cuid())
+  id           String          @id @default(cuid())
   title        String
   theme        String
   coverUrl     String?
@@ -279,13 +317,13 @@ model Challenge {
 }
 
 model ChallengeEntry {
-  id              String @id @default(cuid())
+  id              String  @id @default(cuid())
   challengeId     String
   workId          String
   userId          String
-  popularityScore Int @default(0)
-  incubationScore Int @default(0)
-  adminWeight     Int @default(0)
+  popularityScore Int     @default(0)
+  incubationScore Int     @default(0)
+  adminWeight     Int     @default(0)
   manualRank      Int?
   awardLevel      String?
 
@@ -332,7 +370,7 @@ model Favorite {
 }
 
 model Comment {
-  id          String @id @default(cuid())
+  id          String        @id @default(cuid())
   userId      String
   workId      String
   content     String
@@ -341,8 +379,8 @@ model Comment {
   handledAt   DateTime?
   handledById String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work      Work  @relation(fields: [workId], references: [id], onDelete: Cascade)
   handledBy User? @relation("CommentHandledBy", fields: [handledById], references: [id])
 
   createdAt DateTime @default(now())
@@ -382,7 +420,7 @@ model IncubationRecommendation {
 }
 
 model IncubationApplication {
-  id          String @id @default(cuid())
+  id          String                      @id @default(cuid())
   userId      String
   workId      String
   source      IncubationSource
@@ -391,8 +429,8 @@ model IncubationApplication {
   handledAt   DateTime?
   handledById String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work      Work  @relation(fields: [workId], references: [id], onDelete: Cascade)
   handledBy User? @relation("IncubationApplicationHandledBy", fields: [handledById], references: [id])
 
   createdAt DateTime @default(now())
@@ -403,7 +441,7 @@ model IncubationApplication {
 }
 
 model IncubationProject {
-  id              String @id @default(cuid())
+  id              String           @id @default(cuid())
   workId          String
   designerId      String
   status          IncubationStatus @default(CANDIDATE)
@@ -413,8 +451,8 @@ model IncubationProject {
   handledAt       DateTime?
   handledById     String?
 
-  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
-  designer User @relation("IncubationProjectDesigner", fields: [designerId], references: [id], onDelete: Cascade)
+  work      Work  @relation(fields: [workId], references: [id], onDelete: Cascade)
+  designer  User  @relation("IncubationProjectDesigner", fields: [designerId], references: [id], onDelete: Cascade)
   handledBy User? @relation("IncubationProjectHandledBy", fields: [handledById], references: [id])
 
   createdAt DateTime @default(now())
@@ -425,8 +463,119 @@ model IncubationProject {
   @@index([status])
 }
 
+model FabricProposal {
+  id           String         @id @default(cuid())
+  workId       String
+  proposerName String
+  companyName  String?
+  contact      String
+  fabricName   String
+  composition  String?
+  weight       String?
+  width        String?
+  priceRange   String?
+  reason       String?
+  imageUrl     String?
+  status       ProposalStatus @default(PENDING)
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([status])
+}
+
+model SampleProposal {
+  id           String         @id @default(cuid())
+  workId       String
+  proposerName String
+  studioName   String?
+  contact      String
+  serviceType  String?
+  category     String?
+  leadTime     String?
+  priceRange   String?
+  message      String?
+  status       ProposalStatus @default(PENDING)
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([status])
+}
+
+model FactoryProposal {
+  id             String         @id @default(cuid())
+  workId         String
+  proposerName   String
+  factoryName    String?
+  contact        String
+  category       String?
+  moq            String?
+  leadTime       String?
+  unitPriceRange String?
+  message        String?
+  status         ProposalStatus @default(PENDING)
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([status])
+}
+
+model BuyerIntent {
+  id              String         @id @default(cuid())
+  workId          String
+  buyerName       String
+  companyName     String?
+  contact         String
+  channelType     String?
+  quantity        String?
+  targetPrice     String?
+  cooperationType String?
+  message         String?
+  status          ProposalStatus @default(PENDING)
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([status])
+}
+
+model PresaleIntent {
+  id              String         @id @default(cuid())
+  workId          String
+  name            String
+  contact         String
+  size            String?
+  color           String?
+  quantity        String?
+  acceptablePrice String?
+  message         String?
+  status          ProposalStatus @default(PENDING)
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([status])
+}
+
 model FabricRequest {
-  id             String @id @default(cuid())
+  id             String        @id @default(cuid())
   userId         String
   workId         String?
   category       String?
@@ -440,8 +589,8 @@ model FabricRequest {
   handledAt      DateTime?
   handledById    String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  work Work? @relation(fields: [workId], references: [id], onDelete: SetNull)
+  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work      Work? @relation(fields: [workId], references: [id], onDelete: SetNull)
   handledBy User? @relation("FabricRequestHandledBy", fields: [handledById], references: [id])
 
   createdAt DateTime @default(now())
@@ -453,13 +602,13 @@ model FabricRequest {
 }
 
 model SampleRequest {
-  id              String @id @default(cuid())
+  id              String        @id @default(cuid())
   userId          String
   workId          String?
   garmentCategory String?
-  hasPattern      Boolean @default(false)
-  hasFabric       Boolean @default(false)
-  needsFabricHelp Boolean @default(false)
+  hasPattern      Boolean       @default(false)
+  hasFabric       Boolean       @default(false)
+  needsFabricHelp Boolean       @default(false)
   budgetRange     String?
   quantity        Int?
   expectedDate    DateTime?
@@ -470,8 +619,8 @@ model SampleRequest {
   handledAt       DateTime?
   handledById     String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  work Work? @relation(fields: [workId], references: [id], onDelete: SetNull)
+  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work      Work? @relation(fields: [workId], references: [id], onDelete: SetNull)
   handledBy User? @relation("SampleRequestHandledBy", fields: [handledById], references: [id])
 
   createdAt DateTime @default(now())
@@ -483,20 +632,20 @@ model SampleRequest {
 }
 
 model CooperationRequest {
-  id          String @id @default(cuid())
+  id          String          @id @default(cuid())
   userId      String
   workId      String
   type        CooperationType
   contact     String
   message     String?
   budgetRange String?
-  status      RequestStatus @default(PENDING)
+  status      RequestStatus   @default(PENDING)
   adminNote   String?
   handledAt   DateTime?
   handledById String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work      Work  @relation(fields: [workId], references: [id], onDelete: Cascade)
   handledBy User? @relation("CooperationRequestHandledBy", fields: [handledById], references: [id])
 
   createdAt DateTime @default(now())
@@ -508,19 +657,19 @@ model CooperationRequest {
 }
 
 model Report {
-  id          String @id @default(cuid())
+  id          String           @id @default(cuid())
   reporterId  String
   targetType  ReportTargetType
   targetId    String
   reason      ReportReason
   description String?
-  status      ReportStatus @default(PENDING)
+  status      ReportStatus     @default(PENDING)
   result      String?
   adminNote   String?
   handledAt   DateTime?
   handledById String?
 
-  reporter User @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporter  User  @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
   handledBy User? @relation("ReportHandledBy", fields: [handledById], references: [id])
 
   createdAt DateTime @default(now())
@@ -531,12 +680,12 @@ model Report {
 }
 
 model Notification {
-  id      String @id @default(cuid())
+  id      String           @id @default(cuid())
   userId  String
   type    NotificationType
   title   String
   content String
-  isRead  Boolean @default(false)
+  isRead  Boolean          @default(false)
   linkUrl String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -548,8 +697,8 @@ model Notification {
 }
 
 model SystemSetting {
-  id          String @id @default(cuid())
-  key         String @unique
+  id          String  @id @default(cuid())
+  key         String  @unique
   value       String
   description String?
 

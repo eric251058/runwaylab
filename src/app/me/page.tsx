@@ -213,6 +213,12 @@ export default async function MePage({ searchParams }: MePageProps) {
         </div>
       </header>
 
+      <div className="mb-4 flex">
+        <Link href="/me/incubation" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
+          孵化管理
+        </Link>
+      </div>
+
       <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-2 md:mx-0 md:mb-6 md:px-0">
         {tabs.map((tab) => (
           <Link
