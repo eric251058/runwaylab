@@ -255,6 +255,7 @@ model Work {
   factoryProposals          FactoryProposal[]
   buyerIntents              BuyerIntent[]
   presaleIntents            PresaleIntent[]
+  editorialPicks            EditorialPick[]
   fabricRequests            FabricRequest[]
   sampleRequests            SampleRequest[]
   cooperationRequests       CooperationRequest[]
@@ -461,6 +462,22 @@ model IncubationProject {
   @@index([workId])
   @@index([designerId])
   @@index([status])
+}
+
+model EditorialPick {
+  id     String  @id @default(cuid())
+  workId String
+  type   String
+  note   String?
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workId, type])
+  @@index([workId])
+  @@index([type])
 }
 
 model FabricProposal {

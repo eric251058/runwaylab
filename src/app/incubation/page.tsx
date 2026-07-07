@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowRight, Bookmark, Heart, MessageCircle, Sparkles } from "lucide-react";
+import { IncubationProgress } from "@/components/incubation/IncubationProgress";
 import { visualFor } from "@/components/works/work-visuals";
 import { canEnterIncubationCandidate, incubationStatusLabels } from "@/lib/incubation";
+import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
 import { prisma } from "@/lib/prisma";
 import { approvedVisibleWorkWhere } from "@/lib/works/rules";
 import { WorkIncubationStatus } from "@prisma/client";
@@ -81,6 +83,18 @@ function metric(icon: ReactNode, label: string, value: number) {
 function IncubationCard({ work, index }: { work: IncubationWork; index: number }) {
   const status = effectiveStatus(work);
   const profile = work.user.designerProfile;
+  const heatSignals = {
+    likeCount: work.likeCount,
+    favoriteCount: work.favoriteCount,
+    commentCount: work.commentCount,
+    presaleIntentCount: work._count.presaleIntents,
+    fabricProposalCount: work._count.fabricProposals,
+    sampleProposalCount: work._count.sampleProposals,
+    factoryProposalCount: work._count.factoryProposals,
+    buyerIntentCount: work._count.buyerIntents
+  };
+  const heatScore = getHeatScore(heatSignals);
+  const heatBadges = getHeatBadges(heatSignals);
 
   return (
     <article className="overflow-hidden rounded-[8px] bg-white shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
@@ -105,6 +119,17 @@ function IncubationCard({ work, index }: { work: IncubationWork; index: number }
           {metric(null, "面料", work._count.fabricProposals)}
           {metric(null, "打样", work._count.sampleProposals)}
           {metric(null, "采购", work._count.buyerIntents)}
+        </div>
+
+        <IncubationProgress status={status} />
+
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">热度 {heatScore}</span>
+          {heatBadges.slice(0, 2).map((badge) => (
+            <span key={badge} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">
+              {badge}
+            </span>
+          ))}
         </div>
 
         <Link href={`/works/${work.id}`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">

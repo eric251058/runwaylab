@@ -195,6 +195,27 @@ export default async function MePage({ searchParams }: MePageProps) {
     work: mapWork(application.work)
   }));
 
+  const [receivedPresaleCount, receivedFabricProposalCount, receivedSampleProposalCount, receivedFactoryProposalCount, receivedBuyerIntentCount, incubatingWorkCount] = await Promise.all([
+    prisma.presaleIntent.count({ where: { work: { userId: user.id } } }),
+    prisma.fabricProposal.count({ where: { work: { userId: user.id } } }),
+    prisma.sampleProposal.count({ where: { work: { userId: user.id } } }),
+    prisma.factoryProposal.count({ where: { work: { userId: user.id } } }),
+    prisma.buyerIntent.count({ where: { work: { userId: user.id } } }),
+    prisma.work.count({
+      where: {
+        userId: user.id,
+        OR: [
+          { workIncubation: { is: { status: { not: "DISPLAYING" } } } },
+          { incubationStatus: { not: null } },
+          { wantsIncubation: true }
+        ]
+      }
+    })
+  ]);
+  const totalLikes = works.reduce((sum, work) => sum + work.likeCount, 0);
+  const totalFavorites = works.reduce((sum, work) => sum + work.favoriteCount, 0);
+  const totalComments = works.reduce((sum, work) => sum + work.commentCount, 0);
+
   return (
     <div className="mx-auto max-w-6xl px-3 py-5 md:px-8 md:py-12">
       <header className="mb-5 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
@@ -212,6 +233,33 @@ export default async function MePage({ searchParams }: MePageProps) {
           </Link>
         </div>
       </header>
+
+      <section className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-5">
+        {[
+          ["我的作品", works.length],
+          ["总点赞", totalLikes],
+          ["总收藏", totalFavorites],
+          ["总评论", totalComments],
+          ["孵化中作品", incubatingWorkCount],
+          ["预售意向", receivedPresaleCount],
+          ["面料推荐", receivedFabricProposalCount],
+          ["打样方案", receivedSampleProposalCount],
+          ["工厂方案", receivedFactoryProposalCount],
+          ["采购意向", receivedBuyerIntentCount]
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-[8px] border border-black/8 bg-white p-3">
+            <p className="text-2xl font-semibold text-ink">{value}</p>
+            <p className="mt-1 text-xs font-semibold text-ink/45">{label}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Link href="/me/incubation" className="rounded-[8px] border border-black/8 bg-white p-4 text-sm font-semibold text-ink">我的孵化项目</Link>
+        <Link href="/me/incubation" className="rounded-[8px] border border-black/8 bg-white p-4 text-sm font-semibold text-ink">我的预售意向</Link>
+        <Link href="/me/incubation" className="rounded-[8px] border border-black/8 bg-white p-4 text-sm font-semibold text-ink">收到的产业方案</Link>
+        <Link href="/rankings" className="rounded-[8px] border border-black/8 bg-white p-4 text-sm font-semibold text-ink">我的热门作品</Link>
+      </section>
 
       <div className="mb-4 flex">
         <Link href="/me/incubation" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">

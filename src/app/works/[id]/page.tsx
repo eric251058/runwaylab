@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Eye } from "lucide-react";
 import { DataUnavailable } from "@/components/layout/DataUnavailable";
+import { IncubationProgress } from "@/components/incubation/IncubationProgress";
 import { WorkImageCarousel } from "@/components/works/WorkImageCarousel";
 import { WorkInteractionBar } from "@/components/works/WorkInteractionBar";
 import { WorkStatusBadge, getWorkBadges } from "@/components/works/WorkStatusBadge";
 import { initials } from "@/components/works/work-visuals";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getIncubationRuleText, incubationStatusLabels } from "@/lib/incubation";
+import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
 import { canViewWorkDetail } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { getWorkDetailById } from "@/lib/works/queries";
@@ -128,6 +130,18 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
     presaleIntentCount,
     buyerIntentCount
   });
+  const heatSignals = {
+    likeCount: work.likeCount,
+    favoriteCount: work.favoriteCount,
+    commentCount: work.commentCount,
+    presaleIntentCount,
+    fabricProposalCount,
+    sampleProposalCount,
+    factoryProposalCount,
+    buyerIntentCount
+  };
+  const heatScore = getHeatScore(heatSignals);
+  const heatBadges = getHeatBadges(heatSignals);
   const [liked, favorited, incubationRecommended] = currentUser
     ? await Promise.all([
         prisma.like.findUnique({
@@ -224,6 +238,19 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
                 <p className="mt-2 text-sm leading-6 text-ink/58">{ruleText}</p>
               </div>
               <span className="w-fit rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">{incubationStatusLabels[crowdStatus]}</span>
+            </div>
+
+            <div className="mt-5">
+              <IncubationProgress status={crowdStatus} />
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white">热度分 {heatScore}</span>
+              {heatBadges.map((badge) => (
+                <span key={badge} className="rounded-full bg-paper px-3 py-1.5 text-xs font-semibold text-ink/55">
+                  {badge}
+                </span>
+              ))}
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-4">

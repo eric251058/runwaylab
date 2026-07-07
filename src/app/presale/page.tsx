@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { CrowdSubmissionForm } from "@/components/incubation/CrowdSubmissionForm";
+import { IncubationProgress } from "@/components/incubation/IncubationProgress";
 import { visualFor } from "@/components/works/work-visuals";
 import { incubationStatusLabels } from "@/lib/incubation";
+import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
 import { prisma } from "@/lib/prisma";
 import { approvedVisibleWorkWhere } from "@/lib/works/rules";
 import { WorkIncubationStatus } from "@prisma/client";
@@ -31,7 +33,11 @@ async function getPresaleWorks() {
       workIncubation: true,
       _count: {
         select: {
-          presaleIntents: true
+          presaleIntents: true,
+          fabricProposals: true,
+          sampleProposals: true,
+          factoryProposals: true,
+          buyerIntents: true
         }
       }
     },
@@ -61,32 +67,58 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
         </div>
       ) : null}
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {works.map((work, index) => {
-          const status = work.workIncubation?.status ?? WorkIncubationStatus.DISPLAYING;
-          return (
-            <article key={work.id} className="overflow-hidden rounded-[8px] bg-white shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
-              <img src={visualFor(index, work.images[0])} alt={work.title} className="aspect-[4/3] w-full object-cover" />
-              <div className="space-y-4 p-4">
-                <div>
-                  <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{incubationStatusLabels[status]}</span>
-                  <h2 className="mt-3 line-clamp-2 text-lg font-semibold text-ink">{work.title}</h2>
-                  <p className="mt-2 text-sm text-ink/52">{work.user.nickname}</p>
+      {works.length ? (
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {works.map((work, index) => {
+            const status = work.workIncubation?.status ?? WorkIncubationStatus.DISPLAYING;
+            const heatSignals = {
+              likeCount: work.likeCount,
+              favoriteCount: work.favoriteCount,
+              commentCount: work.commentCount,
+              presaleIntentCount: work._count.presaleIntents,
+              fabricProposalCount: work._count.fabricProposals,
+              sampleProposalCount: work._count.sampleProposals,
+              factoryProposalCount: work._count.factoryProposals,
+              buyerIntentCount: work._count.buyerIntents
+            };
+            const heatScore = getHeatScore(heatSignals);
+            const heatBadges = getHeatBadges(heatSignals);
+
+            return (
+              <article key={work.id} className="overflow-hidden rounded-[8px] bg-white shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
+                <img src={visualFor(index, work.images[0])} alt={work.title} className="aspect-[4/3] w-full object-cover" />
+                <div className="space-y-4 p-4">
+                  <div>
+                    <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{incubationStatusLabels[status]}</span>
+                    <h2 className="mt-3 line-clamp-2 text-lg font-semibold text-ink">{work.title}</h2>
+                    <p className="mt-2 text-sm text-ink/52">{work.user.nickname}</p>
+                  </div>
+                  <p className="text-sm text-ink/55">已有 {work._count.presaleIntents} 条预售意向</p>
+                  <IncubationProgress status={status} />
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">热度 {heatScore}</span>
+                    {heatBadges.slice(0, 2).map((badge) => (
+                      <span key={badge} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">
+                        {badge}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link href={`/presale?workId=${work.id}`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
+                      我想预定
+                    </Link>
+                    <Link href={`/works/${work.id}`} className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">
+                      查看作品
+                    </Link>
+                  </div>
                 </div>
-                <p className="text-sm text-ink/55">已有 {work._count.presaleIntents} 条预售意向</p>
-                <div className="flex flex-wrap gap-2">
-                  <Link href={`/presale?workId=${work.id}`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
-                    我想预定
-                  </Link>
-                  <Link href={`/works/${work.id}`} className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">
-                    查看作品
-                  </Link>
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无可展示作品。</div>
+      )}
     </div>
   );
 }
