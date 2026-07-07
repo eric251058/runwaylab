@@ -1,20 +1,56 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { MyActivityLists, type MyFavoriteItem, type MyRequestItem } from "@/components/me/MyActivityLists";
+import { MyActivityLists, type MyActivityTab, type MyFavoriteItem, type MyRequestItem } from "@/components/me/MyActivityLists";
+import { MyWorksList, type MyWorkItem } from "@/components/me/MyWorksList";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-import { MyWorksList, type MyWorkItem } from "@/components/me/MyWorksList";
 
 export const dynamic = "force-dynamic";
 
-export default async function MePage() {
+type MeTab = "works" | "entries" | MyActivityTab;
+
+type MePageProps = {
+  searchParams?: Promise<{
+    tab?: string;
+  }>;
+};
+
+const tabs: Array<{ key: MeTab; label: string; href: string }> = [
+  { key: "works", label: "我的作品", href: "/me?tab=works" },
+  { key: "entries", label: "我的参赛", href: "/me?tab=entries" },
+  { key: "favorites", label: "我的收藏", href: "/me?tab=favorites" },
+  { key: "fabric", label: "面料需求", href: "/me?tab=fabric" },
+  { key: "sample", label: "打样需求", href: "/me?tab=sample" },
+  { key: "incubation", label: "孵化申请", href: "/me?tab=incubation" }
+];
+
+const tabKeys = new Set<MeTab>(tabs.map((tab) => tab.key));
+
+function getActiveTab(value?: string): MeTab {
+  return value && tabKeys.has(value as MeTab) ? (value as MeTab) : "works";
+}
+
+function mapWork(work: { id: string; title: string; images: Array<{ imageUrl: string }> } | null) {
+  return work
+    ? {
+        id: work.id,
+        title: work.title,
+        imageUrl: work.images[0]?.imageUrl
+      }
+    : null;
+}
+
+export default async function MePage({ searchParams }: MePageProps) {
   const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login?next=/me");
   }
 
-  const [works, favorites, fabricRequests, sampleRequests, cooperationRequests, incubationApplications] = await Promise.all([
+  const params = await searchParams;
+  const activeTab = getActiveTab(params?.tab);
+
+  const [works, favorites, fabricRequests, sampleRequests, incubationApplications] = await Promise.all([
     prisma.work.findMany({
       where: {
         userId: user.id
@@ -89,25 +125,6 @@ export default async function MePage() {
         createdAt: "desc"
       }
     }),
-    prisma.cooperationRequest.findMany({
-      where: {
-        userId: user.id
-      },
-      include: {
-        work: {
-          include: {
-            images: {
-              orderBy: {
-                sortOrder: "asc"
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
-    }),
     prisma.incubationApplication.findMany({
       where: {
         userId: user.id
@@ -129,7 +146,7 @@ export default async function MePage() {
     })
   ]);
 
-  const items: MyWorkItem[] = works.map((work) => ({
+  const workItems: MyWorkItem[] = works.map((work) => ({
     id: work.id,
     title: work.title,
     reviewStatus: work.reviewStatus,
@@ -142,6 +159,7 @@ export default async function MePage() {
     images: work.images.map((image) => ({ imageUrl: image.imageUrl })),
     challengeEntries: work.challengeEntries.map((entry) => ({ id: entry.id }))
   }));
+  const entryItems = workItems.filter((work) => work.challengeEntries.length > 0);
   const favoriteItems: MyFavoriteItem[] = favorites.map((favorite) => ({
     id: favorite.id,
     createdAt: favorite.createdAt.toISOString(),
@@ -152,14 +170,6 @@ export default async function MePage() {
       authorName: favorite.work.user.nickname
     }
   }));
-  const mapWork = (work: { id: string; title: string; images: Array<{ imageUrl: string }> } | null) =>
-    work
-      ? {
-          id: work.id,
-          title: work.title,
-          imageUrl: work.images[0]?.imageUrl
-        }
-      : null;
   const fabricItems: MyRequestItem[] = fabricRequests.map((request) => ({
     id: request.id,
     title: request.category ? `找面料：${request.category}` : "找面料申请",
@@ -171,14 +181,6 @@ export default async function MePage() {
   const sampleItems: MyRequestItem[] = sampleRequests.map((request) => ({
     id: request.id,
     title: request.garmentCategory ? `打样：${request.garmentCategory}` : "打样申请",
-    status: request.status,
-    createdAt: request.createdAt.toISOString(),
-    adminNote: request.adminNote,
-    work: mapWork(request.work)
-  }));
-  const cooperationItems: MyRequestItem[] = cooperationRequests.map((request) => ({
-    id: request.id,
-    title: `合作意向：${request.type}`,
     status: request.status,
     createdAt: request.createdAt.toISOString(),
     adminNote: request.adminNote,
@@ -212,21 +214,32 @@ export default async function MePage() {
       </header>
 
       <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-2 md:mx-0 md:mb-6 md:px-0">
-        {["我的作品", "我的参赛", "我的收藏", "面料需求", "打样需求", "孵化申请"].map((item, index) => (
-          <span key={item} className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold ${index === 0 ? "bg-ink text-white" : "bg-white text-ink/45"}`}>
-            {item}
-          </span>
+        {tabs.map((tab) => (
+          <Link
+            key={tab.key}
+            href={tab.href}
+            className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold transition ${
+              activeTab === tab.key ? "bg-ink text-white" : "bg-white text-ink/45 hover:text-ink"
+            }`}
+          >
+            {tab.label}
+          </Link>
         ))}
       </div>
 
-      <MyWorksList works={items} />
-      <MyActivityLists
-        favorites={favoriteItems}
-        fabricRequests={fabricItems}
-        sampleRequests={sampleItems}
-        cooperationRequests={cooperationItems}
-        incubationApplications={incubationItems}
-      />
+      {activeTab === "works" ? <MyWorksList works={workItems} /> : null}
+      {activeTab === "entries" ? (
+        <MyWorksList works={entryItems} emptyText="你还没有参加挑战" emptyActionHref="/challenges" emptyActionLabel="查看挑战" />
+      ) : null}
+      {activeTab !== "works" && activeTab !== "entries" ? (
+        <MyActivityLists
+          activeTab={activeTab}
+          favorites={favoriteItems}
+          fabricRequests={fabricItems}
+          sampleRequests={sampleItems}
+          incubationApplications={incubationItems}
+        />
+      ) : null}
     </div>
   );
 }

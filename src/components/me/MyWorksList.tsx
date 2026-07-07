@@ -22,9 +22,12 @@ export type MyWorkItem = {
 
 type MyWorksListProps = {
   works: MyWorkItem[];
+  emptyText?: string;
+  emptyActionHref?: string;
+  emptyActionLabel?: string;
 };
 
-export function MyWorksList({ works }: MyWorksListProps) {
+export function MyWorksList({ works, emptyText = "你还没有发布作品。", emptyActionHref = "/publish", emptyActionLabel = "发布我的设计" }: MyWorksListProps) {
   const router = useRouter();
 
   const remove = async (id: string) => {
@@ -40,9 +43,9 @@ export function MyWorksList({ works }: MyWorksListProps) {
   if (!works.length) {
     return (
       <div className="rounded-[6px] border border-dashed border-black/15 bg-white px-6 py-12 text-center">
-        <p className="text-sm text-ink/55">你还没有发布作品。</p>
-        <Link href="/publish" className="mt-4 inline-flex h-10 items-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
-          发布我的设计
+        <p className="text-sm text-ink/55">{emptyText}</p>
+        <Link href={emptyActionHref} className="mt-4 inline-flex h-10 items-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
+          {emptyActionLabel}
         </Link>
       </div>
     );
