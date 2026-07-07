@@ -1,75 +1,57 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { ChallengeHero } from "@/components/challenges/ChallengeHero";
-import { RankingList } from "@/components/challenges/RankingList";
-import { WorkMasonry } from "@/components/works/WorkMasonry";
-import { DataUnavailable } from "@/components/layout/DataUnavailable";
-import { getActiveChallenge, getChallengeEntryCount, getPublicChallengeEntries } from "@/lib/works/queries";
+import { coverUrl, displayDateRange } from "@/lib/school-activity";
+import { prisma } from "@/lib/prisma";
+import { ChallengeStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 export default async function ChallengesPage() {
-  const data = await (async () => {
-    const challenge = await getActiveChallenge();
-    if (!challenge) return null;
-    const [entryCount, entries] = await Promise.all([getChallengeEntryCount(challenge.id), getPublicChallengeEntries(challenge.id)]);
-    return { challenge, entryCount, entries };
-  })().catch((error) => {
-    console.error("Failed to load challenge page", error);
-    return undefined;
+  const challenges = await prisma.challenge.findMany({
+    where: {
+      OR: [{ status: { in: [ChallengeStatus.PUBLISHED, ChallengeStatus.ACTIVE] } }, { isFeatured: true }]
+    },
+    include: {
+      school: true,
+      teacher: true,
+      _count: {
+        select: {
+          works: true,
+          entries: true
+        }
+      }
+    },
+    orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }]
   });
-
-  if (data === undefined) {
-    return <DataUnavailable title="挑战赛数据暂时没有读到" />;
-  }
-
-  if (!data) {
-    return <DataUnavailable title="当前挑战即将开启" />;
-  }
-
-  const works = data.entries.map((entry) => entry.work);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
       <header className="mb-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">Challenge</p>
-        <h1 className="mt-3 text-4xl font-semibold leading-tight text-ink md:text-6xl">新人设计挑战</h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58 md:text-base">
-          让新锐服装设计作品获得曝光、排名、面料匹配和打样孵化机会。
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Challenges</p>
+        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">设计挑战赛</h1>
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">展示院校、老师或平台发起的设计挑战。本批只做作品展示与关联，不做复杂报名系统。</p>
       </header>
 
-      <div className="space-y-12">
-        <ChallengeHero challenge={data.challenge} entryCount={data.entryCount} />
-
-        <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-[6px] bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
-            <h2 className="text-lg font-semibold text-ink">参赛规则</h2>
-            <p className="mt-3 text-sm leading-6 text-ink/60">{data.challenge.requirements}</p>
-          </div>
-          <div className="rounded-[6px] bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
-            <h2 className="text-lg font-semibold text-ink">奖励与机会</h2>
-            <p className="mt-3 text-sm leading-6 text-ink/60">{data.challenge.rewards}</p>
-          </div>
-        </section>
-
-        <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
-          <RankingList title="挑战排行榜" works={works} metric="popular" />
-          <section>
-            <div className="mb-5 flex items-end justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">Entries</p>
-                <h2 className="mt-2 text-2xl font-semibold text-ink">参赛作品</h2>
+      {challenges.length ? (
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {challenges.map((challenge) => (
+            <Link key={challenge.id} href={`/challenges/${challenge.slug ?? challenge.id}`} className="overflow-hidden rounded-[8px] bg-white shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
+              <img src={coverUrl(challenge.id, challenge.coverUrl)} alt={challenge.title} className="aspect-[16/9] w-full object-cover" />
+              <div className="space-y-3 p-5">
+                <div className="flex flex-wrap gap-2">
+                  {challenge.isFeatured ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">推荐</span> : null}
+                  <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{challenge.status}</span>
+                </div>
+                <h2 className="line-clamp-2 text-xl font-semibold text-ink">{challenge.title}</h2>
+                <p className="line-clamp-1 text-sm text-ink/52">{challenge.theme}</p>
+                <p className="text-sm text-ink/52">{challenge.school?.name ?? "学校待关联"} / {challenge.teacher?.name ?? "老师待关联"}</p>
+                <p className="text-sm text-ink/52">{displayDateRange(challenge.startAt, challenge.endAt)} / {challenge._count.works + challenge._count.entries} 件作品</p>
               </div>
-              <Link href={`/challenges/${data.challenge.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-ink/60 hover:text-ink">
-                查看详情
-                <ArrowRight size={15} />
-              </Link>
-            </div>
-            <WorkMasonry works={works.slice(0, 8)} compact />
-          </section>
+            </Link>
+          ))}
         </div>
-      </div>
+      ) : (
+        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无已发布挑战赛，后台发布后会显示在这里。</div>
+      )}
     </div>
   );
 }

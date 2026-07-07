@@ -35,8 +35,15 @@ enum ContentStatus {
 
 enum ChallengeStatus {
   DRAFT
+  PUBLISHED
   ACTIVE
   ENDED
+  ARCHIVED
+}
+
+enum ExhibitionStatus {
+  DRAFT
+  PUBLISHED
   ARCHIVED
 }
 
@@ -210,6 +217,8 @@ model DesignerProfile {
 model Work {
   id               String            @id @default(cuid())
   userId           String
+  schoolId         String?
+  teacherId        String?
   title            String
   description      String
   category         String
@@ -240,12 +249,17 @@ model Work {
   handledById String?
 
   user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school                    School?                    @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  teacher                   Teacher?                   @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   handledBy                 User?                      @relation("WorkHandledBy", fields: [handledById], references: [id])
   images                    WorkImage[]
   comments                  Comment[]
   likes                     Like[]
   favorites                 Favorite[]
   challengeEntries          ChallengeEntry[]
+  challengeWorks            ChallengeWork[]
+  exhibitionWorks           ExhibitionWork[]
+  teacherRecommendations    TeacherRecommendedWork[]
   incubationRecommendations IncubationRecommendation[]
   incubationApplications    IncubationApplication[]
   incubationProjects        IncubationProject[]
@@ -264,9 +278,125 @@ model Work {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([schoolId])
+  @@index([teacherId])
   @@index([reviewStatus, contentStatus])
   @@index([isFeatured])
   @@index([isEditorPick])
+}
+
+model School {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String? @unique
+  city        String?
+  logoUrl     String?
+  coverUrl    String?
+  description String?
+  website     String?
+  isFeatured  Boolean @default(false)
+  status      String  @default("ACTIVE")
+
+  teachers    Teacher[]
+  works       Work[]
+  exhibitions Exhibition[]
+  challenges  Challenge[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isFeatured])
+  @@index([status])
+}
+
+model Teacher {
+  id         String  @id @default(cuid())
+  userId     String?
+  schoolId   String?
+  name       String
+  slug       String? @unique
+  title      String?
+  department String?
+  avatarUrl  String?
+  bio        String?
+  contact    String?
+  isFeatured Boolean @default(false)
+  status     String  @default("PENDING")
+
+  school          School?                  @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  works           Work[]
+  recommendations TeacherRecommendedWork[]
+  exhibitions     Exhibition[]
+  challenges      Challenge[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+  @@index([isFeatured])
+  @@index([status])
+}
+
+model TeacherRecommendedWork {
+  id        String  @id @default(cuid())
+  teacherId String?
+  workId    String
+  note      String?
+  tag       String?
+
+  teacher Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  work    Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([teacherId])
+  @@index([workId])
+}
+
+model Exhibition {
+  id          String           @id @default(cuid())
+  schoolId    String?
+  teacherId   String?
+  title       String
+  slug        String?          @unique
+  type        String
+  coverUrl    String?
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  isFeatured  Boolean          @default(false)
+  status      ExhibitionStatus @default(DRAFT)
+
+  school  School?          @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  teacher Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  works   ExhibitionWork[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([status])
+  @@index([isFeatured])
+}
+
+model ExhibitionWork {
+  id           String  @id @default(cuid())
+  exhibitionId String
+  workId       String
+  sortOrder    Int     @default(0)
+  isFeatured   Boolean @default(false)
+
+  exhibition Exhibition @relation(fields: [exhibitionId], references: [id], onDelete: Cascade)
+  work       Work       @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([exhibitionId, workId])
+  @@index([exhibitionId])
+  @@index([workId])
 }
 
 model WorkIncubation {
@@ -299,7 +429,10 @@ model WorkImage {
 
 model Challenge {
   id           String          @id @default(cuid())
+  schoolId     String?
+  teacherId    String?
   title        String
+  slug         String?         @unique
   theme        String
   coverUrl     String?
   description  String
@@ -307,14 +440,39 @@ model Challenge {
   rewards      String
   startAt      DateTime
   endAt        DateTime
+  isFeatured   Boolean         @default(false)
   status       ChallengeStatus @default(DRAFT)
 
+  school  School?          @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  teacher Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   entries ChallengeEntry[]
+  works   ChallengeWork[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([schoolId])
+  @@index([teacherId])
   @@index([status])
+  @@index([isFeatured])
+}
+
+model ChallengeWork {
+  id          String  @id @default(cuid())
+  challengeId String
+  workId      String
+  sortOrder   Int     @default(0)
+  isFeatured  Boolean @default(false)
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  work      Work      @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([challengeId, workId])
+  @@index([challengeId])
+  @@index([workId])
 }
 
 model ChallengeEntry {

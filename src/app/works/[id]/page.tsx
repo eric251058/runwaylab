@@ -123,6 +123,47 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
       }
     })
   ]);
+  const activityInfo = await prisma.work.findUnique({
+    where: {
+      id: work.id
+    },
+    select: {
+      school: {
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          city: true
+        }
+      },
+      teacher: {
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          title: true,
+          school: {
+            select: {
+              name: true
+            }
+          }
+        }
+      },
+      teacherRecommendations: {
+        include: {
+          teacher: {
+            include: {
+              school: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: "desc"
+        },
+        take: 3
+      }
+    }
+  });
   const crowdStatus = workIncubation?.status ?? crowdIncubationStatus(incubationProject?.status ?? work.incubationStatus);
   const ruleText = getIncubationRuleText({
     likeCount: work.likeCount,
@@ -206,6 +247,37 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
               </p>
             </div>
           </Link>
+
+          {(activityInfo?.school || activityInfo?.teacher || activityInfo?.teacherRecommendations.length) ? (
+            <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
+              <div className="flex flex-wrap gap-2">
+                {activityInfo.teacherRecommendations.length ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">老师推荐</span> : null}
+                {activityInfo.school ? (
+                  <Link href={`/schools/${activityInfo.school.slug ?? activityInfo.school.id}`} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/60">
+                    学校：{activityInfo.school.name}
+                  </Link>
+                ) : null}
+                {activityInfo.teacher ? (
+                  <Link href={`/teachers/${activityInfo.teacher.slug ?? activityInfo.teacher.id}`} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/60">
+                    指导老师：{activityInfo.teacher.name}
+                  </Link>
+                ) : null}
+              </div>
+              {activityInfo.teacherRecommendations.length ? (
+                <div className="mt-4 space-y-3">
+                  {activityInfo.teacherRecommendations.map((recommendation) => (
+                    <div key={recommendation.id} className="rounded-[6px] border border-black/8 bg-paper p-3 text-sm leading-6 text-ink/62">
+                      <p className="font-semibold text-ink">
+                        {recommendation.teacher?.name ?? "老师推荐"}
+                        {recommendation.teacher?.school?.name ? ` / ${recommendation.teacher.school.name}` : ""}
+                      </p>
+                      {recommendation.note ? <p className="mt-1">推荐理由：{recommendation.note}</p> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
           <div id="incubation-actions">
             <WorkInteractionBar

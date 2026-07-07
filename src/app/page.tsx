@@ -1,12 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowRight, BarChart3, Factory, GraduationCap, Scissors, Shirt, Sparkles, SwatchBook, Users } from "lucide-react";
-import { WorkIncubationStatus } from "@prisma/client";
+import { ChallengeStatus, ExhibitionStatus, WorkIncubationStatus } from "@prisma/client";
 import { DesignerCard } from "@/components/designer/DesignerCard";
 import { WorkCard } from "@/components/works/WorkCard";
 import { visualFor } from "@/components/works/work-visuals";
 import { getHeatScore } from "@/lib/operation-growth";
 import { prisma } from "@/lib/prisma";
+import { coverUrl, displayDateRange } from "@/lib/school-activity";
 import { approvedVisibleWorkWhere } from "@/lib/works/rules";
 import type { RecommendedDesigner, WorkCardData } from "@/lib/works/queries";
 
@@ -101,7 +102,7 @@ function EmptyBlock({ text }: { text: string }) {
 }
 
 export default async function HomePage() {
-  const [works, designerProfiles, userCount, presaleCount, proposalCounts] = await Promise.all([
+  const [works, designerProfiles, userCount, presaleCount, proposalCounts, featuredSchools, featuredTeachers, featuredExhibitions, featuredChallenges] = await Promise.all([
     getHomeWorks(),
     prisma.designerProfile.findMany({
       include: {
@@ -129,7 +130,31 @@ export default async function HomePage() {
       prisma.sampleProposal.count(),
       prisma.factoryProposal.count(),
       prisma.buyerIntent.count()
-    ])
+    ]),
+    prisma.school.findMany({
+      where: { status: "ACTIVE" },
+      include: { _count: { select: { teachers: true, works: true } } },
+      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+      take: 3
+    }),
+    prisma.teacher.findMany({
+      where: { status: "ACTIVE" },
+      include: { school: true, _count: { select: { recommendations: true } } },
+      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+      take: 3
+    }),
+    prisma.exhibition.findMany({
+      where: { OR: [{ status: ExhibitionStatus.PUBLISHED }, { isFeatured: true }] },
+      include: { school: true, teacher: true, _count: { select: { works: true } } },
+      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+      take: 3
+    }),
+    prisma.challenge.findMany({
+      where: { OR: [{ status: { in: [ChallengeStatus.PUBLISHED, ChallengeStatus.ACTIVE] } }, { isFeatured: true }] },
+      include: { school: true, teacher: true, _count: { select: { works: true, entries: true } } },
+      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+      take: 3
+    })
   ]);
 
   const [fabricProposalCount, sampleProposalCount, factoryProposalCount, buyerIntentCount] = proposalCounts;
@@ -195,6 +220,83 @@ export default async function HomePage() {
       </section>
 
       <div className="mt-12 space-y-12">
+        <section>
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Campus</p>
+              <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">学校 / 老师 / 活动</h2>
+            </div>
+            <Link href="/schools" className="hidden items-center gap-1 text-sm font-semibold text-ink/60 hover:text-ink sm:inline-flex">
+              查看院校
+              <ArrowRight size={15} />
+            </Link>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-4">
+            <div className="rounded-[8px] border border-black/8 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="font-semibold text-ink">推荐学校</h3>
+                <Link href="/schools" className="text-xs font-semibold text-ink/45">更多</Link>
+              </div>
+              <div className="space-y-3">
+                {featuredSchools.length ? featuredSchools.map((school) => (
+                  <Link key={school.id} href={`/schools/${school.slug ?? school.id}`} className="flex gap-3">
+                    <img src={coverUrl(school.id, school.coverUrl ?? school.logoUrl)} alt={school.name} className="size-14 rounded-[6px] object-cover" />
+                    <span className="min-w-0 text-sm">
+                      <span className="block truncate font-semibold text-ink">{school.name}</span>
+                      <span className="mt-1 block text-xs text-ink/45">{school.city ?? "城市待补充"} / {school._count.works} 件作品</span>
+                    </span>
+                  </Link>
+                )) : <p className="text-sm text-ink/52">暂无学校数据</p>}
+              </div>
+            </div>
+            <div className="rounded-[8px] border border-black/8 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="font-semibold text-ink">推荐老师</h3>
+                <Link href="/teachers" className="text-xs font-semibold text-ink/45">更多</Link>
+              </div>
+              <div className="space-y-3">
+                {featuredTeachers.length ? featuredTeachers.map((teacher) => (
+                  <Link key={teacher.id} href={`/teachers/${teacher.slug ?? teacher.id}`} className="flex gap-3">
+                    <img src={coverUrl(teacher.id, teacher.avatarUrl)} alt={teacher.name} className="size-14 rounded-full object-cover" />
+                    <span className="min-w-0 text-sm">
+                      <span className="block truncate font-semibold text-ink">{teacher.name}</span>
+                      <span className="mt-1 block text-xs text-ink/45">{teacher.school?.name ?? "学校待关联"} / 推荐 {teacher._count.recommendations}</span>
+                    </span>
+                  </Link>
+                )) : <p className="text-sm text-ink/52">暂无老师数据</p>}
+              </div>
+            </div>
+            <div className="rounded-[8px] border border-black/8 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="font-semibold text-ink">课程作品展</h3>
+                <Link href="/exhibitions" className="text-xs font-semibold text-ink/45">更多</Link>
+              </div>
+              <div className="space-y-3">
+                {featuredExhibitions.length ? featuredExhibitions.map((exhibition) => (
+                  <Link key={exhibition.id} href={`/exhibitions/${exhibition.slug ?? exhibition.id}`} className="block rounded-[6px] bg-paper p-3">
+                    <span className="line-clamp-1 text-sm font-semibold text-ink">{exhibition.title}</span>
+                    <span className="mt-1 block text-xs text-ink/45">{displayDateRange(exhibition.startDate, exhibition.endDate)} / {exhibition._count.works} 件作品</span>
+                  </Link>
+                )) : <p className="text-sm text-ink/52">暂无作品展</p>}
+              </div>
+            </div>
+            <div className="rounded-[8px] border border-black/8 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="font-semibold text-ink">设计挑战赛</h3>
+                <Link href="/challenges" className="text-xs font-semibold text-ink/45">更多</Link>
+              </div>
+              <div className="space-y-3">
+                {featuredChallenges.length ? featuredChallenges.map((challenge) => (
+                  <Link key={challenge.id} href={`/challenges/${challenge.slug ?? challenge.id}`} className="block rounded-[6px] bg-paper p-3">
+                    <span className="line-clamp-1 text-sm font-semibold text-ink">{challenge.title}</span>
+                    <span className="mt-1 block text-xs text-ink/45">{challenge.theme} / {challenge._count.works + challenge._count.entries} 件作品</span>
+                  </Link>
+                )) : <p className="text-sm text-ink/52">暂无挑战赛</p>}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section>
           <div className="mb-5 flex items-end justify-between gap-4">
             <div>
