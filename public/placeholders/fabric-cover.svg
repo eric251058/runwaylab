@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="RunwayLab fabric cover placeholder">
+  <rect width="1200" height="675" fill="#ffffff"/>
+  <path d="M120 145c150 80 300 80 450 0s300-80 510 0v385c-210-80-360-80-510 0s-300 80-450 0V145Z" fill="#f2f2f2" stroke="#111111" stroke-opacity="0.14" stroke-width="4"/>
+  <path d="M120 220c150 80 300 80 450 0s300-80 510 0M120 315c150 80 300 80 450 0s300-80 510 0M120 410c150 80 300 80 450 0s300-80 510 0" fill="none" stroke="#111111" stroke-opacity="0.32" stroke-width="16" stroke-linecap="round"/>
+  <text x="96" y="110" fill="#111111" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" letter-spacing="8">RUNWAYLAB</text>
+  <text x="96" y="600" fill="#111111" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700">Fabric Library</text>
+</svg>

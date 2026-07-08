@@ -1,12 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowRight, BarChart3, Factory, GraduationCap, Scissors, Shirt, Sparkles, SwatchBook, Users } from "lucide-react";
-import { ChallengeStatus, ExhibitionStatus, WorkIncubationStatus } from "@prisma/client";
+import { ChallengeStatus, ExhibitionStatus, FabricStatus, ProviderStatus, WorkIncubationStatus } from "@prisma/client";
 import { DesignerCard } from "@/components/designer/DesignerCard";
 import { WorkCard } from "@/components/works/WorkCard";
 import { visualFor } from "@/components/works/work-visuals";
 import { getHeatScore } from "@/lib/operation-growth";
 import { prisma } from "@/lib/prisma";
+import { fabricCoverUrl, providerLogoUrl, PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
 import { displayDateRange, schoolCoverUrl, teacherAvatarUrl } from "@/lib/school-activity";
 import { approvedVisibleWorkWhere } from "@/lib/works/rules";
 import type { RecommendedDesigner, WorkCardData } from "@/lib/works/queries";
@@ -102,7 +103,7 @@ function EmptyBlock({ text }: { text: string }) {
 }
 
 export default async function HomePage() {
-  const [works, designerProfiles, userCount, presaleCount, proposalCounts, featuredSchools, featuredTeachers, featuredExhibitions, featuredChallenges] = await Promise.all([
+  const [works, designerProfiles, userCount, presaleCount, proposalCounts, featuredSchools, featuredTeachers, featuredExhibitions, featuredChallenges, featuredProviders, featuredFabrics] = await Promise.all([
     getHomeWorks(),
     prisma.designerProfile.findMany({
       include: {
@@ -154,6 +155,18 @@ export default async function HomePage() {
       include: { school: true, teacher: true, _count: { select: { works: true, entries: true } } },
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
       take: 3
+    }),
+    prisma.provider.findMany({
+      where: { status: ProviderStatus.ACTIVE },
+      include: { _count: { select: { fabrics: true, workProposals: true } } },
+      orderBy: [{ isFeatured: "desc" }, { isVerified: "desc" }, { createdAt: "desc" }],
+      take: 4
+    }),
+    prisma.fabric.findMany({
+      where: { status: FabricStatus.ACTIVE },
+      include: { provider: true },
+      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+      take: 4
     })
   ]);
 
@@ -292,6 +305,64 @@ export default async function HomePage() {
                     <span className="mt-1 block text-xs text-ink/45">{challenge.theme} / {challenge._count.works + challenge._count.entries} 件作品</span>
                   </Link>
                 )) : <p className="text-sm text-ink/52">暂无挑战赛</p>}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Supply Chain</p>
+              <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">服务商 / 面料库</h2>
+            </div>
+            <Link href="/providers" className="hidden items-center gap-1 text-sm font-semibold text-ink/60 hover:text-ink sm:inline-flex">
+              查看服务商
+              <ArrowRight size={15} />
+            </Link>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="rounded-[8px] border border-black/8 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="font-semibold text-ink">推荐服务商</h3>
+                <Link href="/providers" className="text-xs font-semibold text-ink/45">更多</Link>
+              </div>
+              <div className="space-y-3">
+                {featuredProviders.length ? featuredProviders.map((provider) => (
+                  <Link key={provider.id} href={`/providers/${provider.slug ?? provider.id}`} className="flex gap-3">
+                    <img src={providerLogoUrl(provider.logoUrl)} alt={provider.name} className="size-14 rounded-[6px] object-cover" />
+                    <span className="min-w-0 text-sm">
+                      <span className="block truncate font-semibold text-ink">{provider.name}</span>
+                      <span className="mt-1 block text-xs text-ink/45">{PROVIDER_TYPE_LABELS[provider.type]} / {provider._count.workProposals} 个方案</span>
+                    </span>
+                  </Link>
+                )) : <p className="text-sm text-ink/52">暂无服务商数据</p>}
+              </div>
+            </div>
+            <div className="rounded-[8px] border border-black/8 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="font-semibold text-ink">推荐面料</h3>
+                <Link href="/fabrics" className="text-xs font-semibold text-ink/45">更多</Link>
+              </div>
+              <div className="space-y-3">
+                {featuredFabrics.length ? featuredFabrics.map((fabric) => (
+                  <Link key={fabric.id} href={`/fabrics/${fabric.slug ?? fabric.id}`} className="flex gap-3">
+                    <img src={fabricCoverUrl(fabric.imageUrl)} alt={fabric.name} className="size-14 rounded-[6px] object-cover" />
+                    <span className="min-w-0 text-sm">
+                      <span className="block truncate font-semibold text-ink">{fabric.name}</span>
+                      <span className="mt-1 block text-xs text-ink/45">{fabric.provider?.name ?? "供应商待关联"} / {fabric.usage ?? "用途待补充"}</span>
+                    </span>
+                  </Link>
+                )) : <p className="text-sm text-ink/52">暂无面料数据</p>}
+              </div>
+            </div>
+            <div className="rounded-[8px] border border-black/8 bg-ink p-5 text-white">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Collaborate</p>
+              <h3 className="mt-3 text-2xl font-semibold">供应链协作入口</h3>
+              <p className="mt-3 text-sm leading-6 text-white/60">面料商、打样工作室、工厂和买手可以先提交入驻申请，平台审核后进入服务商市场。</p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Link href="/providers/apply" className="inline-flex h-10 items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-ink">服务商入驻</Link>
+                <Link href="/fabrics" className="inline-flex h-10 items-center justify-center rounded-full border border-white/20 px-4 text-sm font-semibold text-white">面料库</Link>
               </div>
             </div>
           </div>

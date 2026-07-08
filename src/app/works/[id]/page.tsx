@@ -12,6 +12,7 @@ import { getIncubationRuleText, incubationStatusLabels } from "@/lib/incubation"
 import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
 import { canViewWorkDetail } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { fabricCoverUrl, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
 import { getWorkDetailById } from "@/lib/works/queries";
 import { WorkIncubationStatus } from "@prisma/client";
 
@@ -161,6 +162,34 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
           createdAt: "desc"
         },
         take: 3
+      }
+    }
+  });
+  const providerMarketInfo = await prisma.work.findUnique({
+    where: {
+      id: work.id
+    },
+    select: {
+      fabricRecommendations: {
+        include: {
+          fabric: {
+            include: {
+              provider: true
+            }
+          },
+          provider: true
+        },
+        orderBy: {
+          createdAt: "desc"
+        }
+      },
+      providerWorkProposals: {
+        include: {
+          provider: true
+        },
+        orderBy: {
+          createdAt: "desc"
+        }
       }
     }
   });
@@ -355,6 +384,64 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
               <a href="#incubation-actions" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">
                 推荐进入孵化
               </a>
+            </div>
+          </section>
+
+          <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Provider Market</p>
+                <h2 className="mt-2 text-2xl font-semibold text-ink">服务商方案</h2>
+              </div>
+              <Link href="/providers" className="text-sm font-semibold text-ink/55 hover:text-ink">
+                查看服务商
+              </Link>
+            </div>
+
+            <div className="mt-5 space-y-6">
+              <div>
+                <h3 className="mb-3 text-sm font-semibold text-ink">推荐面料</h3>
+                {providerMarketInfo?.fabricRecommendations.length ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {providerMarketInfo.fabricRecommendations.map((recommendation) => (
+                      <Link key={recommendation.id} href={`/fabrics/${recommendation.fabric.slug ?? recommendation.fabric.id}`} className="flex gap-3 rounded-[8px] border border-black/8 bg-paper p-3">
+                        <img src={fabricCoverUrl(recommendation.fabric.imageUrl)} alt={recommendation.fabric.name} className="size-20 rounded-[6px] object-cover" />
+                        <span className="min-w-0 text-sm">
+                          <span className="block truncate font-semibold text-ink">{recommendation.fabric.name}</span>
+                          <span className="mt-1 block text-ink/52">{recommendation.provider?.name ?? recommendation.fabric.provider?.name ?? "供应商待关联"}</span>
+                          <span className="mt-1 block line-clamp-2 text-xs leading-5 text-ink/52">{recommendation.reason ?? "推荐理由待补充"} / {recommendation.status}</span>
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-[8px] border border-black/8 bg-paper p-4 text-sm text-ink/55">暂无推荐面料。</div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="mb-3 text-sm font-semibold text-ink">服务商提交方案</h3>
+                {providerMarketInfo?.providerWorkProposals.length ? (
+                  <div className="space-y-3">
+                    {providerMarketInfo.providerWorkProposals.map((proposal) => (
+                      <article key={proposal.id} className="rounded-[8px] border border-black/8 bg-paper p-4">
+                        <div className="flex flex-wrap gap-2">
+                          <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{PROVIDER_PROPOSAL_TYPE_LABELS[proposal.type]}</span>
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">{proposal.status}</span>
+                        </div>
+                        <h4 className="mt-3 font-semibold text-ink">{proposal.title}</h4>
+                        <p className="mt-1 text-sm text-ink/52">{proposal.provider.name}</p>
+                        <p className="mt-2 text-sm leading-6 text-ink/58">{proposal.description ?? "方案说明待补充"}</p>
+                        <p className="mt-2 text-xs font-semibold text-ink/42">
+                          {[proposal.estimatedPrice && `价格 ${proposal.estimatedPrice}`, proposal.estimatedTime && `周期 ${proposal.estimatedTime}`, proposal.moq && `MOQ ${proposal.moq}`].filter(Boolean).join(" / ") || "价格与周期待补充"}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-[8px] border border-black/8 bg-paper p-4 text-sm text-ink/55">暂无服务商方案。</div>
+                )}
+              </div>
             </div>
           </section>
 

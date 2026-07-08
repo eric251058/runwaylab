@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 
 export type DesignerIncubationItem = {
   id: string;
-  kind: "presale" | "fabric" | "sample" | "factory" | "buyer";
+  kind: "presale" | "fabric" | "sample" | "factory" | "buyer" | "providerFabric" | "providerProposal";
   kindLabel: string;
   workId: string;
   workTitle: string;
@@ -23,6 +23,7 @@ type DesignerIncubationPanelProps = {
 const statusLabels: Record<string, string> = {
   PENDING: "待处理",
   INTERESTED: "感兴趣",
+  SHORTLISTED: "已短选",
   ACCEPTED: "已采纳",
   REJECTED: "暂不合适",
   INVALID: "违规/无效"
@@ -34,9 +35,11 @@ const statusOptions = [
   { value: "REJECTED", label: "暂不合适" }
 ];
 
+const editableKinds = new Set(["presale", "fabric", "sample", "factory", "buyer"]);
+
 function statusClass(status: string) {
   if (status === "ACCEPTED") return "bg-ink text-white";
-  if (status === "INTERESTED") return "bg-amber-100 text-amber-800";
+  if (status === "INTERESTED" || status === "SHORTLISTED") return "bg-amber-100 text-amber-800";
   if (status === "REJECTED") return "bg-zinc-100 text-ink/55";
   if (status === "INVALID") return "bg-red-100 text-red-700";
   return "bg-paper text-ink/58";
@@ -92,24 +95,29 @@ export function DesignerIncubationPanel({ items }: DesignerIncubationPanelProps)
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass(item.status)}`}>{statusLabels[item.status] ?? item.status}</span>
               </div>
               <h2 className="mt-3 text-lg font-semibold text-ink">{item.primary}</h2>
-              <p className="mt-1 text-sm text-ink/52">{item.company ? `${item.company} / ` : ""}{item.contact}</p>
+              <p className="mt-1 text-sm text-ink/52">
+                {item.company ? `${item.company} / ` : ""}
+                {item.contact}
+              </p>
               <p className="mt-2 text-sm font-semibold text-ink/65">关联作品：{item.workTitle}</p>
               <p className="mt-2 text-sm leading-6 text-ink/58">{item.summary}</p>
               <p className="mt-2 text-xs text-ink/35">{item.createdAt}</p>
             </div>
-            <div className="flex shrink-0 flex-wrap gap-2 md:justify-end">
-              {statusOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  disabled={isPending && pendingId === `${item.kind}:${item.id}:${option.value}`}
-                  onClick={() => updateStatus(item, option.value)}
-                  className="h-9 rounded-full border border-black/10 px-3 text-xs font-semibold text-ink disabled:opacity-50"
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+            {editableKinds.has(item.kind) ? (
+              <div className="flex shrink-0 flex-wrap gap-2 md:justify-end">
+                {statusOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    disabled={isPending && pendingId === `${item.kind}:${item.id}:${option.value}`}
+                    onClick={() => updateStatus(item, option.value)}
+                    className="h-9 rounded-full border border-black/10 px-3 text-xs font-semibold text-ink disabled:opacity-50"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </article>
       ))}

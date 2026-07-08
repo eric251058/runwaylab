@@ -4,6 +4,7 @@ import { DesignerIncubationPanel, type DesignerIncubationItem } from "@/componen
 import { getCurrentUser } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/incubation";
 import { prisma } from "@/lib/prisma";
+import { maskContact, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
 
 export const dynamic = "force-dynamic";
 
@@ -25,30 +26,23 @@ export default async function MeIncubationPage() {
     select: {
       id: true,
       title: true,
-      presaleIntents: {
-        orderBy: {
-          createdAt: "desc"
-        }
+      presaleIntents: { orderBy: { createdAt: "desc" } },
+      fabricProposals: { orderBy: { createdAt: "desc" } },
+      sampleProposals: { orderBy: { createdAt: "desc" } },
+      factoryProposals: { orderBy: { createdAt: "desc" } },
+      buyerIntents: { orderBy: { createdAt: "desc" } },
+      fabricRecommendations: {
+        include: {
+          fabric: { include: { provider: true } },
+          provider: true
+        },
+        orderBy: { createdAt: "desc" }
       },
-      fabricProposals: {
-        orderBy: {
-          createdAt: "desc"
-        }
-      },
-      sampleProposals: {
-        orderBy: {
-          createdAt: "desc"
-        }
-      },
-      factoryProposals: {
-        orderBy: {
-          createdAt: "desc"
-        }
-      },
-      buyerIntents: {
-        orderBy: {
-          createdAt: "desc"
-        }
+      providerWorkProposals: {
+        include: {
+          provider: true
+        },
+        orderBy: { createdAt: "desc" }
       }
     },
     orderBy: {
@@ -121,6 +115,32 @@ export default async function MeIncubationPage() {
         summary: sentence([item.channelType, item.quantity && `数量 ${item.quantity}`, item.targetPrice, item.cooperationType, item.message]),
         status: item.status,
         createdAt: formatDateTime(item.createdAt)
+      })),
+      ...work.fabricRecommendations.map((item) => ({
+        id: item.id,
+        kind: "providerFabric" as const,
+        kindLabel: "面料库推荐",
+        workId: work.id,
+        workTitle: work.title,
+        primary: item.fabric.name,
+        company: item.provider?.name ?? item.fabric.provider?.name,
+        contact: maskContact(item.provider?.contactPhone ?? item.fabric.provider?.contactPhone ?? item.provider?.contactEmail ?? item.fabric.provider?.contactEmail),
+        summary: sentence([item.fabric.composition, item.fabric.weight, item.fabric.width, item.reason]),
+        status: item.status,
+        createdAt: formatDateTime(item.createdAt)
+      })),
+      ...work.providerWorkProposals.map((item) => ({
+        id: item.id,
+        kind: "providerProposal" as const,
+        kindLabel: PROVIDER_PROPOSAL_TYPE_LABELS[item.type],
+        workId: work.id,
+        workTitle: work.title,
+        primary: item.title,
+        company: item.provider.name,
+        contact: maskContact(item.provider.contactPhone ?? item.provider.contactEmail ?? item.provider.wechat),
+        summary: sentence([item.description, item.estimatedPrice && `预计价格 ${item.estimatedPrice}`, item.estimatedTime && `预计周期 ${item.estimatedTime}`, item.moq && `MOQ ${item.moq}`]),
+        status: item.status,
+        createdAt: formatDateTime(item.createdAt)
       }))
     ])
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -132,7 +152,7 @@ export default async function MeIncubationPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">My Incubation</p>
           <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">孵化管理</h1>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">
-            查看你发布的作品收到的预售意向、面料推荐、打样方案、工厂方案和采购意向，并决定是否采纳。
+            查看你的作品收到的预售意向、面料推荐、打样方案、工厂方案、采购意向，以及 V0.8 服务商方案对比信息。
           </p>
         </div>
         <Link href="/me" className="inline-flex h-11 w-fit items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">

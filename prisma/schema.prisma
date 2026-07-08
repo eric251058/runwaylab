@@ -94,6 +94,54 @@ enum ProposalStatus {
   INVALID
 }
 
+enum ProviderType {
+  FABRIC_SUPPLIER
+  SAMPLE_STUDIO
+  FACTORY
+  BUYER
+  OTHER
+}
+
+enum ProviderStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum ProviderApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum FabricStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum RecommendationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum ProviderWorkProposalType {
+  FABRIC
+  SAMPLE
+  PRODUCTION
+  BUYER_INTENT
+  OTHER
+}
+
+enum ProviderWorkProposalStatus {
+  PENDING
+  SHORTLISTED
+  ACCEPTED
+  REJECTED
+}
+
 enum RequestStatus {
   PENDING
   CONTACTED
@@ -269,6 +317,8 @@ model Work {
   factoryProposals          FactoryProposal[]
   buyerIntents              BuyerIntent[]
   presaleIntents            PresaleIntent[]
+  fabricRecommendations     WorkFabricRecommendation[]
+  providerWorkProposals     ProviderWorkProposal[]
   editorialPicks            EditorialPick[]
   fabricRequests            FabricRequest[]
   sampleRequests            SampleRequest[]
@@ -425,6 +475,140 @@ model WorkImage {
   updatedAt DateTime @updatedAt
 
   @@index([workId])
+}
+
+model Provider {
+  id           String         @id @default(cuid())
+  name         String
+  slug         String?        @unique
+  type         ProviderType
+  logoUrl      String?
+  coverUrl     String?
+  city         String?
+  province     String?
+  country      String         @default("China")
+  description  String?
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+  wechat       String?
+  website      String?
+  tags         String[]
+  isVerified   Boolean        @default(false)
+  isFeatured   Boolean        @default(false)
+  status       ProviderStatus @default(PENDING)
+
+  fabrics               Fabric[]
+  fabricRecommendations WorkFabricRecommendation[]
+  workProposals         ProviderWorkProposal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([isFeatured])
+  @@index([isVerified])
+}
+
+model ProviderApplication {
+  id           String                    @id @default(cuid())
+  providerType ProviderType
+  companyName  String
+  contactName  String
+  phone        String?
+  email        String?
+  wechat       String?
+  city         String?
+  description  String?
+  status       ProviderApplicationStatus @default(PENDING)
+  reviewNote   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([providerType])
+  @@index([status])
+}
+
+model Fabric {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String?      @unique
+  code        String?
+  providerId  String?
+  imageUrl    String?
+  composition String?
+  weight      String?
+  width       String?
+  color       String?
+  texture     String?
+  season      String?
+  usage       String?
+  description String?
+  priceNote   String?
+  moqNote     String?
+  tags        String[]
+  isFeatured  Boolean      @default(false)
+  status      FabricStatus @default(ACTIVE)
+
+  provider        Provider?                  @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  recommendations WorkFabricRecommendation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([providerId])
+  @@index([status])
+  @@index([isFeatured])
+}
+
+model WorkFabricRecommendation {
+  id            String               @id @default(cuid())
+  workId        String
+  fabricId      String
+  providerId    String?
+  reason        String?
+  recommendedBy String?
+  status        RecommendationStatus @default(PENDING)
+
+  work     Work      @relation(fields: [workId], references: [id], onDelete: Cascade)
+  fabric   Fabric    @relation(fields: [fabricId], references: [id], onDelete: Cascade)
+  provider Provider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workId, fabricId])
+  @@index([workId])
+  @@index([fabricId])
+  @@index([providerId])
+  @@index([status])
+}
+
+model ProviderWorkProposal {
+  id             String                     @id @default(cuid())
+  workId         String
+  providerId     String
+  type           ProviderWorkProposalType
+  title          String
+  description    String?
+  estimatedPrice String?
+  estimatedTime  String?
+  moq            String?
+  attachments    String[]
+  status         ProviderWorkProposalStatus @default(PENDING)
+
+  work     Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([providerId])
+  @@index([type])
+  @@index([status])
 }
 
 model Challenge {
