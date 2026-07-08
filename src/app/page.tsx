@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowRight, BarChart3, Factory, GraduationCap, Scissors, Shirt, Sparkles, SwatchBook, Users } from "lucide-react";
-import { ChallengeStatus, ExhibitionStatus, FabricStatus, PresaleCampaignStatus, ProviderStatus, WorkIncubationStatus } from "@prisma/client";
+import { CaseStudyStatus, ChallengeStatus, CollaborationProjectStatus, ExhibitionStatus, FabricStatus, PresaleCampaignStatus, ProviderStatus, WorkIncubationStatus } from "@prisma/client";
 import { DesignerCard } from "@/components/designer/DesignerCard";
 import { WorkCard } from "@/components/works/WorkCard";
 import { visualFor } from "@/components/works/work-visuals";
@@ -104,7 +104,7 @@ function EmptyBlock({ text }: { text: string }) {
 }
 
 export default async function HomePage() {
-  const [works, designerProfiles, userCount, presaleCount, proposalCounts, featuredSchools, featuredTeachers, featuredExhibitions, featuredChallenges, featuredProviders, featuredFabrics, activePresaleCampaigns] = await Promise.all([
+  const [works, designerProfiles, userCount, presaleCount, proposalCounts, featuredSchools, featuredTeachers, featuredExhibitions, featuredChallenges, featuredProviders, featuredFabrics, activePresaleCampaigns, featuredProjects, featuredCases] = await Promise.all([
     getHomeWorks(),
     prisma.designerProfile.findMany({
       include: {
@@ -181,6 +181,18 @@ export default async function HomePage() {
       },
       orderBy: [{ isFeatured: "desc" }, { currentCount: "desc" }, { createdAt: "desc" }],
       take: 4
+    }),
+    prisma.collaborationProject.findMany({
+      where: { status: { notIn: [CollaborationProjectStatus.DRAFT, CollaborationProjectStatus.CANCELLED] } },
+      include: { work: true, provider: true, _count: { select: { orders: true } } },
+      orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+      take: 3
+    }),
+    prisma.caseStudy.findMany({
+      where: { status: CaseStudyStatus.PUBLISHED },
+      include: { project: true, provider: true },
+      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+      take: 3
     })
   ]);
 
@@ -284,6 +296,57 @@ export default async function HomePage() {
         ) : (
           <EmptyBlock text="暂无开启中的预售验证活动。后台创建 ACTIVE 活动后会显示在这里。" />
         )}
+      </section>
+
+      <section className="mt-12">
+        <div className="mb-5 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Commercial Collaboration</p>
+            <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">商业合作框架</h2>
+          </div>
+          <Link href="/projects" className="hidden items-center gap-1 text-sm font-semibold text-ink/60 hover:text-ink sm:inline-flex">
+            查看合作项目
+            <ArrowRight size={15} />
+          </Link>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="rounded-[8px] border border-black/8 bg-white p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-semibold text-ink">平台合作项目</h3>
+              <Link href="/projects" className="text-xs font-semibold text-ink/45">更多</Link>
+            </div>
+            <div className="space-y-3">
+              {featuredProjects.length ? featuredProjects.map((project) => (
+                <Link key={project.id} href={`/projects/${project.slug ?? project.id}`} className="block rounded-[6px] bg-paper p-3">
+                  <span className="line-clamp-1 text-sm font-semibold text-ink">{project.title}</span>
+                  <span className="mt-1 block text-xs text-ink/45">{project.work.title} / 意向 {project._count.orders}</span>
+                </Link>
+              )) : <p className="text-sm text-ink/52">暂无合作项目</p>}
+            </div>
+          </div>
+          <div className="rounded-[8px] border border-black/8 bg-white p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-semibold text-ink">成功案例</h3>
+              <Link href="/cases" className="text-xs font-semibold text-ink/45">更多</Link>
+            </div>
+            <div className="space-y-3">
+              {featuredCases.length ? featuredCases.map((item) => (
+                <Link key={item.id} href={`/cases/${item.slug}`} className="block rounded-[6px] bg-paper p-3">
+                  <span className="line-clamp-1 text-sm font-semibold text-ink">{item.title}</span>
+                  <span className="mt-1 block text-xs text-ink/45">{item.provider?.name ?? item.project?.title ?? "合作记录"}</span>
+                </Link>
+              )) : <p className="text-sm text-ink/52">暂无成功案例</p>}
+            </div>
+          </div>
+          <div className="rounded-[8px] border border-black/8 bg-ink p-5 text-white">
+            <h3 className="font-semibold">认证与合作规则</h3>
+            <p className="mt-3 text-sm leading-6 text-white/62">认证用于提升可信度，合作规则说明当前阶段不收款、不生成真实订单，正式合作以双方协议为准。</p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link href="/verify" className="inline-flex h-10 items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-ink">申请认证</Link>
+              <Link href="/legal/collaboration-rules" className="inline-flex h-10 items-center justify-center rounded-full border border-white/20 px-4 text-sm font-semibold text-white">合作规则</Link>
+            </div>
+          </div>
+        </div>
       </section>
 
       <div className="mt-12 space-y-12">

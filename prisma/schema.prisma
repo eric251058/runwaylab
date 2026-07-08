@@ -36,6 +36,8 @@ enum ReviewStatus {
   APPROVED
   REJECTED
   OFFLINE
+  PUBLISHED
+  HIDDEN
 }
 
 enum ContentStatus {
@@ -169,6 +171,61 @@ enum PresaleCampaignIntentStatus {
   CANCELLED
 }
 
+enum VerificationType {
+  DESIGNER
+  TEACHER
+  SCHOOL
+  FABRIC_SUPPLIER
+  SAMPLE_STUDIO
+  FACTORY
+  BUYER
+  OTHER
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CollaborationProjectStatus {
+  DRAFT
+  MATCHING
+  SAMPLING
+  PRESALE_VALIDATING
+  PRODUCTION_DISCUSSION
+  COMPLETED
+  CANCELLED
+}
+
+enum CollaborationProjectPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ProjectOrderStatus {
+  INTENT
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ReviewTargetType {
+  USER
+  PROVIDER
+  WORK
+  PROJECT
+}
+
+enum CaseStudyStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 enum RequestStatus {
   PENDING
   CONTACTED
@@ -257,6 +314,13 @@ model User {
   adminLogs                  AdminLog[]
   presaleCampaigns           PresaleCampaign[]       @relation("PresaleCampaignCreatedBy")
   presaleCampaignIntents     PresaleCampaignIntent[]
+  verificationRequests       VerificationRequest[]   @relation("VerificationRequestUser")
+  reviewedVerifications      VerificationRequest[]   @relation("VerificationReviewedBy")
+  collaborationProjects      CollaborationProject[]  @relation("CollaborationProjectDesigner")
+  createdProjects            CollaborationProject[]  @relation("CollaborationProjectCreatedBy")
+  projectOrders              ProjectOrder[]          @relation("ProjectOrderBuyer")
+  givenReviews               Review[]                @relation("ReviewReviewer")
+  receivedReviews            Review[]                @relation("ReviewTargetUser")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -350,6 +414,10 @@ model Work {
   presaleIntents            PresaleIntent[]
   presaleCampaigns          PresaleCampaign[]
   presaleCampaignIntents    PresaleCampaignIntent[]
+  collaborationProjects     CollaborationProject[]
+  projectOrders             ProjectOrder[]
+  reviews                   Review[]
+  caseStudies               CaseStudy[]
   fabricRecommendations     WorkFabricRecommendation[]
   providerWorkProposals     ProviderWorkProposal[]
   editorialPicks            EditorialPick[]
@@ -380,10 +448,12 @@ model School {
   isFeatured  Boolean @default(false)
   status      String  @default("ACTIVE")
 
-  teachers    Teacher[]
-  works       Work[]
-  exhibitions Exhibition[]
-  challenges  Challenge[]
+  teachers              Teacher[]
+  works                 Work[]
+  exhibitions           Exhibition[]
+  challenges            Challenge[]
+  collaborationProjects CollaborationProject[]
+  caseStudies           CaseStudy[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -406,11 +476,13 @@ model Teacher {
   isFeatured Boolean @default(false)
   status     String  @default("PENDING")
 
-  school          School?                  @relation(fields: [schoolId], references: [id], onDelete: SetNull)
-  works           Work[]
-  recommendations TeacherRecommendedWork[]
-  exhibitions     Exhibition[]
-  challenges      Challenge[]
+  school                School?                  @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  works                 Work[]
+  recommendations       TeacherRecommendedWork[]
+  exhibitions           Exhibition[]
+  challenges            Challenge[]
+  collaborationProjects CollaborationProject[]
+  caseStudies           CaseStudy[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -534,6 +606,10 @@ model Provider {
   fabrics               Fabric[]
   fabricRecommendations WorkFabricRecommendation[]
   workProposals         ProviderWorkProposal[]
+  collaborationProjects CollaborationProject[]
+  projectOrders         ProjectOrder[]
+  reviews               Review[]
+  caseStudies           CaseStudy[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -585,8 +661,9 @@ model Fabric {
   isFeatured  Boolean      @default(false)
   status      FabricStatus @default(ACTIVE)
 
-  provider        Provider?                  @relation(fields: [providerId], references: [id], onDelete: SetNull)
-  recommendations WorkFabricRecommendation[]
+  provider              Provider?                  @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  recommendations       WorkFabricRecommendation[]
+  collaborationProjects CollaborationProject[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -984,9 +1061,10 @@ model PresaleCampaign {
   isFeatured     Boolean               @default(false)
   createdById    String?
 
-  work      Work                    @relation(fields: [workId], references: [id], onDelete: Cascade)
-  createdBy User?                   @relation("PresaleCampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  intents   PresaleCampaignIntent[]
+  work                  Work                    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  createdBy             User?                   @relation("PresaleCampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  intents               PresaleCampaignIntent[]
+  collaborationProjects CollaborationProject[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1025,6 +1103,176 @@ model PresaleCampaignIntent {
   @@index([workId])
   @@index([userId])
   @@index([status])
+}
+
+model VerificationRequest {
+  id               String             @id @default(cuid())
+  userId           String
+  persona          UserPersona
+  type             VerificationType
+  realName         String?
+  organizationName String?
+  roleTitle        String?
+  phone            String?
+  email            String?
+  wechat           String?
+  city             String?
+  description      String?
+  proofUrl         String?
+  status           VerificationStatus @default(PENDING)
+  reviewNote       String?
+  reviewedAt       DateTime?
+  reviewedById     String?
+
+  user       User  @relation("VerificationRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("VerificationReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([persona])
+  @@index([type])
+  @@index([status])
+}
+
+model CollaborationProject {
+  id                String                       @id @default(cuid())
+  title             String
+  slug              String?                      @unique
+  workId            String
+  designerId        String?
+  schoolId          String?
+  teacherId         String?
+  providerId        String?
+  fabricId          String?
+  presaleCampaignId String?
+  description       String?
+  status            CollaborationProjectStatus   @default(DRAFT)
+  priority          CollaborationProjectPriority @default(NORMAL)
+  targetQuantity    String?
+  estimatedBudget   String?
+  targetLaunchDate  DateTime?
+  internalNote      String?
+  createdById       String?
+
+  work            Work             @relation(fields: [workId], references: [id], onDelete: Cascade)
+  designer        User?            @relation("CollaborationProjectDesigner", fields: [designerId], references: [id], onDelete: SetNull)
+  school          School?          @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  teacher         Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  provider        Provider?        @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  fabric          Fabric?          @relation(fields: [fabricId], references: [id], onDelete: SetNull)
+  presaleCampaign PresaleCampaign? @relation(fields: [presaleCampaignId], references: [id], onDelete: SetNull)
+  createdBy       User?            @relation("CollaborationProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  orders          ProjectOrder[]
+  reviews         Review[]
+  caseStudies     CaseStudy[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([designerId])
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([providerId])
+  @@index([fabricId])
+  @@index([presaleCampaignId])
+  @@index([status])
+  @@index([priority])
+}
+
+model ProjectOrder {
+  id           String             @id @default(cuid())
+  projectId    String
+  workId       String?
+  buyerId      String?
+  providerId   String?
+  title        String
+  quantityNote String?
+  amountNote   String?
+  deliveryNote String?
+  status       ProjectOrderStatus @default(INTENT)
+  note         String?
+
+  project  CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  work     Work?                @relation(fields: [workId], references: [id], onDelete: SetNull)
+  buyer    User?                @relation("ProjectOrderBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
+  provider Provider?            @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([workId])
+  @@index([buyerId])
+  @@index([providerId])
+  @@index([status])
+}
+
+model Review {
+  id           String           @id @default(cuid())
+  reviewerId   String
+  targetType   ReviewTargetType
+  targetUserId String?
+  providerId   String?
+  workId       String?
+  projectId    String?
+  rating       Int              @default(5)
+  content      String?
+  status       ReviewStatus     @default(PENDING)
+
+  reviewer   User                  @relation("ReviewReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  targetUser User?                 @relation("ReviewTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  provider   Provider?             @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  work       Work?                 @relation(fields: [workId], references: [id], onDelete: SetNull)
+  project    CollaborationProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reviewerId])
+  @@index([targetType])
+  @@index([targetUserId])
+  @@index([providerId])
+  @@index([workId])
+  @@index([projectId])
+  @@index([status])
+}
+
+model CaseStudy {
+  id           String          @id @default(cuid())
+  title        String
+  slug         String          @unique
+  coverUrl     String?
+  summary      String?
+  content      String?
+  workId       String?
+  projectId    String?
+  schoolId     String?
+  teacherId    String?
+  providerId   String?
+  designerName String?
+  resultNote   String?
+  isFeatured   Boolean         @default(false)
+  status       CaseStudyStatus @default(DRAFT)
+
+  work     Work?                 @relation(fields: [workId], references: [id], onDelete: SetNull)
+  project  CollaborationProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  school   School?               @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  teacher  Teacher?              @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  provider Provider?             @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([projectId])
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([providerId])
+  @@index([status])
+  @@index([isFeatured])
 }
 
 model FabricRequest {

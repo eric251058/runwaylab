@@ -14,7 +14,7 @@ type AuthUser = {
   personaCompleted?: boolean;
 };
 
-const coveredRoutes = ["/", "/works", "/publish", "/me", "/incubation", "/presale", "/challenges", "/designers", "/schools", "/teachers", "/exhibitions", "/providers", "/fabrics"];
+const coveredRoutes = ["/", "/works", "/publish", "/me", "/incubation", "/presale", "/projects", "/cases", "/verify", "/legal", "/challenges", "/designers", "/schools", "/teachers", "/exhibitions", "/providers", "/fabrics"];
 
 const personaLabels: Record<string, string> = {
   DESIGNER: "设计师",
