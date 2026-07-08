@@ -36,7 +36,7 @@ export function PresaleCampaignForm({ campaignId, workId, source, sizeOptions, c
 
       <div className="grid gap-3 sm:grid-cols-2">
         <input name="name" placeholder="姓名（可选）" className={inputClass} />
-        <input name="phone" placeholder="手机号（可选）" className={inputClass} />
+        <input name="phone" placeholder="手机号（微信 / 手机 / 邮箱至少填一个）" className={inputClass} />
         <input name="email" type="email" placeholder="邮箱（可选）" className={inputClass} />
         <input name="wechat" placeholder="微信（可选）" className={inputClass} />
       </div>
@@ -71,10 +71,10 @@ export function PresaleCampaignForm({ campaignId, workId, source, sizeOptions, c
         <input name="quantity" type="number" min={1} max={999} defaultValue={1} placeholder="数量" className={inputClass} />
       </div>
 
-      <textarea name="note" placeholder="备注（可选，例如想要的长度、场景、预算）" className={textareaClass} />
+      <textarea name="note" placeholder="备注（可选，例如想要的长度、穿着场景、可接受预算）" className={textareaClass} />
 
       <button type="submit" disabled={isPending || isSuccess} className="h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
-        {isPending ? "提交中..." : isSuccess ? "已提交" : "提交预售意向"}
+        {isPending ? "提交中..." : isSuccess ? "已提交" : "提交预售意向，不需要付款"}
       </button>
 
       {message ? <p className={`text-sm ${isSuccess ? "text-emerald-700" : "text-red-600"}`}>{message}</p> : null}

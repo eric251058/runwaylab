@@ -44,6 +44,10 @@ export async function submitPresaleCampaignIntent(formData: FormData) {
   const phone = optionalText(formData.get("phone"));
   const email = optionalText(formData.get("email"));
   const wechat = optionalText(formData.get("wechat"));
+  if (!phone && !email && !wechat) {
+    return { ok: false, message: "请至少填写微信、手机或邮箱中的一个联系方式。" };
+  }
+
   const guestConditions: Prisma.PresaleCampaignIntentWhereInput[] = [];
   if (phone) guestConditions.push({ phone });
   if (email) guestConditions.push({ email });
@@ -104,7 +108,7 @@ export async function submitPresaleCampaignIntent(formData: FormData) {
   revalidatePath("/me/incubation");
   revalidatePath("/admin/presale-campaigns");
   revalidatePath("/admin/presale-intents");
-  return { ok: true, message: "预售意向已提交，平台后续会联系你确认细节。" };
+  return { ok: true, message: "已收到你的预售意向。当前不会收款，平台会在作品进入打样或预售阶段后联系你确认。" };
 }
 
 export async function savePresaleCampaign(formData: FormData) {

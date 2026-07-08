@@ -287,13 +287,13 @@ export default async function HomePage() {
     <main className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10">
       <section className="rounded-[8px] bg-ink px-5 py-10 text-white md:px-10 md:py-16">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">RunwayLab</p>
-        <h1 className="mt-4 max-w-4xl text-4xl font-semibold leading-tight md:text-6xl">让服装设计作品，从作业走向打样、预售和商业合作。</h1>
+        <h1 className="mt-4 max-w-4xl text-4xl font-semibold leading-tight md:text-6xl">让设计作品走向打样、预售和合作。</h1>
         <p className="mt-5 max-w-3xl text-sm leading-6 text-white/68 md:text-base md:leading-7">
           RunwayLab 连接设计学生、老师、学校、面料商、打样工作室、工厂、买手和用户，帮助优秀设计作品完成孵化验证。
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
           <Link href="/publish" className="inline-flex h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-ink">
-            发布作品
+            发布作品，进入孵化机会池
           </Link>
           <Link href="/incubation" className="inline-flex h-12 items-center justify-center rounded-full border border-white/20 px-6 text-sm font-semibold text-white">
             浏览孵化作品

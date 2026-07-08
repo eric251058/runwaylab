@@ -53,10 +53,13 @@ export function PresaleCampaignPanel({ campaign, workTitle, source, compact = fa
       </div>
 
       {campaign.description ? <p className="mt-4 text-sm leading-6 text-ink/62">{campaign.description}</p> : null}
+      <p className="mt-3 rounded-[6px] bg-paper px-4 py-3 text-sm leading-6 text-ink/58">
+        这是预售意向验证，不收款，不构成订单。提交后只表示你对这件作品感兴趣，平台会在作品进入打样或预售阶段后联系确认。
+      </p>
 
       <div className="mt-5">
         <div className="mb-2 flex items-center justify-between text-xs font-semibold text-ink/45">
-          <span>当前 {campaign.currentCount} / 目标 {campaign.targetCount}</span>
+          <span>已有 {campaign.currentCount} 人表达意向，目标 {campaign.targetCount} 人</span>
           <span>{progress}%</span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-paper">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { ProviderType, UserPersona } from "@prisma/client";
+import { ActionGuide } from "@/components/ActionGuide";
 import { getCurrentUser } from "@/lib/auth/session";
 import { USER_PERSONA_LABELS } from "@/lib/persona";
 import { prisma } from "@/lib/prisma";
@@ -38,6 +39,81 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     </section>
   );
 }
+
+const personaGuides: Record<UserPersona, { task: string; actions: Array<{ label: string; href: string; primary?: boolean }> }> = {
+  DESIGNER: {
+    task: "发布作品并推动作品进入孵化。",
+    actions: [
+      { label: "发布作品", href: "/publish", primary: true },
+      { label: "查看孵化进度", href: "/me/incubation" },
+      { label: "查看预售验证", href: "/presale" }
+    ]
+  },
+  FABRIC_SUPPLIER: {
+    task: "完善服务商资料，参与作品面料匹配。",
+    actions: [
+      { label: "申请服务商入驻", href: "/providers/apply", primary: true },
+      { label: "查看作品池", href: "/incubation" },
+      { label: "查看面料库", href: "/fabrics" }
+    ]
+  },
+  SAMPLE_STUDIO: {
+    task: "发现适合打样的作品，提交打样方案。",
+    actions: [
+      { label: "申请服务商入驻", href: "/providers/apply", primary: true },
+      { label: "查看孵化作品", href: "/incubation" },
+      { label: "查看服务商市场", href: "/providers" }
+    ]
+  },
+  FACTORY: {
+    task: "发现具备生产潜力的作品，提交生产方案。",
+    actions: [
+      { label: "申请服务商入驻", href: "/providers/apply", primary: true },
+      { label: "查看预售验证", href: "/presale" },
+      { label: "查看合作项目", href: "/projects" }
+    ]
+  },
+  BUYER: {
+    task: "发现有市场潜力的设计作品，提交采购或预售意向。",
+    actions: [
+      { label: "查看预售验证", href: "/presale", primary: true },
+      { label: "查看排行榜", href: "/rankings" },
+      { label: "查看合作项目", href: "/projects" }
+    ]
+  },
+  CONSUMER: {
+    task: "浏览作品，收藏喜欢的设计，提交预售意向。",
+    actions: [
+      { label: "浏览作品", href: "/works", primary: true },
+      { label: "查看排行榜", href: "/rankings" },
+      { label: "查看预售验证", href: "/presale" }
+    ]
+  },
+  TEACHER: {
+    task: "发现并推荐优秀学生作品。",
+    actions: [
+      { label: "查看作品", href: "/works", primary: true },
+      { label: "查看挑战赛", href: "/challenges" },
+      { label: "查看课程作品展", href: "/exhibitions" }
+    ]
+  },
+  SCHOOL: {
+    task: "展示学校作品、老师和活动。",
+    actions: [
+      { label: "查看学校主页", href: "/schools", primary: true },
+      { label: "查看作品展", href: "/exhibitions" },
+      { label: "查看挑战赛", href: "/challenges" }
+    ]
+  },
+  OTHER: {
+    task: "先浏览作品和预售验证，再选择适合自己的参与方式。",
+    actions: [
+      { label: "浏览作品", href: "/works", primary: true },
+      { label: "查看预售", href: "/presale" },
+      { label: "完善资料", href: "/me/profile" }
+    ]
+  }
+};
 
 export default async function MeDashboardPage() {
   const user = await getCurrentUser();
@@ -328,7 +404,15 @@ export default async function MeDashboardPage() {
         </div>
       </header>
 
-      <div className="space-y-5">{renderDashboard()}</div>
+      <div className="space-y-5">
+        <ActionGuide
+          eyebrow="Next Action"
+          title={`当前身份：${USER_PERSONA_LABELS[currentUser.persona]}`}
+          description={`当前最重要任务：${personaGuides[currentUser.persona].task}`}
+          actions={personaGuides[currentUser.persona].actions}
+        />
+        {renderDashboard()}
+      </div>
     </div>
   );
 }

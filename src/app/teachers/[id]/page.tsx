@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ActionGuide } from "@/components/ActionGuide";
 import { WorkCard } from "@/components/works/WorkCard";
 import { activityWorkInclude, displayDateRange, teacherAvatarUrl } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
@@ -78,8 +79,21 @@ export default async function TeacherDetailPage({ params }: TeacherDetailPagePro
       </header>
 
       <div className="mt-10 space-y-12">
+        <ActionGuide
+          eyebrow="Teacher Recommendation"
+          title="老师推荐，是学生作品进入孵化验证的第一轮信任背书。"
+          description="推荐理由会展示在作品详情页，帮助学校、服务商、买手和普通用户更快理解作品价值。当前推荐动作由平台运营协助完成。"
+          actions={[
+            { label: "查看挑战赛", href: "/challenges", primary: true },
+            { label: "查看课程作品展", href: "/exhibitions" }
+          ]}
+        />
+
         <section>
-          <h2 className="mb-4 text-2xl font-semibold text-ink">老师推荐作品</h2>
+          <div className="mb-4">
+            <h2 className="text-2xl font-semibold text-ink">老师推荐作品</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/55">这些作品由老师或平台运营标记推荐，推荐理由会帮助作品获得更多展示和孵化机会。</p>
+          </div>
           {visibleRecommendations.length ? (
             <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-4">
               {visibleRecommendations.map((recommendation, index) => (

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ActionGuide } from "@/components/ActionGuide";
 import { DesignerIncubationPanel, type DesignerIncubationItem } from "@/components/incubation/DesignerIncubationPanel";
 import { getCurrentUser } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/incubation";
@@ -27,6 +28,10 @@ export default async function MeIncubationPage() {
     select: {
       id: true,
       title: true,
+      teacherRecommendations: {
+        select: { id: true },
+        take: 1
+      },
       presaleIntents: { orderBy: { createdAt: "desc" } },
       presaleCampaigns: {
         include: {
@@ -53,6 +58,10 @@ export default async function MeIncubationPage() {
           provider: true
         },
         orderBy: { createdAt: "desc" }
+      },
+      collaborationProjects: {
+        select: { id: true },
+        take: 1
       }
     },
     orderBy: {
@@ -176,6 +185,71 @@ export default async function MeIncubationPage() {
           返回我的页面
         </Link>
       </header>
+
+      <div className="mb-6">
+        <ActionGuide
+          eyebrow="Incubation Guide"
+          title="孵化进度不是订单状态，而是作品从展示到商业验证的过程。"
+          description="你可以在这里查看老师推荐、面料推荐、打样方案、生产方案、预售意向和合作项目。没有数据时，先完善作品说明、参加挑战赛，或联系平台开启预售验证。"
+          actions={[
+            { label: "发布新作品", href: "/publish", primary: true },
+            { label: "查看挑战赛", href: "/challenges" },
+            { label: "查看预售验证", href: "/presale" }
+          ]}
+        />
+      </div>
+
+      <section className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
+        <div className="mb-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Work Signals</p>
+          <h2 className="mt-2 text-2xl font-semibold text-ink">每个作品的孵化信号</h2>
+        </div>
+        {works.length ? (
+          <div className="grid gap-4">
+            {works.map((work) => {
+              const fabricCount = work.fabricProposals.length + work.fabricRecommendations.length;
+              const presaleCount = work.presaleIntents.length + work.presaleCampaigns.reduce((sum, campaign) => sum + campaign.currentCount, 0);
+              const hasTeacherRecommendation = work.teacherRecommendations.length > 0;
+              const hasProject = work.collaborationProjects.length > 0;
+              const advice = [
+                !hasTeacherRecommendation ? "还没有老师推荐：建议参加挑战赛或完善作品说明。" : null,
+                fabricCount === 0 ? "还没有面料推荐：平台会根据作品方向匹配面料商。" : null,
+                presaleCount === 0 ? "还没有预售验证：可以联系平台开启预售活动。" : null
+              ].filter(Boolean);
+
+              return (
+                <article key={work.id} className="rounded-[8px] border border-black/8 bg-paper p-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <h3 className="font-semibold text-ink">{work.title}</h3>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                        <span className="rounded-full bg-white px-3 py-1 text-ink/55">老师推荐：{hasTeacherRecommendation ? "有" : "无"}</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-ink/55">面料推荐：{fabricCount} 条</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-ink/55">打样方案：{work.sampleProposals.length} 条</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-ink/55">生产方案：{work.factoryProposals.length} 条</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-ink/55">预售验证：{presaleCount} 人意向</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-ink/55">合作项目：{hasProject ? "有" : "无"}</span>
+                      </div>
+                      {advice.length ? (
+                        <div className="mt-3 space-y-1 text-xs leading-5 text-ink/52">
+                          {advice.map((item) => <p key={item}>{item}</p>)}
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-xs text-ink/52">这个作品已经具备较完整的孵化信号，可以继续跟进方案状态。</p>
+                      )}
+                    </div>
+                    <Link href={`/works/${work.id}`} className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink">
+                      查看作品
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-[8px] border border-black/8 bg-paper p-4 text-sm text-ink/55">你还没有发布作品。先发布作品后，这里会显示孵化信号。</div>
+        )}
+      </section>
 
       <section className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
         <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">

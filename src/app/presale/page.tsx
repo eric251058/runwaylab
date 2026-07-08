@@ -66,7 +66,7 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Presale Validation</p>
         <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">预售验证池</h1>
         <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/60 md:text-base">
-          这里展示正在收集市场意向的作品。当前只记录预售兴趣，不收款、不生成订单，也不涉及退款或物流。
+          这里展示正在收集市场意向的作品。提交意向不需要付款，不生成订单，也不涉及退款或物流。
         </p>
       </header>
 
@@ -105,14 +105,14 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
                     </div>
                     <div>
                       <div className="mb-2 flex items-center justify-between text-xs font-semibold text-ink/45">
-                        <span>{campaign.currentCount} / {campaign.targetCount} 人</span>
+                        <span>已有 {campaign.currentCount} 人，目标 {campaign.targetCount} 人</span>
                         <span>{progress}%</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-paper">
                         <div className="h-full rounded-full bg-ink" style={{ width: `${progress}%` }} />
                       </div>
                     </div>
-                    <p className="text-sm text-ink/55">预计价格：{campaign.estimatedPrice ?? "待定"}，已收集 {campaign._count.intents} 条意向。</p>
+                    <p className="text-sm text-ink/55">预计价格：{campaign.estimatedPrice ?? "待定"}，已收集 {campaign._count.intents} 条意向。当前不收款。</p>
                     <Link href={`/works/${campaign.workId}`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
                       进入作品详情
                     </Link>

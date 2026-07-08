@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Eye } from "lucide-react";
+import { ActionGuide } from "@/components/ActionGuide";
 import { DataUnavailable } from "@/components/layout/DataUnavailable";
 import { IncubationProgress } from "@/components/incubation/IncubationProgress";
 import { PresaleCampaignPanel } from "@/components/presale/PresaleCampaignPanel";
@@ -15,7 +16,7 @@ import { canViewWorkDetail } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { fabricCoverUrl, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
 import { getWorkDetailById } from "@/lib/works/queries";
-import { PresaleCampaignStatus, WorkIncubationStatus } from "@prisma/client";
+import { PresaleCampaignStatus, UserPersona, WorkIncubationStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,107 @@ function progressMetric(label: string, value: number) {
       <p className="mt-1 text-xl font-semibold text-ink">{value}</p>
     </div>
   );
+}
+
+function nextActionCopy({
+  isLoggedIn,
+  isOwner,
+  isAdmin,
+  persona,
+  workId,
+  hasActivePresale
+}: {
+  isLoggedIn: boolean;
+  isOwner: boolean;
+  isAdmin: boolean;
+  persona?: UserPersona | null;
+  workId: string;
+  hasActivePresale: boolean;
+}) {
+  const presaleHref = hasActivePresale ? "#presale-validation" : `/presale?workId=${workId}`;
+
+  if (!isLoggedIn) {
+    return {
+      title: "喜欢这个作品？先登录，再点赞、收藏或提交预售意向。",
+      description: "当前不会收款，也不会生成订单。登录后可以留下真实意向，帮助设计师判断作品是否值得继续打样。",
+      actions: [
+        { label: "登录后参与", href: `/login?next=/works/${workId}`, primary: true },
+        { label: "查看预售说明", href: presaleHref }
+      ]
+    };
+  }
+
+  if (isAdmin) {
+    return {
+      title: "运营下一步：把有潜力的作品推进完整孵化闭环。",
+      description: "可以从推荐、孵化、预售和合作项目四个入口快速处理，不涉及支付、订单或物流。",
+      actions: [
+        { label: "加入首页精选", href: "/admin/editorial", primary: true },
+        { label: "加入孵化候选", href: "/admin/incubation" },
+        { label: "创建预售活动", href: "/admin/presale-campaigns" },
+        { label: "创建合作项目", href: "/admin/projects" }
+      ]
+    };
+  }
+
+  if (isOwner) {
+    return {
+      title: "这是你的作品，下一步可以推进孵化验证。",
+      description: "查看孵化进度、关注服务商方案，并在合适时联系平台开启预售验证。",
+      actions: [
+        { label: "查看孵化进度", href: "/me/incubation", primary: true },
+        { label: "查看服务商方案", href: "#provider-market" },
+        { label: "查看预售验证", href: presaleHref }
+      ]
+    };
+  }
+
+  if (persona === UserPersona.TEACHER) {
+    return {
+      title: "老师可以帮助优秀学生作品获得第一轮信任背书。",
+      description: "老师推荐当前由平台运营协助完成，不新增复杂老师权限系统。",
+      note: "如果你还没有后台权限，请联系平台开通老师关联；已是管理员可进入后台添加推荐理由。",
+      actions: [
+        { label: "推荐这个作品", href: "#teacher-recommendation-help", primary: true },
+        { label: "查看老师推荐说明", href: "#teacher-recommendation-help" },
+        { label: "查看课程作品展", href: "/exhibitions" }
+      ]
+    };
+  }
+
+  if (persona === UserPersona.FABRIC_SUPPLIER || persona === UserPersona.SAMPLE_STUDIO || persona === UserPersona.FACTORY) {
+    return {
+      title: "你可以围绕这个作品提交面料、打样或生产方案。",
+      description: "普通服务商先走入驻申请，平台会协助你参与作品孵化方案提交。",
+      actions: [
+        { label: "我是服务商，想提交方案", href: "/providers/apply", primary: true },
+        { label: "查看服务商方案", href: "#provider-market" },
+        { label: "浏览孵化池", href: "/incubation" }
+      ]
+    };
+  }
+
+  if (persona === UserPersona.BUYER) {
+    return {
+      title: "如果你看好这个作品，可以先提交采购或预售意向。",
+      description: "本阶段只收集意向，不收款、不生成订单，平台后续协助设计师判断是否推进合作。",
+      actions: [
+        { label: "提交预售意向", href: presaleHref, primary: true },
+        { label: "查看预售验证", href: "/presale" },
+        { label: "查看合作项目", href: "/projects" }
+      ]
+    };
+  }
+
+  return {
+    title: "喜欢这个作品，可以点赞、收藏，或提交预售意向。",
+    description: "你的互动会帮助作品判断热度；预售意向只做需求验证，不需要付款。",
+    actions: [
+      { label: "点赞 / 收藏", href: "#incubation-actions", primary: true },
+      { label: "提交预售意向", href: presaleHref },
+      { label: "浏览更多作品", href: "/works" }
+    ]
+  };
 }
 
 export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
@@ -251,6 +353,16 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
         })
       ])
     : [null, null, null];
+  const isOwner = Boolean(currentUser && currentUser.id === work.userId);
+  const isAdminUser = currentUser?.role === "ADMIN";
+  const actionCopy = nextActionCopy({
+    isLoggedIn: Boolean(currentUser),
+    isOwner,
+    isAdmin: isAdminUser,
+    persona: currentUser?.persona,
+    workId: work.id,
+    hasActivePresale: Boolean(activePresaleCampaign)
+  });
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-4 md:px-8 md:py-10">
@@ -313,6 +425,28 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
                   ))}
                 </div>
               ) : null}
+            </section>
+          ) : null}
+
+          <ActionGuide
+            eyebrow="Next Action"
+            title={actionCopy.title}
+            description={actionCopy.description}
+            note={"note" in actionCopy ? actionCopy.note : undefined}
+            actions={actionCopy.actions}
+          />
+
+          {currentUser?.persona === UserPersona.TEACHER ? (
+            <section id="teacher-recommendation-help" className="rounded-[8px] border border-black/8 bg-paper p-4 text-sm leading-6 text-ink/58">
+              <p className="font-semibold text-ink">老师推荐说明</p>
+              <p className="mt-2">老师推荐会作为作品的信任背书，帮助学生作品进入课程展示、挑战赛、孵化候选和首页运营推荐。当前推荐动作由平台运营协助完成。</p>
+              {isAdminUser ? (
+                <Link href="/admin/recommendations" className="mt-3 inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
+                  进入老师推荐后台
+                </Link>
+              ) : (
+                <p className="mt-3 text-xs text-ink/45">如需开通老师推荐权限，请联系平台运营。</p>
+              )}
             </section>
           ) : null}
 
@@ -395,18 +529,26 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
             </div>
           </section>
 
-          <PresaleCampaignPanel campaign={activePresaleCampaign} workTitle={work.title} source="WORK_DETAIL" />
+          <div id="presale-validation">
+            <PresaleCampaignPanel campaign={activePresaleCampaign} workTitle={work.title} source="WORK_DETAIL" />
+          </div>
 
-          <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
+          <section id="provider-market" className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Provider Market</p>
                 <h2 className="mt-2 text-2xl font-semibold text-ink">服务商方案</h2>
               </div>
-              <Link href="/providers" className="text-sm font-semibold text-ink/55 hover:text-ink">
-                查看服务商
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                <Link href="/providers/apply" className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
+                  我是服务商，想提交方案
+                </Link>
+                <Link href="/providers" className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">
+                  查看服务商
+                </Link>
+              </div>
             </div>
+            <p className="mt-3 text-sm leading-6 text-ink/58">入驻后，平台会协助服务商参与作品孵化方案提交；本阶段不涉及真实交易、订单或支付。</p>
 
             <div className="mt-5 space-y-6">
               <div>

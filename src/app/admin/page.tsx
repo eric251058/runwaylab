@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ActionGuide } from "@/components/ActionGuide";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,17 @@ const adminLinks = [
   ["/admin/fabrics", "面料库"],
   ["/admin/presale-campaigns", "预售活动"],
   ["/admin/users", "用户管理"]
+];
+
+const operationActions = [
+  ["/admin/works", "审核作品", "先让优质作品通过审核，进入公开展示。"],
+  ["/admin/editorial", "设置首页精选", "把适合转化的作品放到首页和榜单入口。"],
+  ["/admin/recommendations", "添加老师推荐", "为学生作品补充老师背书和推荐理由。"],
+  ["/admin/work-fabric-recommendations", "推荐面料", "把面料库资源匹配到合适作品。"],
+  ["/admin/provider-proposals", "添加服务商方案", "补充打样、生产、买手反馈等轻量方案。"],
+  ["/admin/presale-campaigns", "创建预售活动", "开启不收款的预售意向验证。"],
+  ["/admin/projects", "创建合作项目", "把成熟作品推进到合作项目展示。"],
+  ["/admin/cases", "创建成功案例", "沉淀已经跑通的孵化案例。"]
 ];
 
 function stat(label: string, value: number) {
@@ -56,6 +68,28 @@ export default async function AdminPage() {
         <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">后台总控台</h1>
         <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">总览平台用户、作品、学校、服务商、预售、认证和合作项目。V1.0 仍不处理支付、退款、物流或真实订单。</p>
       </header>
+
+      <section className="mb-8">
+        <ActionGuide
+          eyebrow="Today"
+          title="今日运营动作：从作品审核到孵化闭环，一步一步推进。"
+          description="这里仅提供快捷入口和运营提醒，不新增交易、订单、支付或复杂权限。"
+          actions={[
+            { label: "审核作品", href: "/admin/works", primary: true },
+            { label: "创建预售活动", href: "/admin/presale-campaigns" },
+            { label: "创建合作项目", href: "/admin/projects" }
+          ]}
+        />
+      </section>
+
+      <section className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {operationActions.map(([href, title, description]) => (
+          <Link key={href} href={href} className="rounded-[8px] border border-black/8 bg-white p-4 transition hover:border-ink/35">
+            <span className="block text-base font-semibold text-ink">{title}</span>
+            <span className="mt-2 block text-sm leading-6 text-ink/55">{description}</span>
+          </Link>
+        ))}
+      </section>
 
       <section className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {stat("用户数量", userCount)}
