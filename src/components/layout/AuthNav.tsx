@@ -12,7 +12,7 @@ type AuthUser = {
   status: string;
 };
 
-const coveredRoutes = ["/", "/works", "/publish", "/me", "/incubation", "/challenges", "/designers", "/schools", "/teachers", "/exhibitions", "/providers", "/fabrics"];
+const coveredRoutes = ["/", "/works", "/publish", "/me", "/incubation", "/presale", "/challenges", "/designers", "/schools", "/teachers", "/exhibitions", "/providers", "/fabrics"];
 
 function isCoveredRoute(pathname: string) {
   return coveredRoutes.some((route) => (route === "/" ? pathname === "/" : pathname === route || pathname.startsWith(`${route}/`)));

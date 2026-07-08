@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Eye } from "lucide-react";
 import { DataUnavailable } from "@/components/layout/DataUnavailable";
 import { IncubationProgress } from "@/components/incubation/IncubationProgress";
+import { PresaleCampaignPanel } from "@/components/presale/PresaleCampaignPanel";
 import { WorkImageCarousel } from "@/components/works/WorkImageCarousel";
 import { WorkInteractionBar } from "@/components/works/WorkInteractionBar";
 import { WorkStatusBadge, getWorkBadges } from "@/components/works/WorkStatusBadge";
@@ -14,7 +15,7 @@ import { canViewWorkDetail } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { fabricCoverUrl, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
 import { getWorkDetailById } from "@/lib/works/queries";
-import { WorkIncubationStatus } from "@prisma/client";
+import { PresaleCampaignStatus, WorkIncubationStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -92,7 +93,7 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
   const badges = getWorkBadges(work);
   const activeChallenge = work.challengeEntries[0]?.challenge;
   const incubationProject = work.incubationProjects[0];
-  const [workIncubation, presaleIntentCount, fabricProposalCount, sampleProposalCount, factoryProposalCount, buyerIntentCount] = await Promise.all([
+  const [workIncubation, presaleIntentCount, fabricProposalCount, sampleProposalCount, factoryProposalCount, buyerIntentCount, activePresaleCampaign] = await Promise.all([
     prisma.workIncubation.findUnique({
       where: {
         workId: work.id
@@ -122,6 +123,13 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
       where: {
         workId: work.id
       }
+    }),
+    prisma.presaleCampaign.findFirst({
+      where: {
+        workId: work.id,
+        status: PresaleCampaignStatus.ACTIVE
+      },
+      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }]
     })
   ]);
   const activityInfo = await prisma.work.findUnique({
@@ -386,6 +394,8 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
               </a>
             </div>
           </section>
+
+          <PresaleCampaignPanel campaign={activePresaleCampaign} workTitle={work.title} source="WORK_DETAIL" />
 
           <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">

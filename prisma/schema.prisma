@@ -142,6 +142,21 @@ enum ProviderWorkProposalStatus {
   REJECTED
 }
 
+enum PresaleCampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum PresaleCampaignIntentStatus {
+  SUBMITTED
+  CONTACTED
+  CONFIRMED
+  CANCELLED
+}
+
 enum RequestStatus {
   PENDING
   CONTACTED
@@ -226,6 +241,8 @@ model User {
   handledCooperationRequests CooperationRequest[]    @relation("CooperationRequestHandledBy")
   handledReports             Report[]                @relation("ReportHandledBy")
   adminLogs                  AdminLog[]
+  presaleCampaigns           PresaleCampaign[]       @relation("PresaleCampaignCreatedBy")
+  presaleCampaignIntents     PresaleCampaignIntent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -317,6 +334,8 @@ model Work {
   factoryProposals          FactoryProposal[]
   buyerIntents              BuyerIntent[]
   presaleIntents            PresaleIntent[]
+  presaleCampaigns          PresaleCampaign[]
+  presaleCampaignIntents    PresaleCampaignIntent[]
   fabricRecommendations     WorkFabricRecommendation[]
   providerWorkProposals     ProviderWorkProposal[]
   editorialPicks            EditorialPick[]
@@ -930,6 +949,67 @@ model PresaleIntent {
   updatedAt DateTime @updatedAt
 
   @@index([workId])
+  @@index([status])
+}
+
+model PresaleCampaign {
+  id             String                @id @default(cuid())
+  workId         String
+  title          String
+  slug           String?               @unique
+  description    String?
+  targetCount    Int                   @default(50)
+  currentCount   Int                   @default(0)
+  estimatedPrice String?
+  priceNote      String?
+  sizeOptions    String[]
+  colorOptions   String[]
+  startDate      DateTime?
+  endDate        DateTime?
+  status         PresaleCampaignStatus @default(DRAFT)
+  isFeatured     Boolean               @default(false)
+  createdById    String?
+
+  work      Work                    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  createdBy User?                   @relation("PresaleCampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  intents   PresaleCampaignIntent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([createdById])
+  @@index([status])
+  @@index([isFeatured])
+}
+
+model PresaleCampaignIntent {
+  id         String                      @id @default(cuid())
+  campaignId String
+  workId     String
+  userId     String?
+  name       String?
+  phone      String?
+  email      String?
+  wechat     String?
+  size       String?
+  color      String?
+  quantity   Int                         @default(1)
+  note       String?
+  source     String?
+  status     PresaleCampaignIntentStatus @default(SUBMITTED)
+
+  campaign PresaleCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  work     Work            @relation(fields: [workId], references: [id], onDelete: Cascade)
+  user     User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, userId])
+  @@index([campaignId])
+  @@index([workId])
+  @@index([userId])
   @@index([status])
 }
 

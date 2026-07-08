@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowRight, BarChart3, Factory, GraduationCap, Scissors, Shirt, Sparkles, SwatchBook, Users } from "lucide-react";
-import { ChallengeStatus, ExhibitionStatus, FabricStatus, ProviderStatus, WorkIncubationStatus } from "@prisma/client";
+import { ChallengeStatus, ExhibitionStatus, FabricStatus, PresaleCampaignStatus, ProviderStatus, WorkIncubationStatus } from "@prisma/client";
 import { DesignerCard } from "@/components/designer/DesignerCard";
 import { WorkCard } from "@/components/works/WorkCard";
 import { visualFor } from "@/components/works/work-visuals";
 import { getHeatScore } from "@/lib/operation-growth";
+import { presaleProgress } from "@/lib/presale-campaign";
 import { prisma } from "@/lib/prisma";
 import { fabricCoverUrl, providerLogoUrl, PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
 import { displayDateRange, schoolCoverUrl, teacherAvatarUrl } from "@/lib/school-activity";
@@ -103,7 +104,7 @@ function EmptyBlock({ text }: { text: string }) {
 }
 
 export default async function HomePage() {
-  const [works, designerProfiles, userCount, presaleCount, proposalCounts, featuredSchools, featuredTeachers, featuredExhibitions, featuredChallenges, featuredProviders, featuredFabrics] = await Promise.all([
+  const [works, designerProfiles, userCount, presaleCount, proposalCounts, featuredSchools, featuredTeachers, featuredExhibitions, featuredChallenges, featuredProviders, featuredFabrics, activePresaleCampaigns] = await Promise.all([
     getHomeWorks(),
     prisma.designerProfile.findMany({
       include: {
@@ -166,6 +167,19 @@ export default async function HomePage() {
       where: { status: FabricStatus.ACTIVE },
       include: { provider: true },
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+      take: 4
+    }),
+    prisma.presaleCampaign.findMany({
+      where: { status: PresaleCampaignStatus.ACTIVE, work: approvedVisibleWorkWhere },
+      include: {
+        work: {
+          include: {
+            images: { orderBy: { sortOrder: "asc" } },
+            user: true
+          }
+        }
+      },
+      orderBy: [{ isFeatured: "desc" }, { currentCount: "desc" }, { createdAt: "desc" }],
       take: 4
     })
   ]);
@@ -230,6 +244,46 @@ export default async function HomePage() {
         {stat("孵化候选数量", incubationWorks.length)}
         {stat("预售意向数量", presaleCount)}
         {stat("合作方案数量", fabricProposalCount + sampleProposalCount + factoryProposalCount + buyerIntentCount)}
+      </section>
+
+      <section className="mt-12">
+        <div className="mb-5 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Presale Validation</p>
+            <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">预售验证中</h2>
+          </div>
+          <Link href="/presale" className="hidden items-center gap-1 text-sm font-semibold text-ink/60 hover:text-ink sm:inline-flex">
+            查看预售池
+            <ArrowRight size={15} />
+          </Link>
+        </div>
+        {activePresaleCampaigns.length ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {activePresaleCampaigns.map((campaign, index) => {
+              const progress = presaleProgress(campaign.currentCount, campaign.targetCount);
+              return (
+                <Link key={campaign.id} href={`/works/${campaign.workId}`} className="overflow-hidden rounded-[8px] border border-black/8 bg-white transition hover:border-ink/35">
+                  <img src={visualFor(index + 8, campaign.work.images[0])} alt={campaign.work.title} className="aspect-[4/3] w-full object-cover" />
+                  <span className="block space-y-3 p-4">
+                    <span className="block line-clamp-2 text-sm font-semibold text-ink">{campaign.title}</span>
+                    <span className="block text-xs text-ink/50">{campaign.work.title} / {campaign.estimatedPrice ?? "价格待定"}</span>
+                    <span className="block">
+                      <span className="mb-2 flex items-center justify-between text-xs font-semibold text-ink/45">
+                        <span>{campaign.currentCount} / {campaign.targetCount}</span>
+                        <span>{progress}%</span>
+                      </span>
+                      <span className="block h-2 overflow-hidden rounded-full bg-paper">
+                        <span className="block h-full rounded-full bg-ink" style={{ width: `${progress}%` }} />
+                      </span>
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyBlock text="暂无开启中的预售验证活动。后台创建 ACTIVE 活动后会显示在这里。" />
+        )}
       </section>
 
       <div className="mt-12 space-y-12">
