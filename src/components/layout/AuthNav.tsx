@@ -10,9 +10,23 @@ type AuthUser = {
   email?: string | null;
   role: string;
   status: string;
+  persona?: string | null;
+  personaCompleted?: boolean;
 };
 
 const coveredRoutes = ["/", "/works", "/publish", "/me", "/incubation", "/presale", "/challenges", "/designers", "/schools", "/teachers", "/exhibitions", "/providers", "/fabrics"];
+
+const personaLabels: Record<string, string> = {
+  DESIGNER: "设计师",
+  FABRIC_SUPPLIER: "面料商",
+  SAMPLE_STUDIO: "打样",
+  FACTORY: "工厂",
+  BUYER: "买手",
+  CONSUMER: "普通用户",
+  TEACHER: "老师",
+  SCHOOL: "学校",
+  OTHER: "其他"
+};
 
 function isCoveredRoute(pathname: string) {
   return coveredRoutes.some((route) => (route === "/" ? pathname === "/" : pathname === route || pathname.startsWith(`${route}/`)));
@@ -65,6 +79,9 @@ export function AuthNav() {
     <nav className="fixed right-3 top-3 z-40 flex items-center gap-1 rounded-full border border-black/10 bg-white/90 p-1 text-xs font-semibold text-ink shadow-[0_12px_34px_rgba(16,16,16,0.10)] backdrop-blur md:right-6 md:top-5 md:text-sm">
       {user ? (
         <>
+          <Link href="/me/onboarding" className="hidden rounded-full bg-paper px-3 py-2 text-ink/60 transition hover:text-ink sm:inline-flex md:px-4">
+            {user.personaCompleted ? `身份：${personaLabels[user.persona ?? ""] ?? "未选择"}` : "选择身份"}
+          </Link>
           <Link href="/me" className="rounded-full px-3 py-2 transition hover:bg-paper md:px-4">
             我的
           </Link>

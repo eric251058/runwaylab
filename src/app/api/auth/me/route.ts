@@ -15,7 +15,9 @@ export async function GET() {
       nickname: user.nickname,
       avatarUrl: user.avatarUrl,
       role: user.role,
-      status: user.status
+      status: user.status,
+      persona: user.persona,
+      personaCompleted: user.personaCompleted
     }
   });
 }

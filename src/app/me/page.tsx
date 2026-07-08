@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { MyActivityLists, type MyActivityTab, type MyFavoriteItem, type MyRequestItem } from "@/components/me/MyActivityLists";
 import { MyWorksList, type MyWorkItem } from "@/components/me/MyWorksList";
 import { getCurrentUser } from "@/lib/auth/session";
+import { USER_PERSONA_LABELS } from "@/lib/persona";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -225,6 +226,12 @@ export default async function MePage({ searchParams }: MePageProps) {
           <p className="mt-4 text-sm text-ink/58">查看我的作品、收藏、需求申请和孵化进度。</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/me/dashboard" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
+            我的工作台
+          </Link>
+          <Link href="/me/onboarding" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
+            {user.personaCompleted ? `切换身份：${USER_PERSONA_LABELS[user.persona]}` : "选择身份"}
+          </Link>
           <Link href="/me/profile" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
             编辑个人资料
           </Link>
@@ -233,6 +240,17 @@ export default async function MePage({ searchParams }: MePageProps) {
           </Link>
         </div>
       </header>
+
+      {!user.personaCompleted ? (
+        <section className="mb-5 rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_12px_34px_rgba(16,16,16,0.06)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Persona</p>
+          <h2 className="mt-2 text-xl font-semibold text-ink">选择你的身份</h2>
+          <p className="mt-2 text-sm leading-6 text-ink/58">RunwayLab 会根据你的身份展示更合适的个人工作台，你之后也可以随时切换。</p>
+          <Link href="/me/onboarding" className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
+            去选择身份
+          </Link>
+        </section>
+      ) : null}
 
       <section className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-5">
         {[

@@ -19,6 +19,18 @@ enum UserStatus {
   BANNED
 }
 
+enum UserPersona {
+  DESIGNER
+  FABRIC_SUPPLIER
+  SAMPLE_STUDIO
+  FACTORY
+  BUYER
+  CONSUMER
+  TEACHER
+  SCHOOL
+  OTHER
+}
+
 enum ReviewStatus {
   PENDING
   APPROVED
@@ -206,13 +218,15 @@ enum NotificationType {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  passwordHash String
-  nickname     String
-  avatarUrl    String?
-  role         UserRole   @default(USER)
-  status       UserStatus @default(ACTIVE)
+  id               String      @id @default(cuid())
+  email            String      @unique
+  passwordHash     String
+  nickname         String
+  avatarUrl        String?
+  role             UserRole    @default(USER)
+  status           UserStatus  @default(ACTIVE)
+  persona          UserPersona @default(CONSUMER)
+  personaCompleted Boolean     @default(false)
 
   designerProfile           DesignerProfile?
   sessions                  AuthSession[]
