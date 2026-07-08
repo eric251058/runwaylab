@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="RunwayLab challenge cover placeholder">
+  <rect width="1200" height="675" fill="#f5f5f5"/>
+  <rect x="64" y="64" width="1072" height="547" rx="18" fill="#ffffff" stroke="#111111" stroke-opacity="0.12"/>
+  <path d="M246 432c82-94 156-142 222-142 64 0 112 43 174 43 72 0 140-58 248-158" fill="none" stroke="#111111" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="910" cy="175" r="42" fill="#111111"/>
+  <text x="96" y="130" fill="#111111" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" letter-spacing="8">RUNWAYLAB</text>
+  <text x="96" y="548" fill="#111111" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700">Design Challenge</text>
+</svg>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { coverUrl, displayDateRange } from "@/lib/school-activity";
+import { displayDateRange, exhibitionCoverUrl } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
 import { ExhibitionStatus } from "@prisma/client";
 
@@ -34,7 +34,7 @@ export default async function ExhibitionsPage() {
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {exhibitions.map((exhibition) => (
             <Link key={exhibition.id} href={`/exhibitions/${exhibition.slug ?? exhibition.id}`} className="overflow-hidden rounded-[8px] bg-white shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
-              <img src={coverUrl(exhibition.id, exhibition.coverUrl)} alt={exhibition.title} className="aspect-[16/9] w-full object-cover" />
+              <img src={exhibitionCoverUrl(exhibition.coverUrl)} alt={exhibition.title} className="aspect-[16/9] w-full object-cover" />
               <div className="space-y-3 p-5">
                 <div className="flex flex-wrap gap-2">
                   {exhibition.isFeatured ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">推荐</span> : null}

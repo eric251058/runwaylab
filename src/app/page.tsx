@@ -7,7 +7,7 @@ import { WorkCard } from "@/components/works/WorkCard";
 import { visualFor } from "@/components/works/work-visuals";
 import { getHeatScore } from "@/lib/operation-growth";
 import { prisma } from "@/lib/prisma";
-import { coverUrl, displayDateRange } from "@/lib/school-activity";
+import { displayDateRange, schoolCoverUrl, teacherAvatarUrl } from "@/lib/school-activity";
 import { approvedVisibleWorkWhere } from "@/lib/works/rules";
 import type { RecommendedDesigner, WorkCardData } from "@/lib/works/queries";
 
@@ -240,7 +240,7 @@ export default async function HomePage() {
               <div className="space-y-3">
                 {featuredSchools.length ? featuredSchools.map((school) => (
                   <Link key={school.id} href={`/schools/${school.slug ?? school.id}`} className="flex gap-3">
-                    <img src={coverUrl(school.id, school.coverUrl ?? school.logoUrl)} alt={school.name} className="size-14 rounded-[6px] object-cover" />
+                    <img src={schoolCoverUrl(school.coverUrl ?? school.logoUrl)} alt={school.name} className="size-14 rounded-[6px] object-cover" />
                     <span className="min-w-0 text-sm">
                       <span className="block truncate font-semibold text-ink">{school.name}</span>
                       <span className="mt-1 block text-xs text-ink/45">{school.city ?? "城市待补充"} / {school._count.works} 件作品</span>
@@ -257,7 +257,7 @@ export default async function HomePage() {
               <div className="space-y-3">
                 {featuredTeachers.length ? featuredTeachers.map((teacher) => (
                   <Link key={teacher.id} href={`/teachers/${teacher.slug ?? teacher.id}`} className="flex gap-3">
-                    <img src={coverUrl(teacher.id, teacher.avatarUrl)} alt={teacher.name} className="size-14 rounded-full object-cover" />
+                    <img src={teacherAvatarUrl(teacher.avatarUrl)} alt={teacher.name} className="size-14 rounded-full object-cover" />
                     <span className="min-w-0 text-sm">
                       <span className="block truncate font-semibold text-ink">{teacher.name}</span>
                       <span className="mt-1 block text-xs text-ink/45">{teacher.school?.name ?? "学校待关联"} / 推荐 {teacher._count.recommendations}</span>

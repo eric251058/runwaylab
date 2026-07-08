@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="RunwayLab exhibition cover placeholder">
+  <rect width="1200" height="675" fill="#ffffff"/>
+  <rect x="82" y="82" width="1036" height="511" rx="16" fill="#f6f6f6" stroke="#111111" stroke-opacity="0.14"/>
+  <rect x="220" y="180" width="190" height="300" rx="6" fill="#111111" fill-opacity="0.88"/>
+  <rect x="505" y="136" width="190" height="344" rx="6" fill="#111111" fill-opacity="0.72"/>
+  <rect x="790" y="220" width="190" height="260" rx="6" fill="#111111" fill-opacity="0.52"/>
+  <text x="96" y="130" fill="#111111" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" letter-spacing="8">RUNWAYLAB</text>
+  <text x="96" y="548" fill="#111111" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700">Course Exhibition</text>
+</svg>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { coverUrl } from "@/lib/school-activity";
+import { schoolCoverUrl } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +32,7 @@ export default async function SchoolsPage() {
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {schools.map((school) => (
             <Link key={school.id} href={`/schools/${school.slug ?? school.id}`} className="overflow-hidden rounded-[8px] bg-white shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
-              <img src={coverUrl(school.id, school.coverUrl ?? school.logoUrl)} alt={school.name} className="aspect-[16/9] w-full object-cover" />
+              <img src={schoolCoverUrl(school.coverUrl ?? school.logoUrl)} alt={school.name} className="aspect-[16/9] w-full object-cover" />
               <div className="space-y-3 p-5">
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="line-clamp-1 text-xl font-semibold text-ink">{school.name}</h2>

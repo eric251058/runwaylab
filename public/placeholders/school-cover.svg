@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="RunwayLab school cover placeholder">
+  <rect width="1200" height="675" fill="#f7f7f7"/>
+  <rect x="90" y="210" width="1020" height="330" rx="10" fill="#ffffff" stroke="#111111" stroke-opacity="0.14"/>
+  <path d="M600 118 204 270h792L600 118Z" fill="#111111"/>
+  <rect x="296" y="316" width="80" height="224" fill="#111111" fill-opacity="0.82"/>
+  <rect x="472" y="316" width="80" height="224" fill="#111111" fill-opacity="0.82"/>
+  <rect x="648" y="316" width="80" height="224" fill="#111111" fill-opacity="0.82"/>
+  <rect x="824" y="316" width="80" height="224" fill="#111111" fill-opacity="0.82"/>
+  <text x="96" y="130" fill="#111111" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" letter-spacing="8">RUNWAYLAB</text>
+  <text x="96" y="610" fill="#111111" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700">Fashion School</text>
+</svg>

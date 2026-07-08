@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { WorkCard } from "@/components/works/WorkCard";
-import { activityWorkInclude, coverUrl, displayDateRange } from "@/lib/school-activity";
+import { activityWorkInclude, displayDateRange, teacherAvatarUrl } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
 import { approvedVisibleWorkWhere } from "@/lib/works/rules";
 import type { WorkCardData } from "@/lib/works/queries";
@@ -63,7 +63,7 @@ export default async function TeacherDetailPage({ params }: TeacherDetailPagePro
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
       <header className="rounded-[8px] bg-white p-6 shadow-[0_16px_48px_rgba(16,16,16,0.08)] md:p-8">
         <div className="flex flex-col gap-5 md:flex-row md:items-center">
-          <img src={coverUrl(teacher.id, teacher.avatarUrl)} alt={teacher.name} className="size-24 rounded-full object-cover" />
+          <img src={teacherAvatarUrl(teacher.avatarUrl)} alt={teacher.name} className="size-24 rounded-full object-cover" />
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Teacher</p>
             <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">{teacher.name}</h1>

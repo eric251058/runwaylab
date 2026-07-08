@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="RunwayLab teacher avatar placeholder">
+  <rect width="512" height="512" rx="256" fill="#f5f5f5"/>
+  <circle cx="256" cy="188" r="82" fill="#111111"/>
+  <path d="M112 424c22-86 78-132 144-132s122 46 144 132" fill="#111111"/>
+  <circle cx="256" cy="256" r="244" fill="none" stroke="#111111" stroke-opacity="0.14" stroke-width="24"/>
+  <text x="256" y="470" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700">RL</text>
+</svg>

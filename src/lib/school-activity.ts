@@ -35,6 +35,13 @@ export const activityWorkInclude = {
   }
 };
 
+export const PLACEHOLDER_IMAGES = {
+  challengeCover: "/placeholders/challenge-cover.svg",
+  exhibitionCover: "/placeholders/exhibition-cover.svg",
+  schoolCover: "/placeholders/school-cover.svg",
+  teacherAvatar: "/placeholders/teacher-avatar.svg"
+} as const;
+
 export function displayDateRange(start?: Date | null, end?: Date | null) {
   if (!start && !end) return "时间待定";
   const format = (value: Date) =>
@@ -47,19 +54,32 @@ export function displayDateRange(start?: Date | null, end?: Date | null) {
   return format((start ?? end) as Date);
 }
 
-export function fallbackCover(seed: string) {
-  const covers = [
-    "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1516762689617-e1cffcef479d?auto=format&fit=crop&w=1200&q=80"
-  ];
-  const index = Math.abs(seed.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0)) % covers.length;
-  return covers[index];
+function validImageUrl(value?: string | null) {
+  const url = value?.trim();
+  if (!url || ["null", "undefined", "none", "-"].includes(url.toLowerCase())) {
+    return null;
+  }
+  return /^(https?:\/\/|\/|data:image\/)/i.test(url) ? url : null;
 }
 
-export function coverUrl(seed: string, value?: string | null) {
-  return value?.trim() || fallbackCover(seed);
+export function imageWithFallback(value: string | null | undefined, fallback: string) {
+  return validImageUrl(value) ?? fallback;
+}
+
+export function challengeCoverUrl(value?: string | null) {
+  return imageWithFallback(value, PLACEHOLDER_IMAGES.challengeCover);
+}
+
+export function exhibitionCoverUrl(value?: string | null) {
+  return imageWithFallback(value, PLACEHOLDER_IMAGES.exhibitionCover);
+}
+
+export function schoolCoverUrl(value?: string | null) {
+  return imageWithFallback(value, PLACEHOLDER_IMAGES.schoolCover);
+}
+
+export function teacherAvatarUrl(value?: string | null) {
+  return imageWithFallback(value, PLACEHOLDER_IMAGES.teacherAvatar);
 }
 
 export function splitIds(value: FormDataEntryValue | null) {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { WorkCard } from "@/components/works/WorkCard";
-import { activityWorkInclude, coverUrl, displayDateRange } from "@/lib/school-activity";
+import { activityWorkInclude, displayDateRange, schoolCoverUrl } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
 import { approvedVisibleWorkWhere } from "@/lib/works/rules";
 import type { WorkCardData } from "@/lib/works/queries";
@@ -61,7 +61,7 @@ export default async function SchoolDetailPage({ params }: SchoolDetailPageProps
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
       <header className="overflow-hidden rounded-[8px] bg-white shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
-        <img src={coverUrl(school.id, school.coverUrl ?? school.logoUrl)} alt={school.name} className="aspect-[16/7] w-full object-cover" />
+        <img src={schoolCoverUrl(school.coverUrl ?? school.logoUrl)} alt={school.name} className="aspect-[16/7] w-full object-cover" />
         <div className="p-6 md:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">School</p>
           <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">{school.name}</h1>
