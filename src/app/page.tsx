@@ -1,17 +1,23 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowRight, BarChart3, Factory, GraduationCap, Scissors, Shirt, Sparkles, SwatchBook, Users } from "lucide-react";
-import { CaseStudyStatus, ChallengeStatus, CollaborationProjectStatus, ExhibitionStatus, FabricStatus, PresaleCampaignStatus, ProviderStatus, WorkIncubationStatus } from "@prisma/client";
-import { DesignerCard } from "@/components/designer/DesignerCard";
+import { ArrowRight, Factory, GraduationCap, Scissors, Shirt, Sparkles, SwatchBook, Users } from "lucide-react";
+import {
+  CaseStudyStatus,
+  CollaborationProjectStatus,
+  FabricStatus,
+  PresaleCampaignStatus,
+  ProviderStatus,
+  WorkIncubationStatus
+} from "@prisma/client";
 import { WorkCard } from "@/components/works/WorkCard";
 import { visualFor } from "@/components/works/work-visuals";
 import { getHeatScore } from "@/lib/operation-growth";
 import { presaleProgress } from "@/lib/presale-campaign";
 import { prisma } from "@/lib/prisma";
 import { fabricCoverUrl, providerLogoUrl, PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
-import { displayDateRange, schoolCoverUrl, teacherAvatarUrl } from "@/lib/school-activity";
+import { schoolCoverUrl, teacherAvatarUrl } from "@/lib/school-activity";
 import { approvedVisibleWorkWhere } from "@/lib/works/rules";
-import type { RecommendedDesigner, WorkCardData } from "@/lib/works/queries";
+import type { WorkCardData } from "@/lib/works/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +59,60 @@ const workInclude = {
   }
 };
 
-type HomeWork = Awaited<ReturnType<typeof getHomeWorks>>[number];
+const roleCards = [
+  {
+    title: "设计师 / 学生",
+    description: "发布作品，获得老师推荐、面料匹配、打样方案和预售验证。",
+    href: "/publish",
+    action: "发布作品",
+    icon: <Shirt size={18} />
+  },
+  {
+    title: "老师 / 学校",
+    description: "推荐学生作品，组织课程作品展和设计挑战赛。",
+    href: "/schools",
+    action: "查看学校与老师",
+    icon: <GraduationCap size={18} />
+  },
+  {
+    title: "面料商 / 打样 / 工厂",
+    description: "为优秀设计作品提供面料、打样和生产方案。",
+    href: "/providers/apply",
+    action: "服务商入驻",
+    icon: <SwatchBook size={18} />
+  },
+  {
+    title: "买手 / 采购商",
+    description: "发现新锐设计作品，提交采购意向和买手反馈。",
+    href: "/presale",
+    action: "查看预售验证",
+    icon: <Factory size={18} />
+  },
+  {
+    title: "普通用户",
+    description: "浏览、收藏、点赞作品，提交预售意向。",
+    href: "/works",
+    action: "浏览作品",
+    icon: <Users size={18} />
+  }
+];
+
+const flowSteps = [
+  { title: "发布作品", description: "设计师上传作品，建立公开作品页。" },
+  { title: "老师推荐", description: "老师和学校把优秀作品推到更多人面前。" },
+  { title: "面料推荐", description: "面料商围绕作品提交可落地的面料方案。" },
+  { title: "打样方案", description: "打样工作室和工厂给出周期与报价参考。" },
+  { title: "预售验证", description: "用户和买手表达兴趣，验证真实需求。" },
+  { title: "合作项目", description: "设计师选择合适方案，推进商业合作。" }
+];
+
+const ruleLinks = [
+  { label: "平台规则", href: "/legal/terms" },
+  { label: "隐私政策", href: "/legal/privacy" },
+  { label: "版权规则", href: "/legal/copyright" },
+  { label: "预售规则", href: "/legal/presale-rules" },
+  { label: "合作规则", href: "/legal/collaboration-rules" }
+];
 
 async function getHomeWorks() {
   return prisma.work.findMany({
@@ -63,6 +122,8 @@ async function getHomeWorks() {
     take: 60
   });
 }
+
+type HomeWork = Awaited<ReturnType<typeof getHomeWorks>>[number];
 
 function heatOf(work: HomeWork) {
   return getHeatScore({
@@ -81,58 +142,73 @@ function asWorkCard(work: HomeWork) {
   return work as unknown as WorkCardData;
 }
 
-function stat(label: string, value: number) {
+function dedupeWorks(works: HomeWork[]) {
+  return works.filter((work, index, array) => array.findIndex((item) => item.id === work.id) === index);
+}
+
+function SectionHeader({ eyebrow, title, action }: { eyebrow?: string; title: string; action?: ReactNode }) {
   return (
-    <div className="rounded-[8px] border border-black/8 bg-white p-4">
-      <p className="text-2xl font-semibold text-ink">{value}</p>
-      <p className="mt-1 text-xs font-semibold text-ink/45">{label}</p>
+    <div className="mb-5 flex items-end justify-between gap-4">
+      <div>
+        {eyebrow ? <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">{eyebrow}</p> : null}
+        <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">{title}</h2>
+      </div>
+      {action}
     </div>
   );
 }
 
-function EntryCard({ icon, title, href }: { icon: ReactNode; title: string; href: string }) {
+function EmptyBlock({ text, compact = false }: { text: string; compact?: boolean }) {
+  return <div className={`rounded-[8px] border border-black/8 bg-white text-sm text-ink/55 ${compact ? "p-4" : "p-6"}`}>{text}</div>;
+}
+
+function RoleCard({ card }: { card: (typeof roleCards)[number] }) {
   return (
-    <Link href={href} className="flex items-center gap-3 rounded-[8px] border border-black/8 bg-white p-4 text-sm font-semibold text-ink transition hover:border-ink/35">
-      <span className="flex size-10 items-center justify-center rounded-full bg-paper">{icon}</span>
-      {title}
+    <Link href={card.href} className="group flex min-h-[180px] flex-col justify-between rounded-[8px] border border-black/8 bg-white p-5 transition hover:border-ink/35">
+      <span>
+        <span className="flex size-10 items-center justify-center rounded-full bg-paper text-ink">{card.icon}</span>
+        <span className="mt-4 block text-base font-semibold text-ink">{card.title}</span>
+        <span className="mt-2 block text-sm leading-6 text-ink/58">{card.description}</span>
+      </span>
+      <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-ink/60 group-hover:text-ink">
+        {card.action}
+        <ArrowRight size={15} />
+      </span>
     </Link>
   );
 }
 
-function EmptyBlock({ text }: { text: string }) {
-  return <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">{text}</div>;
+function FlowStep({ step, index }: { step: (typeof flowSteps)[number]; index: number }) {
+  return (
+    <div className="min-w-[190px] flex-1 rounded-[8px] border border-black/8 bg-white p-4">
+      <span className="flex size-8 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white">{index + 1}</span>
+      <h3 className="mt-4 text-sm font-semibold text-ink">{step.title}</h3>
+      <p className="mt-2 text-xs leading-5 text-ink/55">{step.description}</p>
+    </div>
+  );
+}
+
+function CompactAction({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className="hidden items-center gap-1 text-sm font-semibold text-ink/60 hover:text-ink sm:inline-flex">
+      {children}
+      <ArrowRight size={15} />
+    </Link>
+  );
 }
 
 export default async function HomePage() {
-  const [works, designerProfiles, userCount, presaleCount, proposalCounts, featuredSchools, featuredTeachers, featuredExhibitions, featuredChallenges, featuredProviders, featuredFabrics, activePresaleCampaigns, featuredProjects, featuredCases] = await Promise.all([
+  const [
+    works,
+    featuredSchools,
+    featuredTeachers,
+    featuredProviders,
+    featuredFabrics,
+    activePresaleCampaigns,
+    featuredProjects,
+    featuredCases
+  ] = await Promise.all([
     getHomeWorks(),
-    prisma.designerProfile.findMany({
-      include: {
-        user: {
-          include: {
-            _count: {
-              select: {
-                works: {
-                  where: approvedVisibleWorkWhere
-                }
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        createdAt: "desc"
-      },
-      take: 8
-    }),
-    prisma.user.count(),
-    prisma.presaleIntent.count(),
-    Promise.all([
-      prisma.fabricProposal.count(),
-      prisma.sampleProposal.count(),
-      prisma.factoryProposal.count(),
-      prisma.buyerIntent.count()
-    ]),
     prisma.school.findMany({
       where: { status: "ACTIVE" },
       include: { _count: { select: { teachers: true, works: true } } },
@@ -145,29 +221,17 @@ export default async function HomePage() {
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
       take: 3
     }),
-    prisma.exhibition.findMany({
-      where: { OR: [{ status: ExhibitionStatus.PUBLISHED }, { isFeatured: true }] },
-      include: { school: true, teacher: true, _count: { select: { works: true } } },
-      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
-      take: 3
-    }),
-    prisma.challenge.findMany({
-      where: { OR: [{ status: { in: [ChallengeStatus.PUBLISHED, ChallengeStatus.ACTIVE] } }, { isFeatured: true }] },
-      include: { school: true, teacher: true, _count: { select: { works: true, entries: true } } },
-      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
-      take: 3
-    }),
     prisma.provider.findMany({
       where: { status: ProviderStatus.ACTIVE },
       include: { _count: { select: { fabrics: true, workProposals: true } } },
       orderBy: [{ isFeatured: "desc" }, { isVerified: "desc" }, { createdAt: "desc" }],
-      take: 4
+      take: 3
     }),
     prisma.fabric.findMany({
       where: { status: FabricStatus.ACTIVE },
       include: { provider: true },
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
-      take: 4
+      take: 3
     }),
     prisma.presaleCampaign.findMany({
       where: { status: PresaleCampaignStatus.ACTIVE, work: approvedVisibleWorkWhere },
@@ -180,7 +244,7 @@ export default async function HomePage() {
         }
       },
       orderBy: [{ isFeatured: "desc" }, { currentCount: "desc" }, { createdAt: "desc" }],
-      take: 4
+      take: 3
     }),
     prisma.collaborationProject.findMany({
       where: { status: { notIn: [CollaborationProjectStatus.DRAFT, CollaborationProjectStatus.CANCELLED] } },
@@ -196,81 +260,85 @@ export default async function HomePage() {
     })
   ]);
 
-  const [fabricProposalCount, sampleProposalCount, factoryProposalCount, buyerIntentCount] = proposalCounts;
-  const hotWorks = works.slice().sort((a, b) => heatOf(b) - heatOf(a)).slice(0, 6);
-  const featuredWorks = works.filter((work) => work.isFeatured || work.isEditorPick).concat(hotWorks).filter((work, index, array) => array.findIndex((item) => item.id === work.id) === index).slice(0, 6);
-  const incubationWorks = works
-    .filter((work) => work.workIncubation && work.workIncubation.status !== WorkIncubationStatus.DISPLAYING)
-    .concat(works.filter((work) => work.wantsIncubation || work.incubationStatus))
-    .filter((work, index, array) => array.findIndex((item) => item.id === work.id) === index)
-    .slice(0, 6);
-  const latestOpportunity = works.find((work) => work._count.fabricProposals + work._count.sampleProposals + work._count.factoryProposals + work._count.buyerIntents > 0);
+  const hotWorks = works.slice().sort((a, b) => heatOf(b) - heatOf(a));
+  const incubationWorks = works.filter((work) => {
+    return (
+      work.workIncubation?.status === WorkIncubationStatus.CANDIDATE ||
+      work.workIncubation?.status === WorkIncubationStatus.FABRIC_MATCHING ||
+      work.workIncubation?.status === WorkIncubationStatus.SAMPLE_MATCHING ||
+      work.workIncubation?.status === WorkIncubationStatus.PRODUCTION_MATCHING ||
+      work.workIncubation?.status === WorkIncubationStatus.PRESALE_TESTING ||
+      work.workIncubation?.status === WorkIncubationStatus.COLLABORATION_REACHED ||
+      work.wantsIncubation ||
+      Boolean(work.incubationStatus)
+    );
+  });
+  const featuredWorks = dedupeWorks([
+    ...works.filter((work) => work.isEditorPick),
+    ...works.filter((work) => work.isFeatured),
+    ...hotWorks,
+    ...incubationWorks
+  ]).slice(0, 6);
+
+  const hasResources = featuredSchools.length || featuredTeachers.length || featuredProviders.length || featuredFabrics.length;
+  const hasCasesOrProjects = featuredProjects.length || featuredCases.length;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10">
-      <header className="grid gap-8 md:grid-cols-[0.92fr_1.08fr] md:items-center">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">RunwayLab</p>
-          <h1 className="mt-3 text-4xl font-semibold leading-tight text-ink md:text-6xl">发布你的服装设计作品，让作品被看见、被孵化、被生产。</h1>
-          <p className="mt-5 max-w-2xl text-sm leading-6 text-ink/62 md:text-base md:leading-7">
-            RunwayLab 连接设计师、院校、面料商、打样工作室、工厂、买手和采购商，让服装设计从展示走向面料、打样、生产和采购机会。
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/publish" className="inline-flex h-12 items-center justify-center rounded-full bg-ink px-6 text-sm font-semibold text-white">
-              发布作品
-            </Link>
-            <Link href="/incubation" className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white px-6 text-sm font-semibold text-ink">
-              查看孵化池
-            </Link>
-            <Link href="/partners" className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white px-6 text-sm font-semibold text-ink">
-              合作方入口
-            </Link>
-          </div>
-        </div>
-
-        {hotWorks[0] ? (
-          <Link href={`/works/${hotWorks[0].id}`} className="group relative overflow-hidden rounded-[8px] bg-zinc-200 shadow-[0_24px_80px_rgba(16,16,16,0.14)]">
-            <img src={visualFor(0, hotWorks[0].images[0])} alt={hotWorks[0].title} className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105 md:aspect-[5/4]" />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 to-transparent p-5 text-white">
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink">热度 {heatOf(hotWorks[0])}</span>
-              <h2 className="mt-3 text-2xl font-semibold">{hotWorks[0].title}</h2>
-              <p className="mt-2 text-sm text-white/70">{hotWorks[0].user.nickname}</p>
-            </div>
+    <main className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10">
+      <section className="rounded-[8px] bg-ink px-5 py-10 text-white md:px-10 md:py-16">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">RunwayLab</p>
+        <h1 className="mt-4 max-w-4xl text-4xl font-semibold leading-tight md:text-6xl">让服装设计作品，从作业走向打样、预售和商业合作。</h1>
+        <p className="mt-5 max-w-3xl text-sm leading-6 text-white/68 md:text-base md:leading-7">
+          RunwayLab 连接设计学生、老师、学校、面料商、打样工作室、工厂、买手和用户，帮助优秀设计作品完成孵化验证。
+        </p>
+        <div className="mt-7 flex flex-wrap gap-3">
+          <Link href="/publish" className="inline-flex h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-ink">
+            发布作品
           </Link>
-        ) : (
-          <EmptyBlock text="暂无作品。发布第一件作品后，首页会自动展示真实数据。" />
-        )}
-      </header>
-
-      <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <EntryCard href="/publish" title="我是设计师" icon={<Shirt size={18} />} />
-        <EntryCard href="/challenges" title="我是老师 / 学校" icon={<GraduationCap size={18} />} />
-        <EntryCard href="/partners" title="我是面料商" icon={<SwatchBook size={18} />} />
-        <EntryCard href="/partners" title="我是打样 / 工厂" icon={<Scissors size={18} />} />
-        <EntryCard href="/partners" title="我是买手 / 采购商" icon={<Factory size={18} />} />
-      </section>
-
-      <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {stat("作品数量", works.length)}
-        {stat("用户数量", userCount)}
-        {stat("孵化候选数量", incubationWorks.length)}
-        {stat("预售意向数量", presaleCount)}
-        {stat("合作方案数量", fabricProposalCount + sampleProposalCount + factoryProposalCount + buyerIntentCount)}
+          <Link href="/incubation" className="inline-flex h-12 items-center justify-center rounded-full border border-white/20 px-6 text-sm font-semibold text-white">
+            浏览孵化作品
+          </Link>
+          <Link href="/providers/apply" className="inline-flex h-12 items-center justify-center rounded-full border border-white/20 px-6 text-sm font-semibold text-white/82">
+            服务商入驻
+          </Link>
+        </div>
       </section>
 
       <section className="mt-12">
-        <div className="mb-5 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Presale Validation</p>
-            <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">预售验证中</h2>
-          </div>
-          <Link href="/presale" className="hidden items-center gap-1 text-sm font-semibold text-ink/60 hover:text-ink sm:inline-flex">
-            查看预售池
-            <ArrowRight size={15} />
-          </Link>
+        <SectionHeader title="你是谁？从这里开始。" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {roleCards.map((card) => (
+            <RoleCard key={card.title} card={card} />
+          ))}
         </div>
+      </section>
+
+      <section className="mt-12">
+        <SectionHeader title="精选作品" eyebrow="Featured Works" action={<CompactAction href="/works">浏览作品库</CompactAction>} />
+        {featuredWorks.length ? (
+          <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-3">
+            {featuredWorks.map((work, index) => (
+              <WorkCard key={work.id} work={asWorkCard(work)} index={index} compact />
+            ))}
+          </div>
+        ) : (
+          <EmptyBlock text="暂时还没有可展示的精选作品。" />
+        )}
+      </section>
+
+      <section className="mt-12">
+        <SectionHeader title="作品如何被孵化" eyebrow="Incubation Flow" />
+        <div className="flex gap-3 overflow-x-auto pb-2 md:overflow-visible">
+          {flowSteps.map((step, index) => (
+            <FlowStep key={step.title} step={step} index={index} />
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-12">
+        <SectionHeader title="预售验证" eyebrow="Presale Validation" action={<CompactAction href="/presale">查看预售</CompactAction>} />
         {activePresaleCampaigns.length ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-3">
             {activePresaleCampaigns.map((campaign, index) => {
               const progress = presaleProgress(campaign.currentCount, campaign.targetCount);
               return (
@@ -278,15 +346,12 @@ export default async function HomePage() {
                   <img src={visualFor(index + 8, campaign.work.images[0])} alt={campaign.work.title} className="aspect-[4/3] w-full object-cover" />
                   <span className="block space-y-3 p-4">
                     <span className="block line-clamp-2 text-sm font-semibold text-ink">{campaign.title}</span>
-                    <span className="block text-xs text-ink/50">{campaign.work.title} / {campaign.estimatedPrice ?? "价格待定"}</span>
-                    <span className="block">
-                      <span className="mb-2 flex items-center justify-between text-xs font-semibold text-ink/45">
-                        <span>{campaign.currentCount} / {campaign.targetCount}</span>
-                        <span>{progress}%</span>
-                      </span>
-                      <span className="block h-2 overflow-hidden rounded-full bg-paper">
-                        <span className="block h-full rounded-full bg-ink" style={{ width: `${progress}%` }} />
-                      </span>
+                    <span className="flex items-center justify-between text-xs text-ink/50">
+                      <span>{campaign.currentCount} / {campaign.targetCount} 人</span>
+                      <span>{campaign.estimatedPrice ?? "价格待定"}</span>
+                    </span>
+                    <span className="block h-2 overflow-hidden rounded-full bg-paper">
+                      <span className="block h-full rounded-full bg-ink" style={{ width: `${progress}%` }} />
                     </span>
                   </span>
                 </Link>
@@ -294,288 +359,147 @@ export default async function HomePage() {
             })}
           </div>
         ) : (
-          <EmptyBlock text="暂无开启中的预售验证活动。后台创建 ACTIVE 活动后会显示在这里。" />
+          <EmptyBlock text="暂时没有进行中的预售验证。" compact />
         )}
       </section>
 
       <section className="mt-12">
-        <div className="mb-5 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Commercial Collaboration</p>
-            <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">商业合作框架</h2>
+        <SectionHeader title="合作资源" eyebrow="Resources" />
+        {hasResources ? (
+          <div className="grid gap-4 lg:grid-cols-4">
+            {featuredSchools.length ? (
+              <div className="rounded-[8px] border border-black/8 bg-white p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-semibold text-ink">推荐学校</h3>
+                  <Link href="/schools" className="text-xs font-semibold text-ink/45">更多</Link>
+                </div>
+                <div className="space-y-3">
+                  {featuredSchools.map((school) => (
+                    <Link key={school.id} href={`/schools/${school.slug ?? school.id}`} className="flex gap-3">
+                      <img src={schoolCoverUrl(school.coverUrl ?? school.logoUrl)} alt={school.name} className="size-14 rounded-[6px] object-cover" />
+                      <span className="min-w-0 text-sm">
+                        <span className="block truncate font-semibold text-ink">{school.name}</span>
+                        <span className="mt-1 block text-xs text-ink/45">{school.city ?? "城市待补充"} / {school._count.works} 件作品</span>
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {featuredTeachers.length ? (
+              <div className="rounded-[8px] border border-black/8 bg-white p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-semibold text-ink">推荐老师</h3>
+                  <Link href="/teachers" className="text-xs font-semibold text-ink/45">更多</Link>
+                </div>
+                <div className="space-y-3">
+                  {featuredTeachers.map((teacher) => (
+                    <Link key={teacher.id} href={`/teachers/${teacher.slug ?? teacher.id}`} className="flex gap-3">
+                      <img src={teacherAvatarUrl(teacher.avatarUrl)} alt={teacher.name} className="size-14 rounded-full object-cover" />
+                      <span className="min-w-0 text-sm">
+                        <span className="block truncate font-semibold text-ink">{teacher.name}</span>
+                        <span className="mt-1 block text-xs text-ink/45">{teacher.school?.name ?? "学校待关联"} / 推荐 {teacher._count.recommendations}</span>
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {featuredProviders.length ? (
+              <div className="rounded-[8px] border border-black/8 bg-white p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-semibold text-ink">推荐服务商</h3>
+                  <Link href="/providers" className="text-xs font-semibold text-ink/45">更多</Link>
+                </div>
+                <div className="space-y-3">
+                  {featuredProviders.map((provider) => (
+                    <Link key={provider.id} href={`/providers/${provider.slug ?? provider.id}`} className="flex gap-3">
+                      <img src={providerLogoUrl(provider.logoUrl)} alt={provider.name} className="size-14 rounded-[6px] object-cover" />
+                      <span className="min-w-0 text-sm">
+                        <span className="block truncate font-semibold text-ink">{provider.name}</span>
+                        <span className="mt-1 block text-xs text-ink/45">{PROVIDER_TYPE_LABELS[provider.type]} / {provider._count.workProposals} 个方案</span>
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {featuredFabrics.length ? (
+              <div className="rounded-[8px] border border-black/8 bg-white p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-semibold text-ink">推荐面料</h3>
+                  <Link href="/fabrics" className="text-xs font-semibold text-ink/45">更多</Link>
+                </div>
+                <div className="space-y-3">
+                  {featuredFabrics.map((fabric) => (
+                    <Link key={fabric.id} href={`/fabrics/${fabric.slug ?? fabric.id}`} className="flex gap-3">
+                      <img src={fabricCoverUrl(fabric.imageUrl)} alt={fabric.name} className="size-14 rounded-[6px] object-cover" />
+                      <span className="min-w-0 text-sm">
+                        <span className="block truncate font-semibold text-ink">{fabric.name}</span>
+                        <span className="mt-1 block text-xs text-ink/45">{fabric.provider?.name ?? "供应商待关联"}</span>
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
-          <Link href="/projects" className="hidden items-center gap-1 text-sm font-semibold text-ink/60 hover:text-ink sm:inline-flex">
-            查看合作项目
-            <ArrowRight size={15} />
-          </Link>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="rounded-[8px] border border-black/8 bg-white p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-semibold text-ink">平台合作项目</h3>
-              <Link href="/projects" className="text-xs font-semibold text-ink/45">更多</Link>
-            </div>
-            <div className="space-y-3">
-              {featuredProjects.length ? featuredProjects.map((project) => (
-                <Link key={project.id} href={`/projects/${project.slug ?? project.id}`} className="block rounded-[6px] bg-paper p-3">
-                  <span className="line-clamp-1 text-sm font-semibold text-ink">{project.title}</span>
-                  <span className="mt-1 block text-xs text-ink/45">{project.work.title} / 意向 {project._count.orders}</span>
-                </Link>
-              )) : <p className="text-sm text-ink/52">暂无合作项目</p>}
-            </div>
-          </div>
-          <div className="rounded-[8px] border border-black/8 bg-white p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-semibold text-ink">成功案例</h3>
-              <Link href="/cases" className="text-xs font-semibold text-ink/45">更多</Link>
-            </div>
-            <div className="space-y-3">
-              {featuredCases.length ? featuredCases.map((item) => (
-                <Link key={item.id} href={`/cases/${item.slug}`} className="block rounded-[6px] bg-paper p-3">
-                  <span className="line-clamp-1 text-sm font-semibold text-ink">{item.title}</span>
-                  <span className="mt-1 block text-xs text-ink/45">{item.provider?.name ?? item.project?.title ?? "合作记录"}</span>
-                </Link>
-              )) : <p className="text-sm text-ink/52">暂无成功案例</p>}
-            </div>
-          </div>
-          <div className="rounded-[8px] border border-black/8 bg-ink p-5 text-white">
-            <h3 className="font-semibold">认证与合作规则</h3>
-            <p className="mt-3 text-sm leading-6 text-white/62">认证用于提升可信度，合作规则说明当前阶段不收款、不生成真实订单，正式合作以双方协议为准。</p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Link href="/verify" className="inline-flex h-10 items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-ink">申请认证</Link>
-              <Link href="/legal/collaboration-rules" className="inline-flex h-10 items-center justify-center rounded-full border border-white/20 px-4 text-sm font-semibold text-white">合作规则</Link>
-            </div>
-          </div>
-        </div>
+        ) : (
+          <EmptyBlock text="合作资源正在整理中。" compact />
+        )}
       </section>
 
-      <div className="mt-12 space-y-12">
-        <section>
-          <div className="mb-5 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Campus</p>
-              <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">学校 / 老师 / 活动</h2>
+      <section className="mt-12">
+        <SectionHeader title="成功案例 / 合作项目" eyebrow="Projects" action={<CompactAction href="/projects">查看合作项目</CompactAction>} />
+        {hasCasesOrProjects ? (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-[8px] border border-black/8 bg-white p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <Sparkles size={16} />
+                <h3 className="font-semibold text-ink">精选合作项目</h3>
+              </div>
+              <div className="space-y-3">
+                {featuredProjects.length ? featuredProjects.map((project) => (
+                  <Link key={project.id} href={`/projects/${project.slug ?? project.id}`} className="block rounded-[6px] bg-paper p-3">
+                    <span className="line-clamp-1 text-sm font-semibold text-ink">{project.title}</span>
+                    <span className="mt-1 block text-xs text-ink/45">{project.work.title} / 意向 {project._count.orders}</span>
+                  </Link>
+                )) : <p className="text-sm text-ink/52">平台正在积累首批孵化案例。</p>}
+              </div>
             </div>
-            <Link href="/schools" className="hidden items-center gap-1 text-sm font-semibold text-ink/60 hover:text-ink sm:inline-flex">
-              查看院校
-              <ArrowRight size={15} />
+
+            <div className="rounded-[8px] border border-black/8 bg-white p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <Scissors size={16} />
+                <h3 className="font-semibold text-ink">成功案例</h3>
+              </div>
+              <div className="space-y-3">
+                {featuredCases.length ? featuredCases.map((item) => (
+                  <Link key={item.id} href={`/cases/${item.slug ?? item.id}`} className="block rounded-[6px] bg-paper p-3">
+                    <span className="line-clamp-1 text-sm font-semibold text-ink">{item.title}</span>
+                    <span className="mt-1 block text-xs text-ink/45">{item.provider?.name ?? item.project?.title ?? "合作记录"}</span>
+                  </Link>
+                )) : <p className="text-sm text-ink/52">平台正在积累首批孵化案例。</p>}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <EmptyBlock text="平台正在积累首批孵化案例。" />
+        )}
+      </section>
+
+      <footer className="mt-12 border-t border-black/8 pt-6">
+        <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-ink/45">
+          {ruleLinks.map((link) => (
+            <Link key={link.href} href={link.href} className="hover:text-ink">
+              {link.label}
             </Link>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-4">
-            <div className="rounded-[8px] border border-black/8 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="font-semibold text-ink">推荐学校</h3>
-                <Link href="/schools" className="text-xs font-semibold text-ink/45">更多</Link>
-              </div>
-              <div className="space-y-3">
-                {featuredSchools.length ? featuredSchools.map((school) => (
-                  <Link key={school.id} href={`/schools/${school.slug ?? school.id}`} className="flex gap-3">
-                    <img src={schoolCoverUrl(school.coverUrl ?? school.logoUrl)} alt={school.name} className="size-14 rounded-[6px] object-cover" />
-                    <span className="min-w-0 text-sm">
-                      <span className="block truncate font-semibold text-ink">{school.name}</span>
-                      <span className="mt-1 block text-xs text-ink/45">{school.city ?? "城市待补充"} / {school._count.works} 件作品</span>
-                    </span>
-                  </Link>
-                )) : <p className="text-sm text-ink/52">暂无学校数据</p>}
-              </div>
-            </div>
-            <div className="rounded-[8px] border border-black/8 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="font-semibold text-ink">推荐老师</h3>
-                <Link href="/teachers" className="text-xs font-semibold text-ink/45">更多</Link>
-              </div>
-              <div className="space-y-3">
-                {featuredTeachers.length ? featuredTeachers.map((teacher) => (
-                  <Link key={teacher.id} href={`/teachers/${teacher.slug ?? teacher.id}`} className="flex gap-3">
-                    <img src={teacherAvatarUrl(teacher.avatarUrl)} alt={teacher.name} className="size-14 rounded-full object-cover" />
-                    <span className="min-w-0 text-sm">
-                      <span className="block truncate font-semibold text-ink">{teacher.name}</span>
-                      <span className="mt-1 block text-xs text-ink/45">{teacher.school?.name ?? "学校待关联"} / 推荐 {teacher._count.recommendations}</span>
-                    </span>
-                  </Link>
-                )) : <p className="text-sm text-ink/52">暂无老师数据</p>}
-              </div>
-            </div>
-            <div className="rounded-[8px] border border-black/8 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="font-semibold text-ink">课程作品展</h3>
-                <Link href="/exhibitions" className="text-xs font-semibold text-ink/45">更多</Link>
-              </div>
-              <div className="space-y-3">
-                {featuredExhibitions.length ? featuredExhibitions.map((exhibition) => (
-                  <Link key={exhibition.id} href={`/exhibitions/${exhibition.slug ?? exhibition.id}`} className="block rounded-[6px] bg-paper p-3">
-                    <span className="line-clamp-1 text-sm font-semibold text-ink">{exhibition.title}</span>
-                    <span className="mt-1 block text-xs text-ink/45">{displayDateRange(exhibition.startDate, exhibition.endDate)} / {exhibition._count.works} 件作品</span>
-                  </Link>
-                )) : <p className="text-sm text-ink/52">暂无作品展</p>}
-              </div>
-            </div>
-            <div className="rounded-[8px] border border-black/8 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="font-semibold text-ink">设计挑战赛</h3>
-                <Link href="/challenges" className="text-xs font-semibold text-ink/45">更多</Link>
-              </div>
-              <div className="space-y-3">
-                {featuredChallenges.length ? featuredChallenges.map((challenge) => (
-                  <Link key={challenge.id} href={`/challenges/${challenge.slug ?? challenge.id}`} className="block rounded-[6px] bg-paper p-3">
-                    <span className="line-clamp-1 text-sm font-semibold text-ink">{challenge.title}</span>
-                    <span className="mt-1 block text-xs text-ink/45">{challenge.theme} / {challenge._count.works + challenge._count.entries} 件作品</span>
-                  </Link>
-                )) : <p className="text-sm text-ink/52">暂无挑战赛</p>}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section>
-          <div className="mb-5 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Supply Chain</p>
-              <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">服务商 / 面料库</h2>
-            </div>
-            <Link href="/providers" className="hidden items-center gap-1 text-sm font-semibold text-ink/60 hover:text-ink sm:inline-flex">
-              查看服务商
-              <ArrowRight size={15} />
-            </Link>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-3">
-            <div className="rounded-[8px] border border-black/8 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="font-semibold text-ink">推荐服务商</h3>
-                <Link href="/providers" className="text-xs font-semibold text-ink/45">更多</Link>
-              </div>
-              <div className="space-y-3">
-                {featuredProviders.length ? featuredProviders.map((provider) => (
-                  <Link key={provider.id} href={`/providers/${provider.slug ?? provider.id}`} className="flex gap-3">
-                    <img src={providerLogoUrl(provider.logoUrl)} alt={provider.name} className="size-14 rounded-[6px] object-cover" />
-                    <span className="min-w-0 text-sm">
-                      <span className="block truncate font-semibold text-ink">{provider.name}</span>
-                      <span className="mt-1 block text-xs text-ink/45">{PROVIDER_TYPE_LABELS[provider.type]} / {provider._count.workProposals} 个方案</span>
-                    </span>
-                  </Link>
-                )) : <p className="text-sm text-ink/52">暂无服务商数据</p>}
-              </div>
-            </div>
-            <div className="rounded-[8px] border border-black/8 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="font-semibold text-ink">推荐面料</h3>
-                <Link href="/fabrics" className="text-xs font-semibold text-ink/45">更多</Link>
-              </div>
-              <div className="space-y-3">
-                {featuredFabrics.length ? featuredFabrics.map((fabric) => (
-                  <Link key={fabric.id} href={`/fabrics/${fabric.slug ?? fabric.id}`} className="flex gap-3">
-                    <img src={fabricCoverUrl(fabric.imageUrl)} alt={fabric.name} className="size-14 rounded-[6px] object-cover" />
-                    <span className="min-w-0 text-sm">
-                      <span className="block truncate font-semibold text-ink">{fabric.name}</span>
-                      <span className="mt-1 block text-xs text-ink/45">{fabric.provider?.name ?? "供应商待关联"} / {fabric.usage ?? "用途待补充"}</span>
-                    </span>
-                  </Link>
-                )) : <p className="text-sm text-ink/52">暂无面料数据</p>}
-              </div>
-            </div>
-            <div className="rounded-[8px] border border-black/8 bg-ink p-5 text-white">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Collaborate</p>
-              <h3 className="mt-3 text-2xl font-semibold">供应链协作入口</h3>
-              <p className="mt-3 text-sm leading-6 text-white/60">面料商、打样工作室、工厂和买手可以先提交入驻申请，平台审核后进入服务商市场。</p>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Link href="/providers/apply" className="inline-flex h-10 items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-ink">服务商入驻</Link>
-                <Link href="/fabrics" className="inline-flex h-10 items-center justify-center rounded-full border border-white/20 px-4 text-sm font-semibold text-white">面料库</Link>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section>
-          <div className="mb-5 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Featured</p>
-              <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">精选作品</h2>
-            </div>
-            <Link href="/works" className="hidden items-center gap-1 text-sm font-semibold text-ink/60 hover:text-ink sm:inline-flex">
-              查看作品库 <ArrowRight size={15} />
-            </Link>
-          </div>
-          {featuredWorks.length ? (
-            <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-3">
-              {featuredWorks.map((work, index) => (
-                <WorkCard key={work.id} work={asWorkCard(work)} index={index} compact />
-              ))}
-            </div>
-          ) : (
-            <EmptyBlock text="暂无精选作品。后台设置推荐或作品产生热度后会自动出现。" />
-          )}
-        </section>
-
-        <section>
-          <div className="mb-5 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Incubating</p>
-              <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">孵化中作品</h2>
-            </div>
-            <Link href="/incubation" className="hidden items-center gap-1 text-sm font-semibold text-ink/60 hover:text-ink sm:inline-flex">
-              进入孵化池 <ArrowRight size={15} />
-            </Link>
-          </div>
-          {incubationWorks.length ? (
-            <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-3">
-              {incubationWorks.map((work, index) => (
-                <WorkCard key={work.id} work={asWorkCard(work)} index={index + 4} compact />
-              ))}
-            </div>
-          ) : (
-            <EmptyBlock text="暂无孵化中作品。达到热度规则或后台设置后会进入这里。" />
-          )}
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-[1fr_0.85fr]">
-          <div className="rounded-[8px] bg-ink p-6 text-white md:p-8">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
-              <Sparkles size={14} />
-              Latest Opportunity
-            </div>
-            <h2 className="mt-3 text-2xl font-semibold md:text-3xl">最新合作机会</h2>
-            {latestOpportunity ? (
-              <div className="mt-5">
-                <p className="text-lg font-semibold">{latestOpportunity.title}</p>
-                <p className="mt-2 text-sm leading-6 text-white/60">
-                  已收到 {latestOpportunity._count.fabricProposals} 条面料推荐、{latestOpportunity._count.sampleProposals} 条打样方案、
-                  {latestOpportunity._count.factoryProposals} 条工厂方案、{latestOpportunity._count.buyerIntents} 条采购意向。
-                </p>
-                <Link href={`/works/${latestOpportunity.id}`} className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-ink">
-                  查看作品
-                </Link>
-              </div>
-            ) : (
-              <p className="mt-5 text-sm leading-6 text-white/60">暂无合作方案提交。合作方提交后会在这里展示最新机会。</p>
-            )}
-          </div>
-
-          <div>
-            <div className="mb-4 flex items-center gap-2">
-              <Users size={18} />
-              <h2 className="text-2xl font-semibold text-ink">热门设计师</h2>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {designerProfiles.length ? designerProfiles.slice(0, 4).map((designer, index) => <DesignerCard key={designer.id} designer={designer as RecommendedDesigner} index={index} />) : <EmptyBlock text="暂无设计师资料。" />}
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-[8px] border border-black/8 bg-white p-6 md:p-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">
-                <BarChart3 size={14} />
-                Rankings
-              </div>
-              <h2 className="mt-3 text-2xl font-semibold text-ink">查看热度、预售、采购和新锐设计师榜单</h2>
-            </div>
-            <Link href="/rankings" className="inline-flex h-11 w-fit items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
-              进入排行榜
-            </Link>
-          </div>
-        </section>
-      </div>
-    </div>
+          ))}
+        </div>
+      </footer>
+    </main>
   );
 }
