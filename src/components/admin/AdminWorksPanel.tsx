@@ -19,6 +19,8 @@ export type AdminWorkItem = {
   wantsIncubation: boolean;
   isFeatured: boolean;
   isEditorPick: boolean;
+  heatScore: number;
+  operationTags: string[];
   createdAt: string;
   user: {
     nickname: string;
@@ -110,6 +112,14 @@ export function AdminWorksPanel({ works }: AdminWorksPanelProps) {
               <p className="mt-2 text-sm text-ink/55">
                 {work.user.nickname} / {work.user.email}
               </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">热度 {work.heatScore}</span>
+                {work.operationTags.map((tag) => (
+                  <span key={tag} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">
+                    {tag}
+                  </span>
+                ))}
+              </div>
               <div className="mt-4 grid gap-2 text-xs text-ink/55 sm:grid-cols-2">
                 <span>作品类型：{work.workType}</span>
                 <span>品类：{work.category}</span>
