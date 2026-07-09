@@ -14,8 +14,7 @@ import { visualFor } from "@/components/works/work-visuals";
 import { getHeatScore } from "@/lib/operation-growth";
 import { presaleProgress } from "@/lib/presale-campaign";
 import { prisma } from "@/lib/prisma";
-import { fabricCoverUrl, providerLogoUrl, PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
-import { schoolCoverUrl, teacherAvatarUrl } from "@/lib/school-activity";
+import { PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
 import { approvedVisibleWorkWhere } from "@/lib/works/rules";
 import type { WorkCardData } from "@/lib/works/queries";
 
@@ -205,6 +204,32 @@ function CompactAction({ href, children }: { href: string; children: ReactNode }
   );
 }
 
+function ResourceItem({
+  href,
+  mark,
+  title,
+  description,
+  rounded = false
+}: {
+  href: string;
+  mark: string;
+  title: string;
+  description: string;
+  rounded?: boolean;
+}) {
+  return (
+    <Link href={href} className="flex min-h-[56px] items-center gap-3 rounded-[6px] p-2 transition hover:bg-paper">
+      <span className={`flex size-11 shrink-0 items-center justify-center bg-paper text-sm font-semibold text-ink/60 ${rounded ? "rounded-full" : "rounded-[6px]"}`}>
+        {mark}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-ink">{title}</span>
+        <span className="mt-1 block truncate text-xs text-ink/45">{description}</span>
+      </span>
+    </Link>
+  );
+}
+
 export default async function HomePage() {
   const [
     works,
@@ -378,15 +403,15 @@ export default async function HomePage() {
                   <h3 className="font-semibold text-ink">推荐学校</h3>
                   <Link href="/schools" className="text-xs font-semibold text-ink/45">更多</Link>
                 </div>
-                <div className="space-y-3">
-                  {featuredSchools.map((school) => (
-                    <Link key={school.id} href={`/schools/${school.slug ?? school.id}`} className="flex gap-3">
-                      <img src={schoolCoverUrl(school.coverUrl ?? school.logoUrl)} alt={school.name} className="size-14 rounded-[6px] object-cover" />
-                      <span className="min-w-0 text-sm">
-                        <span className="block truncate font-semibold text-ink">{school.name}</span>
-                        <span className="mt-1 block text-xs text-ink/45">{school.city ?? "城市待补充"} / {school._count.works} 件作品</span>
-                      </span>
-                    </Link>
+                <div className="space-y-1">
+                  {featuredSchools.slice(0, 3).map((school) => (
+                    <ResourceItem
+                      key={school.id}
+                      href={`/schools/${school.slug ?? school.id}`}
+                      mark="校"
+                      title={school.name}
+                      description={[school.city ?? "合作院校", `${school._count.works} 件作品`, `${school._count.teachers} 位老师`].join(" / ")}
+                    />
                   ))}
                 </div>
               </div>
@@ -398,15 +423,16 @@ export default async function HomePage() {
                   <h3 className="font-semibold text-ink">推荐老师</h3>
                   <Link href="/teachers" className="text-xs font-semibold text-ink/45">更多</Link>
                 </div>
-                <div className="space-y-3">
-                  {featuredTeachers.map((teacher) => (
-                    <Link key={teacher.id} href={`/teachers/${teacher.slug ?? teacher.id}`} className="flex gap-3">
-                      <img src={teacherAvatarUrl(teacher.avatarUrl)} alt={teacher.name} className="size-14 rounded-full object-cover" />
-                      <span className="min-w-0 text-sm">
-                        <span className="block truncate font-semibold text-ink">{teacher.name}</span>
-                        <span className="mt-1 block text-xs text-ink/45">{teacher.school?.name ?? "学校待关联"} / 推荐 {teacher._count.recommendations}</span>
-                      </span>
-                    </Link>
+                <div className="space-y-1">
+                  {featuredTeachers.slice(0, 3).map((teacher) => (
+                    <ResourceItem
+                      key={teacher.id}
+                      href={`/teachers/${teacher.slug ?? teacher.id}`}
+                      mark="师"
+                      title={teacher.name}
+                      description={[teacher.school?.name ?? "院校合作资源", `推荐 ${teacher._count.recommendations} 件作品`].join(" / ")}
+                      rounded
+                    />
                   ))}
                 </div>
               </div>
@@ -418,15 +444,15 @@ export default async function HomePage() {
                   <h3 className="font-semibold text-ink">推荐服务商</h3>
                   <Link href="/providers" className="text-xs font-semibold text-ink/45">更多</Link>
                 </div>
-                <div className="space-y-3">
-                  {featuredProviders.map((provider) => (
-                    <Link key={provider.id} href={`/providers/${provider.slug ?? provider.id}`} className="flex gap-3">
-                      <img src={providerLogoUrl(provider.logoUrl)} alt={provider.name} className="size-14 rounded-[6px] object-cover" />
-                      <span className="min-w-0 text-sm">
-                        <span className="block truncate font-semibold text-ink">{provider.name}</span>
-                        <span className="mt-1 block text-xs text-ink/45">{PROVIDER_TYPE_LABELS[provider.type]} / {provider._count.workProposals} 个服务商方案</span>
-                      </span>
-                    </Link>
+                <div className="space-y-1">
+                  {featuredProviders.slice(0, 3).map((provider) => (
+                    <ResourceItem
+                      key={provider.id}
+                      href={`/providers/${provider.slug ?? provider.id}`}
+                      mark="商"
+                      title={provider.name}
+                      description={[PROVIDER_TYPE_LABELS[provider.type], `${provider._count.workProposals} 个服务商方案`].join(" / ")}
+                    />
                   ))}
                 </div>
               </div>
@@ -438,15 +464,15 @@ export default async function HomePage() {
                   <h3 className="font-semibold text-ink">推荐面料</h3>
                   <Link href="/fabrics" className="text-xs font-semibold text-ink/45">更多</Link>
                 </div>
-                <div className="space-y-3">
-                  {featuredFabrics.map((fabric) => (
-                    <Link key={fabric.id} href={`/fabrics/${fabric.slug ?? fabric.id}`} className="flex gap-3">
-                      <img src={fabricCoverUrl(fabric.imageUrl)} alt={fabric.name} className="size-14 rounded-[6px] object-cover" />
-                      <span className="min-w-0 text-sm">
-                        <span className="block truncate font-semibold text-ink">{fabric.name}</span>
-                        <span className="mt-1 block text-xs text-ink/45">{fabric.provider?.name ?? "供应商待关联"}</span>
-                      </span>
-                    </Link>
+                <div className="space-y-1">
+                  {featuredFabrics.slice(0, 3).map((fabric) => (
+                    <ResourceItem
+                      key={fabric.id}
+                      href={`/fabrics/${fabric.slug ?? fabric.id}`}
+                      mark="料"
+                      title={fabric.name}
+                      description={[fabric.provider?.name ?? "供应商待对接", fabric.composition, fabric.weight].filter(Boolean).join(" / ")}
+                    />
                   ))}
                 </div>
               </div>
