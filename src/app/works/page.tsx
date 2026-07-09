@@ -61,16 +61,16 @@ export default async function WorksPage({ searchParams }: WorksPageProps) {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">Gallery</p>
         <div className="mt-2 flex flex-col gap-4 md:mt-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-4xl font-semibold leading-tight text-ink md:text-6xl">线上作品展</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58 md:text-base">
+            <h1 className="text-3xl font-semibold leading-tight text-ink md:text-6xl">线上作品展</h1>
+            <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4 md:line-clamp-none md:text-base">
               从课堂作业、毕业设计到独立系列，发现正在被看见的新锐服装设计作品。
             </p>
           </div>
-          <div className="flex w-fit rounded-full border border-black/10 bg-white/70 p-1 text-sm font-semibold">
-            <Link href="/works?sort=latest" className={`rounded-full px-4 py-2 ${!filter && sort === "latest" ? "bg-ink text-white" : "text-ink/55"}`}>
+          <div className="flex w-full rounded-full border border-black/10 bg-white/70 p-1 text-sm font-semibold sm:w-fit">
+            <Link href="/works?sort=latest" className={`flex-1 rounded-full px-4 py-2 text-center sm:flex-none ${!filter && sort === "latest" ? "bg-ink text-white" : "text-ink/55"}`}>
               最新
             </Link>
-            <Link href="/works?sort=popular" className={`rounded-full px-4 py-2 ${!filter && sort === "popular" ? "bg-ink text-white" : "text-ink/55"}`}>
+            <Link href="/works?sort=popular" className={`flex-1 rounded-full px-4 py-2 text-center sm:flex-none ${!filter && sort === "popular" ? "bg-ink text-white" : "text-ink/55"}`}>
               热门
             </Link>
           </div>

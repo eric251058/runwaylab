@@ -13,7 +13,7 @@ export function WorkMasonry({ works, compact = false, emptyText = "暂时还没�
   }
 
   return (
-    <div className="columns-2 gap-2 md:columns-3 md:gap-4 lg:columns-4">
+    <div className="columns-1 gap-3 sm:columns-2 md:columns-3 md:gap-4 lg:columns-4">
       {works.map((work, index) => (
         <WorkCard key={work.id} work={work} index={index} compact={compact} />
       ))}

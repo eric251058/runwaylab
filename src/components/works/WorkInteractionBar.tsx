@@ -322,7 +322,7 @@ export function WorkInteractionBar({
             type="button"
             disabled={busy === "cooperation"}
             onClick={submitCooperation}
-            className="mt-3 h-10 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50"
+            className="mt-3 h-10 w-full rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto"
           >
             {busy === "cooperation" ? "提交中..." : "提交合作意向"}
           </button>
@@ -344,7 +344,7 @@ export function WorkInteractionBar({
             type="button"
             disabled={busy === "comment"}
             onClick={submitComment}
-            className="h-10 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50"
+            className="h-10 w-full rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto"
           >
             发布
           </button>

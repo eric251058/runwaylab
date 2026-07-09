@@ -222,20 +222,20 @@ export default async function MePage({ searchParams }: MePageProps) {
       <header className="mb-5 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink/40 md:text-xs">My RunwayLab</p>
-          <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">我的页面</h1>
-          <p className="mt-4 text-sm text-ink/58">查看我的作品、收藏、需求申请和孵化进度。</p>
+          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">我的页面</h1>
+          <p className="mt-3 text-sm text-ink/58 md:mt-4">查看我的作品、收藏、需求申请和孵化进度。</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/me/dashboard" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
+        <div className="grid gap-2 sm:flex sm:flex-wrap">
+          <Link href="/me/dashboard" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white sm:px-5">
             我的工作台
           </Link>
-          <Link href="/me/onboarding" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
+          <Link href="/me/onboarding" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink sm:px-5">
             {user.personaCompleted ? `切换身份：${USER_PERSONA_LABELS[user.persona]}` : "选择身份"}
           </Link>
-          <Link href="/me/profile" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
+          <Link href="/me/profile" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink sm:px-5">
             编辑个人资料
           </Link>
-          <Link href="/publish" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
+          <Link href="/publish" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white sm:px-5">
             发布作品
           </Link>
         </div>
@@ -264,8 +264,8 @@ export default async function MePage({ searchParams }: MePageProps) {
           ["打样方案", receivedSampleProposalCount],
           ["工厂方案", receivedFactoryProposalCount],
           ["采购意向", receivedBuyerIntentCount]
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-[8px] border border-black/8 bg-white p-3">
+        ].map(([label, value], index) => (
+          <div key={label} className={`rounded-[8px] border border-black/8 bg-white p-3 ${index >= 6 ? "hidden md:block" : ""}`}>
             <p className="text-2xl font-semibold text-ink">{value}</p>
             <p className="mt-1 text-xs font-semibold text-ink/45">{label}</p>
           </div>

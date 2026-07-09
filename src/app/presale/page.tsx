@@ -61,11 +61,11 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
   const selectedLegacyWork = params?.workId ? legacyWorks.find((work) => work.id === params.workId) : undefined;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
-      <header className="mb-8 rounded-[8px] bg-white p-6 shadow-[0_16px_48px_rgba(16,16,16,0.08)] md:p-8">
+    <div className="mx-auto max-w-7xl px-4 py-5 md:px-8 md:py-12">
+      <header className="mb-6 rounded-[8px] bg-white p-5 shadow-[0_16px_48px_rgba(16,16,16,0.08)] md:mb-8 md:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Presale Validation</p>
-        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">预售验证，不需要付款。</h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/60 md:text-base">
+        <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">预售验证，不需要付款。</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/60 md:mt-4 md:text-base">
           这里展示的是用户购买意向验证，不收款，不构成订单。
         </p>
       </header>
@@ -85,13 +85,13 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
         </div>
 
         {campaigns.length ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {campaigns.map((campaign, index) => {
               const progress = presaleProgress(campaign.currentCount, campaign.targetCount);
               return (
                 <article key={campaign.id} className="overflow-hidden rounded-[8px] bg-white shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
                   <img src={visualFor(index, campaign.work.images[0])} alt={campaign.work.title} className="aspect-[4/3] w-full object-cover" />
-                  <div className="space-y-4 p-4">
+                  <div className="space-y-3 p-4">
                     <div className="flex flex-wrap gap-2">
                       <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{PRESALE_CAMPAIGN_STATUS_LABELS[campaign.status]}</span>
                       {campaign.isFeatured ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">推荐</span> : null}
@@ -101,7 +101,7 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
                       <p className="mt-2 line-clamp-1 text-sm text-ink/52">{campaign.work.title} / {campaign.work.user.nickname}</p>
                     </div>
                     <div>
-                      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-ink/45">
+                      <div className="mb-2 flex flex-col gap-1 text-xs font-semibold text-ink/45 sm:flex-row sm:items-center sm:justify-between">
                         <span>已有 {campaign.currentCount} 人，目标 {campaign.targetCount} 人</span>
                         <span>{progress}%</span>
                       </div>
@@ -110,7 +110,7 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
                       </div>
                     </div>
                     <p className="text-sm text-ink/55">预计价格：{campaign.estimatedPrice ?? "待定"}</p>
-                    <Link href={`/works/${campaign.workId}`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
+                    <Link href={`/works/${campaign.workId}`} className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
                       查看作品并提交意向
                     </Link>
                   </div>

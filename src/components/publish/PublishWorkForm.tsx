@@ -364,17 +364,17 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
         <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-accent text-ink">
           <Check size={24} />
         </div>
-        <h1 className="mt-6 text-4xl font-semibold text-ink">{initialWork ? "作品已重新提交" : "作品已发布"}</h1>
+        <h1 className="mt-6 text-3xl font-semibold text-ink md:text-4xl">{initialWork ? "作品已重新提交" : "作品已发布"}</h1>
         <p className="mt-4 text-sm leading-6 text-ink/58">
           下一步可以查看作品详情，或进入我的孵化进度。
         </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap sm:justify-center">
           {createdWorkId ? (
-            <Link href={`/works/${createdWorkId}`} className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
+            <Link href={`/works/${createdWorkId}`} className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white sm:w-auto">
               查看作品
             </Link>
           ) : null}
-          <Link href="/me/incubation" className="inline-flex h-11 items-center justify-center rounded-full border border-black/15 bg-white px-5 text-sm font-semibold text-ink">
+          <Link href="/me/incubation" className="inline-flex h-11 w-full items-center justify-center rounded-full border border-black/15 bg-white px-5 text-sm font-semibold text-ink sm:w-auto">
             查看我的孵化
           </Link>
         </div>
@@ -386,7 +386,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
     <div className="mx-auto max-w-6xl px-3 py-5 pb-28 md:px-8 md:py-12">
       <header className="mb-5 md:mb-8">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">Publish</p>
-        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">{initialWork ? "编辑作品" : "发布你的设计作品"}</h1>
+        <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">{initialWork ? "编辑作品" : "发布你的设计作品"}</h1>
         <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4 md:line-clamp-none">
           上传作品后，平台可以帮助你获得老师推荐、面料匹配、打样方案和预售验证机会。
         </p>
@@ -410,7 +410,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
                   上传 {MIN_WORK_IMAGES}-{MAX_WORK_IMAGES} 张，支持 jpg、jpeg、png、webp，单张最大 10MB。
                 </p>
               </div>
-              <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-white">
+              <label className="inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-white md:w-auto">
                 <ImagePlus size={16} />
                 {uploading ? "上传中..." : "选择图片"}
                 <input
@@ -426,7 +426,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
               </label>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-2 md:mt-6 md:gap-4 lg:grid-cols-3">
+            <div className="mt-5 grid grid-cols-2 gap-3 md:mt-6 md:gap-4 lg:grid-cols-3">
               {images.map((image, index) => (
                 <div key={image.clientId ?? `${image.imageUrl}-${index}`} className="overflow-hidden rounded-[6px] border border-black/10 bg-paper">
                   <div className="aspect-[3/4] overflow-hidden bg-zinc-200 md:aspect-[4/5]">
@@ -562,8 +562,8 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
 
         {message ? <p className="mt-5 rounded-[6px] bg-red-50 px-4 py-3 text-sm text-red-700">{message}</p> : null}
 
-        <div className="sticky bottom-20 z-30 -mx-4 mt-6 flex justify-between gap-3 border-t border-black/8 bg-white/95 px-4 py-3 shadow-[0_-12px_36px_rgba(16,16,16,0.08)] backdrop-blur md:static md:mx-0 md:mt-7 md:flex-wrap md:bg-transparent md:px-0 md:pt-5 md:shadow-none">
-          <button type="button" disabled={step === 1} onClick={() => setStep((current) => Math.max(1, current - 1))} className="inline-flex h-11 items-center gap-2 rounded-full border border-black/15 bg-white px-5 text-sm font-semibold disabled:opacity-30">
+        <div className="sticky bottom-20 z-30 -mx-4 mt-6 grid grid-cols-2 gap-3 border-t border-black/8 bg-white/95 px-4 py-3 shadow-[0_-12px_36px_rgba(16,16,16,0.08)] backdrop-blur md:static md:mx-0 md:mt-7 md:flex md:flex-wrap md:bg-transparent md:px-0 md:pt-5 md:shadow-none">
+          <button type="button" disabled={step === 1} onClick={() => setStep((current) => Math.max(1, current - 1))} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-4 text-sm font-semibold disabled:opacity-30 md:px-5">
             <ArrowLeft size={15} />
             上一步
           </button>
@@ -578,13 +578,13 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
                 setMessage("");
                 setStep((current) => current + 1);
               }}
-              className="inline-flex h-11 items-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-white"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-semibold text-white md:px-5"
             >
               下一步
               <ArrowRight size={15} />
             </button>
           ) : (
-            <button type="button" disabled={submitting || !canSubmit} onClick={() => void submit()} className="inline-flex h-11 items-center rounded-full bg-accent px-6 text-sm font-semibold text-ink disabled:opacity-40">
+            <button type="button" disabled={submitting || !canSubmit} onClick={() => void submit()} className="col-span-2 inline-flex h-11 items-center justify-center rounded-full bg-accent px-4 text-sm font-semibold text-ink disabled:opacity-40 md:col-span-1 md:px-6">
               {submitting ? "提交中..." : "发布作品，进入孵化机会池"}
             </button>
           )}

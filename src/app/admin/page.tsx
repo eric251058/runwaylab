@@ -47,11 +47,11 @@ export default async function AdminPage() {
   const [userCount, workCount, providerCount, presaleIntentCount, projectCount] = counts;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
-      <header className="mb-8">
+    <div className="mx-auto max-w-7xl px-4 py-5 md:px-8 md:py-12">
+      <header className="mb-6 md:mb-8">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Admin</p>
-        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">后台总控台</h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">先处理作品，再推进预售、服务商和合作项目。</p>
+        <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">后台总控台</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4">先处理作品，再推进预售、服务商和合作项目。</p>
       </header>
 
       <section className="mb-8">
@@ -67,7 +67,7 @@ export default async function AdminPage() {
         />
       </section>
 
-      <section className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:mb-8 lg:grid-cols-4">
         {operationActions.map(([href, title, description]) => (
           <Link key={href} href={href} className="rounded-[8px] border border-black/8 bg-white p-4 transition hover:border-ink/35">
             <span className="block text-base font-semibold text-ink">{title}</span>
@@ -76,7 +76,7 @@ export default async function AdminPage() {
         ))}
       </section>
 
-      <section className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <section className="mb-6 grid grid-cols-2 gap-3 lg:mb-8 lg:grid-cols-5">
         {stat("用户数量", userCount)}
         {stat("作品数量", workCount)}
         {stat("服务商数量", providerCount)}
@@ -84,9 +84,9 @@ export default async function AdminPage() {
         {stat("合作项目", projectCount)}
       </section>
 
-      <section className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:mb-8 lg:grid-cols-3">
         {adminLinks.map(([href, title]) => (
-          <Link key={href} href={href} className="rounded-[8px] border border-black/8 bg-white p-5 text-lg font-semibold text-ink transition hover:border-ink/35">
+          <Link key={href} href={href} className="rounded-[8px] border border-black/8 bg-white p-4 text-base font-semibold text-ink transition hover:border-ink/35 md:p-5 md:text-lg">
             {title}
           </Link>
         ))}

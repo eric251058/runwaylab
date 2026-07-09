@@ -284,14 +284,14 @@ export default async function HomePage() {
   const hasCasesOrProjects = featuredProjects.length || featuredCases.length;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10">
-      <section className="rounded-[8px] bg-ink px-5 py-10 text-white md:px-10 md:py-16">
+    <main className="mx-auto max-w-7xl px-4 py-5 md:px-8 md:py-10">
+      <section className="rounded-[8px] bg-ink px-5 py-8 text-white md:px-10 md:py-16">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">RunwayLab</p>
-        <h1 className="mt-4 max-w-4xl text-4xl font-semibold leading-tight md:text-6xl">让服装设计作品，从作业走向打样、预售和商业合作。</h1>
-        <p className="mt-5 max-w-3xl text-sm leading-6 text-white/68 md:text-base md:leading-7">
+        <h1 className="mt-3 line-clamp-3 max-w-4xl text-3xl font-semibold leading-tight md:mt-4 md:line-clamp-none md:text-6xl">让服装设计作品，从作业走向打样、预售和商业合作。</h1>
+        <p className="mt-4 line-clamp-3 max-w-3xl text-sm leading-6 text-white/68 md:mt-5 md:line-clamp-none md:text-base md:leading-7">
           RunwayLab 帮助优秀设计作品获得推荐、打样、预售验证和合作机会。
         </p>
-        <div className="mt-7 flex flex-wrap gap-3">
+        <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap md:mt-7">
           <Link href="/publish" className="inline-flex h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-ink">
             发布作品
           </Link>
@@ -304,7 +304,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mt-12">
+      <section className="mt-10 md:mt-12">
         <SectionHeader title="你是谁？从这里开始。" />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {roleCards.map((card) => (
@@ -313,12 +313,14 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mt-12">
+      <section className="mt-10 md:mt-12">
         <SectionHeader title="精选作品" eyebrow="Featured Works" action={<CompactAction href="/works">浏览作品库</CompactAction>} />
         {featuredWorks.length ? (
-          <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 md:gap-5 lg:grid-cols-3">
             {featuredWorks.map((work, index) => (
-              <WorkCard key={work.id} work={asWorkCard(work)} index={index} compact />
+              <div key={work.id} className={index >= 3 ? "hidden md:block" : ""}>
+                <WorkCard work={asWorkCard(work)} index={index} compact />
+              </div>
             ))}
           </div>
         ) : (
@@ -326,7 +328,7 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="mt-12">
+      <section className="mt-10 md:mt-12">
         <SectionHeader title="作品如何被孵化" eyebrow="Incubation Flow" />
         <div className="flex gap-3 overflow-x-auto pb-2 md:overflow-visible">
           {flowSteps.map((step, index) => (
@@ -335,7 +337,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mt-12">
+      <section className="mt-10 md:mt-12">
         <SectionHeader title="预售验证" eyebrow="Presale Validation" action={<CompactAction href="/presale">查看预售</CompactAction>} />
         {activePresaleCampaigns.length ? (
           <div className="grid gap-4 md:grid-cols-3">
@@ -363,7 +365,7 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="mt-12">
+      <section className="mt-10 md:mt-12">
         <SectionHeader title="合作资源" eyebrow="Resources" />
         {hasResources ? (
           <div className="grid gap-4 lg:grid-cols-4">
@@ -452,7 +454,7 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="mt-12">
+      <section className="mt-10 md:mt-12">
         <SectionHeader title="成功案例 / 合作项目" eyebrow="Projects" action={<CompactAction href="/projects">查看合作项目</CompactAction>} />
         {hasCasesOrProjects ? (
           <div className="grid gap-4 lg:grid-cols-2">

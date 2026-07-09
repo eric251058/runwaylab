@@ -505,11 +505,11 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Provider Market</p>
                 <h2 className="mt-2 text-2xl font-semibold text-ink">服务商方案</h2>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Link href="/providers/apply" className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
+              <div className="grid gap-2 sm:flex sm:flex-wrap">
+                <Link href="/providers/apply" className="inline-flex h-10 w-full items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white sm:w-auto">
                   我是服务商，想提交方案
                 </Link>
-                <Link href="/providers" className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">
+                <Link href="/providers" className="inline-flex h-10 w-full items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink sm:w-auto">
                   查看服务商
                 </Link>
               </div>
@@ -586,7 +586,7 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3">
+          <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 md:gap-3">
             {field("品类", work.category)}
             {field("作品类型", work.workType)}
             {field("AI 辅助", work.isAiAssisted)}

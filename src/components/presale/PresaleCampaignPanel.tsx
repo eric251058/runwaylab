@@ -58,7 +58,7 @@ export function PresaleCampaignPanel({ campaign, workTitle, source, compact = fa
       </p>
 
       <div className="mt-5">
-        <div className="mb-2 flex items-center justify-between text-xs font-semibold text-ink/45">
+        <div className="mb-2 flex flex-col gap-1 text-xs font-semibold text-ink/45 sm:flex-row sm:items-center sm:justify-between">
           <span>已有 {campaign.currentCount} 人表达意向，目标 {campaign.targetCount} 人</span>
           <span>{progress}%</span>
         </div>

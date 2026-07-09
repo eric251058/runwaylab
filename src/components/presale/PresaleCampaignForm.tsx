@@ -25,8 +25,8 @@ export function PresaleCampaignForm({ campaignId, workId, source, sizeOptions, c
     });
   }
 
-  const inputClass = "h-11 rounded-[6px] border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-ink";
-  const textareaClass = "min-h-24 rounded-[6px] border border-black/10 bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink";
+  const inputClass = "h-12 w-full rounded-[6px] border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-ink";
+  const textareaClass = "min-h-28 w-full rounded-[6px] border border-black/10 bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ink";
 
   return (
     <form action={submit} className="grid gap-3">
@@ -73,7 +73,7 @@ export function PresaleCampaignForm({ campaignId, workId, source, sizeOptions, c
 
       <textarea name="note" placeholder="备注（可选，例如想要的长度、穿着场景、可接受预算）" className={textareaClass} />
 
-      <button type="submit" disabled={isPending || isSuccess} className="h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="submit" disabled={isPending || isSuccess} className="h-12 w-full rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
         {isPending ? "提交中..." : isSuccess ? "已提交" : "提交预售意向，不需要付款"}
       </button>
 

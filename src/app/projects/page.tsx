@@ -19,15 +19,15 @@ export default async function ProjectsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
-      <header className="mb-8 rounded-[8px] bg-white p-6 shadow-[0_16px_48px_rgba(16,16,16,0.08)] md:p-8">
+    <div className="mx-auto max-w-7xl px-4 py-5 md:px-8 md:py-12">
+      <header className="mb-6 rounded-[8px] bg-white p-5 shadow-[0_16px_48px_rgba(16,16,16,0.08)] md:mb-8 md:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Collaboration Projects</p>
-        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">正在推进的合作项目</h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">这里展示从作品孵化、面料匹配、预售验证到商业合作的项目进展。</p>
+        <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">正在推进的合作项目</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4">这里展示从作品孵化、面料匹配、预售验证到商业合作的项目进展。</p>
       </header>
 
       {projects.length ? (
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
             <Link key={project.id} href={`/projects/${project.slug ?? project.id}`} className="rounded-[8px] border border-black/8 bg-white p-5 transition hover:border-ink/35">
               <div className="flex flex-wrap gap-2">
@@ -35,9 +35,12 @@ export default async function ProjectsPage() {
               </div>
               <h2 className="mt-4 line-clamp-2 text-xl font-semibold text-ink">{project.title}</h2>
               <p className="mt-2 text-sm text-ink/52">关联作品：{project.work.title}</p>
-              <p className="mt-3 text-sm leading-6 text-ink/56">参与资源：{[project.school?.name, project.teacher?.name, project.provider?.name].filter(Boolean).join(" / ") || "待补充"}</p>
-              <p className="mt-2 text-sm leading-6 text-ink/56">目标数量 / 预算：{[project.targetQuantity, project.estimatedBudget].filter(Boolean).join(" / ") || "待确认"}</p>
+              <p className="mt-3 line-clamp-2 text-sm leading-6 text-ink/56">参与资源：{[project.school?.name, project.teacher?.name, project.provider?.name].filter(Boolean).join(" / ") || "待补充"}</p>
+              <p className="mt-2 text-sm leading-6 text-ink/56">目标 / 预算：{[project.targetQuantity, project.estimatedBudget].filter(Boolean).join(" / ") || "待确认"}</p>
               <p className="mt-3 text-xs text-ink/42">意向 {project._count.orders}</p>
+              <span className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
+                查看项目
+              </span>
             </Link>
           ))}
         </div>

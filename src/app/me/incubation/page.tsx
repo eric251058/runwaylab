@@ -177,16 +177,16 @@ export default async function MeIncubationPage() {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12">
+    <div className="mx-auto max-w-6xl px-4 py-5 md:px-8 md:py-12">
       <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">My Incubation</p>
-          <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">孵化管理</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">
+          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">孵化管理</h1>
+          <p className="mt-3 line-clamp-3 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4 md:line-clamp-none">
             孵化进度不是订单状态，而是作品从展示到打样、预售和合作的验证过程。
           </p>
         </div>
-        <Link href="/me" className="inline-flex h-11 w-fit items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
+        <Link href="/me" className="inline-flex h-11 w-full items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink sm:w-fit">
           返回我的页面
         </Link>
       </header>
@@ -233,7 +233,7 @@ export default async function MeIncubationPage() {
                       </div>
                       <p className="mt-3 text-xs leading-5 text-ink/52">下一步：{advice}</p>
                     </div>
-                    <Link href={`/works/${work.id}`} className="inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink">
+                    <Link href={`/works/${work.id}`} className="inline-flex h-10 w-full shrink-0 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink md:w-auto">
                       查看作品
                     </Link>
                   </div>

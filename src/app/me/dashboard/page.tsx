@@ -22,7 +22,7 @@ function ActionCard({ title, description, href }: { title: string; description: 
   return (
     <Link href={href} className="rounded-[8px] border border-black/8 bg-white p-5 transition hover:border-ink/35">
       <span className="block text-base font-semibold text-ink">{title}</span>
-      <span className="mt-2 block text-sm leading-6 text-ink/55">{description}</span>
+      <span className="mt-2 block line-clamp-2 text-sm leading-6 text-ink/55">{description}</span>
     </Link>
   );
 }
@@ -33,7 +33,7 @@ function EmptyNote({ children }: { children: string }) {
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-[8px] border border-black/8 bg-white/70 p-5">
+    <section className="rounded-[8px] border border-black/8 bg-white/70 p-4 md:p-5">
       <h2 className="text-xl font-semibold text-ink">{title}</h2>
       <div className="mt-4">{children}</div>
     </section>
@@ -126,10 +126,10 @@ export default async function MeDashboardPage() {
 
   if (!currentUser.personaCompleted) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8 md:px-8 md:py-12">
+      <div className="mx-auto max-w-4xl px-4 py-5 md:px-8 md:py-12">
         <section className="rounded-[8px] bg-white p-6 shadow-[0_18px_50px_rgba(16,16,16,0.08)] md:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Persona</p>
-          <h1 className="mt-3 text-4xl font-semibold text-ink md:text-5xl">先选择你的身份</h1>
+          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">先选择你的身份</h1>
           <p className="mt-4 text-sm leading-6 text-ink/58">完成身份选择后，RunwayLab 会展示更适合你的个人工作台。</p>
           <Link href="/me/onboarding" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
             去选择身份
@@ -383,14 +383,14 @@ export default async function MeDashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12">
+    <div className="mx-auto max-w-6xl px-4 py-5 md:px-8 md:py-12">
       <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">My Dashboard</p>
-          <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">我的工作台</h1>
-          <p className="mt-4 text-sm leading-6 text-ink/58">当前身份：{USER_PERSONA_LABELS[currentUser.persona]}</p>
+          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">我的工作台</h1>
+          <p className="mt-3 text-sm leading-6 text-ink/58 md:mt-4">当前身份：{USER_PERSONA_LABELS[currentUser.persona]}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid gap-2 sm:flex sm:flex-wrap">
           <Link href="/me/onboarding" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
             切换身份
           </Link>
