@@ -279,11 +279,10 @@ export default async function MeDashboardPage() {
                 <StatCard label="孵化作品" value={incubatingWorkCount} />
               </div>
             </Section>
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-3">
               <ActionCard title="发布新作品" description="上传你的设计作品，进入展示、热度和孵化流程。" href="/publish" />
               <ActionCard title="孵化进度" description="查看面料推荐、服务商方案、预售验证和采购意向。" href="/me/incubation" />
               <ActionCard title="预售验证" description="查看正在验证的作品和市场意向。" href="/presale" />
-              <ActionCard title="作品库" description="浏览全站作品，观察热度和风格趋势。" href="/works" />
             </div>
           </>
         );
@@ -356,9 +355,8 @@ export default async function MeDashboardPage() {
             <Section title="学校工作台">
               <EmptyNote>学校身份待平台关联。本批不新增复杂学校账号权限，学校主页、老师、作品展和挑战赛仍由后台维护。</EmptyNote>
             </Section>
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-3">
               <ActionCard title="学校主页" description="查看学校列表和学校作品。" href="/schools" />
-              <ActionCard title="老师列表" description="查看老师与推荐作品。" href="/teachers" />
               <ActionCard title="课程作品展" description="查看课程、毕业设计和专题展。" href="/exhibitions" />
               <ActionCard title="设计挑战赛" description="查看学校或平台挑战赛。" href="/challenges" />
             </div>
@@ -374,11 +372,9 @@ export default async function MeDashboardPage() {
                 <StatCard label="预售意向" value={submittedCampaignIntentCount} />
               </div>
             </Section>
-            <div className="grid gap-3 md:grid-cols-5">
+            <div className="grid gap-3 md:grid-cols-3">
               <ActionCard title="浏览作品" description="查看作品库。" href="/works" />
-              <ActionCard title="查看排行榜" description="查看运营榜单。" href="/rankings" />
               <ActionCard title="查看预售" description="浏览预售验证活动。" href="/presale" />
-              <ActionCard title="申请服务商" description="提交服务商入驻申请。" href="/providers/apply" />
               <ActionCard title="完善资料" description="编辑个人资料。" href="/me/profile" />
             </div>
           </>

@@ -27,12 +27,12 @@ export function ActionGuide({ eyebrow, title, description, note, actions = [] }:
           {note ? <div className="mt-3 text-sm leading-6 text-ink/55">{note}</div> : null}
         </div>
         {actions.length ? (
-          <div className="flex shrink-0 flex-wrap gap-2">
+          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
             {actions.map((action) => (
               <Link
                 key={`${action.href}-${action.label}`}
                 href={action.href}
-                className={`inline-flex h-11 items-center justify-center gap-1 rounded-full px-5 text-sm font-semibold ${
+                className={`inline-flex h-11 w-full items-center justify-center gap-1 rounded-full px-5 text-sm font-semibold sm:w-auto ${
                   action.primary ? "bg-ink text-white" : "border border-black/10 bg-white text-ink"
                 }`}
               >

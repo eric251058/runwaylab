@@ -64,9 +64,9 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
       <header className="mb-8 rounded-[8px] bg-white p-6 shadow-[0_16px_48px_rgba(16,16,16,0.08)] md:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Presale Validation</p>
-        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">预售验证池</h1>
+        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">预售验证，不需要付款。</h1>
         <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/60 md:text-base">
-          这里展示正在收集市场意向的作品。提交意向不需要付款，不生成订单，也不涉及退款或物流。
+          这里展示的是用户购买意向验证，不收款，不构成订单。
         </p>
       </header>
 
@@ -80,11 +80,8 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Active Campaigns</p>
-            <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">正在验证的预售作品</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">正在验证的作品</h2>
           </div>
-          <Link href="/works" className="hidden text-sm font-semibold text-ink/55 hover:text-ink sm:inline-flex">
-            查看作品库
-          </Link>
         </div>
 
         {campaigns.length ? (
@@ -112,9 +109,9 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
                         <div className="h-full rounded-full bg-ink" style={{ width: `${progress}%` }} />
                       </div>
                     </div>
-                    <p className="text-sm text-ink/55">预计价格：{campaign.estimatedPrice ?? "待定"}，已收集 {campaign._count.intents} 条意向。当前不收款。</p>
+                    <p className="text-sm text-ink/55">预计价格：{campaign.estimatedPrice ?? "待定"}</p>
                     <Link href={`/works/${campaign.workId}`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
-                      进入作品详情
+                      查看作品并提交意向
                     </Link>
                   </div>
                 </article>
@@ -122,37 +119,7 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
             })}
           </div>
         ) : (
-          <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂时还没有开启中的预售验证活动。</div>
-        )}
-      </section>
-
-      <section className="mt-10">
-        <div className="mb-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Legacy Intent Pool</p>
-          <h2 className="mt-2 text-2xl font-semibold text-ink md:text-3xl">作品意向候选</h2>
-        </div>
-        {legacyWorks.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {legacyWorks.map((work, index) => (
-              <article key={work.id} className="overflow-hidden rounded-[8px] border border-black/8 bg-white">
-                <img src={visualFor(index + 4, work.images[0])} alt={work.title} className="aspect-[4/3] w-full object-cover" />
-                <div className="space-y-3 p-4">
-                  <h3 className="line-clamp-2 text-sm font-semibold text-ink">{work.title}</h3>
-                  <p className="text-xs text-ink/50">{work.user.nickname} / 旧版意向 {work._count.presaleIntents}</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Link href={`/works/${work.id}`} className="inline-flex h-9 items-center justify-center rounded-full border border-black/10 px-3 text-xs font-semibold text-ink">
-                      查看作品
-                    </Link>
-                    <Link href={`/presale?workId=${work.id}`} className="inline-flex h-9 items-center justify-center rounded-full bg-ink px-3 text-xs font-semibold text-white">
-                      旧版意向
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂时没有可展示作品。</div>
+          <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无预售验证作品，平台正在筛选首批作品。</div>
         )}
       </section>
     </div>

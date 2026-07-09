@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, ImagePlus, Trash2 } from "lucide-react";
-import { ActionGuide } from "@/components/ActionGuide";
 import { normalizeImageUrl, visualFor } from "@/components/works/work-visuals";
 import {
   MAX_WORK_IMAGES,
@@ -367,47 +366,18 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
         </div>
         <h1 className="mt-6 text-4xl font-semibold text-ink">{initialWork ? "作品已重新提交" : "作品已发布"}</h1>
         <p className="mt-4 text-sm leading-6 text-ink/58">
-          接下来你可以查看作品详情、申请进入孵化池、加入挑战赛、等待老师推荐，或在合适时开启预售验证。
+          下一步可以查看作品详情，或进入我的孵化进度。
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           {createdWorkId ? (
             <Link href={`/works/${createdWorkId}`} className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
-              查看作品详情
+              查看作品
             </Link>
           ) : null}
-          <Link href="/me" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
-            查看我的作品
-          </Link>
           <Link href="/me/incubation" className="inline-flex h-11 items-center justify-center rounded-full border border-black/15 bg-white px-5 text-sm font-semibold text-ink">
-            查看孵化进度
-          </Link>
-          <Link href="/challenges" className="inline-flex h-11 items-center justify-center rounded-full border border-black/15 bg-white px-5 text-sm font-semibold text-ink">
-            加入挑战赛
-          </Link>
-          {initialWork ? (
-            <Link href="/publish" className="inline-flex h-11 items-center justify-center rounded-full border border-black/15 bg-white px-5 text-sm font-semibold text-ink">
-              继续发布作品
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                images.forEach((image) => revokePreviewUrl(image.previewUrl));
-                setImages([]);
-                setForm(initialForm);
-                setCreatedWorkId(null);
-                setStep(1);
-              }}
-              className="inline-flex h-11 items-center justify-center rounded-full border border-black/15 bg-white px-5 text-sm font-semibold text-ink"
-            >
-              继续发布作品
-            </button>
-          )}
-          <Link href="/" className="inline-flex h-11 items-center justify-center rounded-full border border-black/15 bg-white px-5 text-sm font-semibold text-ink">
-            返回首页
+            查看我的孵化
           </Link>
         </div>
-        {createdWorkId ? <p className="mt-5 text-xs text-ink/35">作品 ID：{createdWorkId}</p> : null}
       </div>
     );
   }
@@ -418,24 +388,12 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">Publish</p>
         <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">{initialWork ? "编辑作品" : "发布你的设计作品"}</h1>
         <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4 md:line-clamp-none">
-          上传作品后，你可以获得老师推荐、面料匹配、打样方案、预售验证和商业合作机会。
+          上传作品后，平台可以帮助你获得老师推荐、面料匹配、打样方案和预售验证机会。
         </p>
       </header>
 
-      <div className="mb-5 md:mb-8">
-        <ActionGuide
-          eyebrow="Next Step"
-          title="先把作品放出来，再让平台和合作方帮你验证。"
-          description="作品可以是草图、效果图、AI 辅助设计、毕业作品或面料实验。标题、说明和图片越清楚，后续越容易获得推荐和孵化机会。"
-          actions={[
-            { label: "查看挑战赛", href: "/challenges" },
-            { label: "浏览孵化池", href: "/incubation" }
-          ]}
-        />
-      </div>
-
-      <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 md:mx-0 md:mb-6 md:grid md:grid-cols-4 md:px-0">
-        {["作品图片", "基础信息", "适合方向", "下一步期待"].map((label, index) => (
+      <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 md:mx-0 md:mb-6 md:grid md:grid-cols-3 md:px-0">
+        {["作品图片", "作品信息", "设计说明"].map((label, index) => (
           <div key={label} className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold md:rounded-[6px] ${step === index + 1 ? "bg-ink text-white" : "bg-white text-ink/45"}`}>
             {index + 1}. {label}
           </div>
@@ -499,23 +457,22 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
 
         {step === 2 ? (
           <div className="space-y-5">
-            <h2 className="text-2xl font-semibold text-ink">基础信息</h2>
+            <h2 className="text-2xl font-semibold text-ink">作品信息</h2>
             <label className="block">
               <span className="text-xs font-semibold text-ink/45">作品标题</span>
               <input
                 value={form.title}
                 onChange={(event) => setForm({ ...form, title: event.target.value })}
-                placeholder="例如：城市通勤女装系列 / 东方结构连衣裙"
+                placeholder="例如：城市通勤女装系列"
                 className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 outline-none focus:border-ink"
               />
-              <p className="mt-2 text-xs leading-5 text-ink/45">标题不需要复杂，先让别人一眼知道作品方向。</p>
             </label>
             <label className="block">
               <span className="text-xs font-semibold text-ink/45">设计说明</span>
               <textarea
                 value={form.description}
                 onChange={(event) => setForm({ ...form, description: event.target.value })}
-                placeholder="可以写设计灵感、适合人群、面料想法、想解决的问题。"
+                placeholder="写清楚灵感、适合人群、面料想法即可。"
                 className="mt-2 min-h-36 w-full rounded-[6px] border border-black/10 bg-paper p-4 outline-none focus:border-ink"
               />
             </label>
@@ -527,7 +484,6 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
                     <option key={option}>{option}</option>
                   ))}
                 </select>
-                <p className="mt-2 text-xs leading-5 text-ink/45">选择最接近的方向即可，后续可由平台协助优化。</p>
               </label>
               <label className="block">
                 <span className="text-xs font-semibold text-ink/45">作品类型</span>
@@ -539,8 +495,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
               </label>
             </div>
             <div>
-              <p className="text-xs font-semibold text-ink/45">适合方向 / 风格标签（最多 5 个）</p>
-              <p className="mt-1 text-xs leading-5 text-ink/45">标签会帮助老师、服务商和买手更快判断作品适合的方向。</p>
+              <p className="text-xs font-semibold text-ink/45">风格标签（最多 5 个）</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {styleTagOptions.map((tag) => (
                   <button
@@ -567,9 +522,9 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
 
         {step === 3 ? (
           <div>
-            <h2 className="text-2xl font-semibold text-ink">下一步期待</h2>
+            <h2 className="text-2xl font-semibold text-ink">适合方向</h2>
             <p className="mt-2 text-sm text-ink/55">
-              选择你希望作品进入的方向，平台会据此判断挑战参赛、老师推荐、面料匹配、打样评估和预售验证机会。
+              选择你希望作品获得的机会。不确定也可以先提交。
             </p>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               {opportunityOptions.map((option) => (

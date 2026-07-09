@@ -62,35 +62,35 @@ const workInclude = {
 const roleCards = [
   {
     title: "设计师 / 学生",
-    description: "发布作品，获得老师推荐、面料匹配、打样方案和预售验证。",
+    description: "发布作品，进入孵化机会池。",
     href: "/publish",
     action: "发布作品",
     icon: <Shirt size={18} />
   },
   {
     title: "老师 / 学校",
-    description: "推荐学生作品，组织课程作品展和设计挑战赛。",
+    description: "推荐作品，组织展览和挑战赛。",
     href: "/schools",
     action: "查看学校与老师",
     icon: <GraduationCap size={18} />
   },
   {
     title: "面料商 / 打样 / 工厂",
-    description: "为优秀设计作品提供面料、打样和生产方案。",
+    description: "为作品提供面料、打样和生产方案。",
     href: "/providers/apply",
     action: "服务商入驻",
     icon: <SwatchBook size={18} />
   },
   {
     title: "买手 / 采购商",
-    description: "发现新锐设计作品，提交采购意向和买手反馈。",
+    description: "发现新锐作品，提交采购意向。",
     href: "/presale",
     action: "查看预售验证",
     icon: <Factory size={18} />
   },
   {
     title: "普通用户",
-    description: "浏览、收藏、点赞作品，提交预售意向。",
+    description: "浏览作品，提交预售意向。",
     href: "/works",
     action: "浏览作品",
     icon: <Users size={18} />
@@ -164,7 +164,7 @@ function EmptyBlock({ text, compact = false }: { text: string; compact?: boolean
 
 function RoleCard({ card }: { card: (typeof roleCards)[number] }) {
   return (
-    <Link href={card.href} className="group flex min-h-[180px] flex-col justify-between rounded-[8px] border border-black/8 bg-white p-5 transition hover:border-ink/35">
+    <Link href={card.href} className="group flex min-h-[150px] flex-col justify-between rounded-[8px] border border-black/8 bg-white p-5 transition hover:border-ink/35">
       <span>
         <span className="flex size-10 items-center justify-center rounded-full bg-paper text-ink">{card.icon}</span>
         <span className="mt-4 block text-base font-semibold text-ink">{card.title}</span>
@@ -287,16 +287,16 @@ export default async function HomePage() {
     <main className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10">
       <section className="rounded-[8px] bg-ink px-5 py-10 text-white md:px-10 md:py-16">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">RunwayLab</p>
-        <h1 className="mt-4 max-w-4xl text-4xl font-semibold leading-tight md:text-6xl">让设计作品走向打样、预售和合作。</h1>
+        <h1 className="mt-4 max-w-4xl text-4xl font-semibold leading-tight md:text-6xl">让服装设计作品，从作业走向打样、预售和商业合作。</h1>
         <p className="mt-5 max-w-3xl text-sm leading-6 text-white/68 md:text-base md:leading-7">
-          RunwayLab 连接设计学生、老师、学校、面料商、打样工作室、工厂、买手和用户，帮助优秀设计作品完成孵化验证。
+          RunwayLab 帮助优秀设计作品获得推荐、打样、预售验证和合作机会。
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
           <Link href="/publish" className="inline-flex h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-ink">
-            发布作品，进入孵化机会池
+            发布作品
           </Link>
-          <Link href="/incubation" className="inline-flex h-12 items-center justify-center rounded-full border border-white/20 px-6 text-sm font-semibold text-white">
-            浏览孵化作品
+          <Link href="/works" className="inline-flex h-12 items-center justify-center rounded-full border border-white/20 px-6 text-sm font-semibold text-white">
+            浏览作品
           </Link>
           <Link href="/providers/apply" className="inline-flex h-12 items-center justify-center rounded-full border border-white/20 px-6 text-sm font-semibold text-white/82">
             服务商入驻

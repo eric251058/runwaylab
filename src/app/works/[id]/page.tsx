@@ -10,7 +10,7 @@ import { WorkInteractionBar } from "@/components/works/WorkInteractionBar";
 import { WorkStatusBadge, getWorkBadges } from "@/components/works/WorkStatusBadge";
 import { initials } from "@/components/works/work-visuals";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getIncubationRuleText, incubationStatusLabels } from "@/lib/incubation";
+import { incubationStatusLabels } from "@/lib/incubation";
 import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
 import { canViewWorkDetail } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -70,6 +70,16 @@ function progressMetric(label: string, value: number) {
   );
 }
 
+function summarySignal(label: string, value: string, state: "done" | "active" | "todo") {
+  const className = state === "done" ? "bg-ink text-white" : state === "active" ? "bg-white text-ink" : "bg-paper text-ink/55";
+  return (
+    <div className={`rounded-[8px] border border-black/8 p-3 ${className}`}>
+      <p className="text-xs font-semibold opacity-70">{label}</p>
+      <p className="mt-1 text-sm font-semibold">{value}</p>
+    </div>
+  );
+}
+
 function nextActionCopy({
   isLoggedIn,
   isOwner,
@@ -89,84 +99,79 @@ function nextActionCopy({
 
   if (!isLoggedIn) {
     return {
-      title: "喜欢这个作品？先登录，再点赞、收藏或提交预售意向。",
-      description: "当前不会收款，也不会生成订单。登录后可以留下真实意向，帮助设计师判断作品是否值得继续打样。",
+      title: "登录后表达意向",
+      description: "点赞、收藏或提交预售意向都不会产生付款。",
       actions: [
-        { label: "登录后参与", href: `/login?next=/works/${workId}`, primary: true },
-        { label: "查看预售说明", href: presaleHref }
+        { label: "登录后表达意向", href: `/login?next=/works/${workId}`, primary: true },
+        { label: "看预售", href: presaleHref }
       ]
     };
   }
 
   if (isAdmin) {
     return {
-      title: "运营下一步：把有潜力的作品推进完整孵化闭环。",
-      description: "可以从推荐、孵化、预售和合作项目四个入口快速处理，不涉及支付、订单或物流。",
+      title: "进入后台运营",
+      description: "把有潜力的作品推进推荐、预售或合作项目。",
       actions: [
-        { label: "加入首页精选", href: "/admin/editorial", primary: true },
-        { label: "加入孵化候选", href: "/admin/incubation" },
-        { label: "创建预售活动", href: "/admin/presale-campaigns" },
-        { label: "创建合作项目", href: "/admin/projects" }
+        { label: "后台运营", href: "/admin", primary: true },
+        { label: "创建预售", href: "/admin/presale-campaigns" },
+        { label: "创建项目", href: "/admin/projects" }
       ]
     };
   }
 
   if (isOwner) {
     return {
-      title: "这是你的作品，下一步可以推进孵化验证。",
-      description: "查看孵化进度、关注服务商方案，并在合适时联系平台开启预售验证。",
+      title: "查看孵化进度",
+      description: "跟进老师推荐、面料、方案和预售意向。",
       actions: [
         { label: "查看孵化进度", href: "/me/incubation", primary: true },
-        { label: "查看服务商方案", href: "#provider-market" },
-        { label: "查看预售验证", href: presaleHref }
+        { label: "服务商方案", href: "#provider-market" },
+        { label: "预售验证", href: presaleHref }
       ]
     };
   }
 
   if (persona === UserPersona.TEACHER) {
     return {
-      title: "老师可以帮助优秀学生作品获得第一轮信任背书。",
-      description: "老师推荐当前由平台运营协助完成，不新增复杂老师权限系统。",
-      note: "如果你还没有后台权限，请联系平台开通老师关联；已是管理员可进入后台添加推荐理由。",
+      title: "推荐这个作品",
+      description: "老师推荐会帮助学生作品获得第一轮信任背书。",
+      note: "当前由平台运营协助完成。",
       actions: [
         { label: "推荐这个作品", href: "#teacher-recommendation-help", primary: true },
-        { label: "查看老师推荐说明", href: "#teacher-recommendation-help" },
-        { label: "查看课程作品展", href: "/exhibitions" }
+        { label: "作品展", href: "/exhibitions" }
       ]
     };
   }
 
   if (persona === UserPersona.FABRIC_SUPPLIER || persona === UserPersona.SAMPLE_STUDIO || persona === UserPersona.FACTORY) {
     return {
-      title: "你可以围绕这个作品提交面料、打样或生产方案。",
-      description: "普通服务商先走入驻申请，平台会协助你参与作品孵化方案提交。",
+      title: "申请成为服务商",
+      description: "入驻后可参与面料、打样或生产方案提交。",
       actions: [
-        { label: "我是服务商，想提交方案", href: "/providers/apply", primary: true },
-        { label: "查看服务商方案", href: "#provider-market" },
-        { label: "浏览孵化池", href: "/incubation" }
+        { label: "申请成为服务商", href: "/providers/apply", primary: true },
+        { label: "服务商方案", href: "#provider-market" }
       ]
     };
   }
 
   if (persona === UserPersona.BUYER) {
     return {
-      title: "如果你看好这个作品，可以先提交采购或预售意向。",
-      description: "本阶段只收集意向，不收款、不生成订单，平台后续协助设计师判断是否推进合作。",
+      title: "查看预售验证",
+      description: "看好作品，可以先提交预售或采购意向。",
       actions: [
-        { label: "提交预售意向", href: presaleHref, primary: true },
-        { label: "查看预售验证", href: "/presale" },
-        { label: "查看合作项目", href: "/projects" }
+        { label: "查看预售验证", href: presaleHref, primary: true },
+        { label: "合作项目", href: "/projects" }
       ]
     };
   }
 
   return {
-    title: "喜欢这个作品，可以点赞、收藏，或提交预售意向。",
-    description: "你的互动会帮助作品判断热度；预售意向只做需求验证，不需要付款。",
+    title: "提交预售意向",
+    description: "只表达兴趣，不需要付款。",
     actions: [
-      { label: "点赞 / 收藏", href: "#incubation-actions", primary: true },
-      { label: "提交预售意向", href: presaleHref },
-      { label: "浏览更多作品", href: "/works" }
+      { label: "提交预售意向", href: presaleHref, primary: true },
+      { label: "点赞 / 收藏", href: "#incubation-actions" }
     ]
   };
 }
@@ -304,12 +309,6 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
     }
   });
   const crowdStatus = workIncubation?.status ?? crowdIncubationStatus(incubationProject?.status ?? work.incubationStatus);
-  const ruleText = getIncubationRuleText({
-    likeCount: work.likeCount,
-    favoriteCount: work.favoriteCount,
-    presaleIntentCount,
-    buyerIntentCount
-  });
   const heatSignals = {
     likeCount: work.likeCount,
     favoriteCount: work.favoriteCount,
@@ -363,6 +362,10 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
     workId: work.id,
     hasActivePresale: Boolean(activePresaleCampaign)
   });
+  const teacherRecommendationCount = activityInfo?.teacherRecommendations.length ?? 0;
+  const fabricSignalCount = fabricProposalCount + (providerMarketInfo?.fabricRecommendations.length ?? 0);
+  const providerProposalSignalCount = sampleProposalCount + factoryProposalCount + (providerMarketInfo?.providerWorkProposals.length ?? 0);
+  const presaleSignalCount = presaleIntentCount + (activePresaleCampaign?.currentCount ?? 0);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-4 md:px-8 md:py-10">
@@ -384,7 +387,6 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
               ))}
             </div>
             <h1 className="text-3xl font-semibold leading-tight text-ink md:text-5xl">{work.title}</h1>
-            <p className="mt-3 text-sm leading-6 text-ink/62 md:mt-4 md:text-base md:leading-7">{work.description}</p>
           </div>
 
           <Link href={`/designers/${work.user.id}`} className="flex items-center gap-3 rounded-[6px] bg-white p-3 shadow-[0_12px_34px_rgba(16,16,16,0.08)] md:gap-4 md:p-4 md:shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
@@ -396,6 +398,19 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
               </p>
             </div>
           </Link>
+
+          <ActionGuide
+            eyebrow="Next Action"
+            title={actionCopy.title}
+            description={actionCopy.description}
+            note={"note" in actionCopy ? actionCopy.note : undefined}
+            actions={actionCopy.actions}
+          />
+
+          <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
+            <h2 className="text-xl font-semibold text-ink">作品说明</h2>
+            <p className="mt-3 text-sm leading-6 text-ink/62 md:text-base md:leading-7">{work.description}</p>
+          </section>
 
           {(activityInfo?.school || activityInfo?.teacher || activityInfo?.teacherRecommendations.length) ? (
             <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
@@ -428,14 +443,6 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
             </section>
           ) : null}
 
-          <ActionGuide
-            eyebrow="Next Action"
-            title={actionCopy.title}
-            description={actionCopy.description}
-            note={"note" in actionCopy ? actionCopy.note : undefined}
-            actions={actionCopy.actions}
-          />
-
           {currentUser?.persona === UserPersona.TEACHER ? (
             <section id="teacher-recommendation-help" className="rounded-[8px] border border-black/8 bg-paper p-4 text-sm leading-6 text-ink/58">
               <p className="font-semibold text-ink">老师推荐说明</p>
@@ -450,37 +457,21 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
             </section>
           ) : null}
 
-          <div id="incubation-actions">
-            <WorkInteractionBar
-              workId={work.id}
-              isLoggedIn={Boolean(currentUser)}
-              initialLiked={Boolean(liked)}
-              initialFavorited={Boolean(favorited)}
-              initialIncubationRecommended={Boolean(incubationRecommended)}
-              likeCount={work.likeCount}
-              favoriteCount={work.favoriteCount}
-              commentCount={work.commentCount}
-              shareCount={work.shareCount}
-              incubationRecommendCount={work.incubationRecommendCount}
-              comments={work.comments.map((comment) => ({
-                id: comment.id,
-                content: comment.content,
-                createdAt: comment.createdAt.toISOString(),
-                user: {
-                  nickname: comment.user.nickname
-                }
-              }))}
-            />
-          </div>
-
           <section className="rounded-[8px] bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Incubation Progress</p>
-                <h2 className="mt-2 text-2xl font-semibold text-ink">孵化进度</h2>
-                <p className="mt-2 text-sm leading-6 text-ink/58">{ruleText}</p>
+                <h2 className="mt-2 text-2xl font-semibold text-ink">孵化摘要</h2>
+                <p className="mt-2 text-sm leading-6 text-ink/58">当前阶段：{incubationStatusLabels[crowdStatus]}</p>
               </div>
               <span className="w-fit rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">{incubationStatusLabels[crowdStatus]}</span>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-4">
+              {summarySignal("老师推荐", teacherRecommendationCount ? "有" : "待完善", teacherRecommendationCount ? "done" : "todo")}
+              {summarySignal("面料推荐", fabricSignalCount ? `${fabricSignalCount} 条` : "待匹配", fabricSignalCount ? "active" : "todo")}
+              {summarySignal("服务商方案", providerProposalSignalCount ? `${providerProposalSignalCount} 条` : "待提交", providerProposalSignalCount ? "active" : "todo")}
+              {summarySignal("预售意向", presaleSignalCount ? `${presaleSignalCount} 人` : "待验证", presaleSignalCount ? "active" : "todo")}
             </div>
 
             <div className="mt-5">
@@ -501,31 +492,6 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
               {progressMetric("收藏数", work.favoriteCount)}
               {progressMetric("评论数", work.commentCount)}
               {progressMetric("预售意向", presaleIntentCount)}
-              {progressMetric("面料推荐", fabricProposalCount)}
-              {progressMetric("打样方案", sampleProposalCount)}
-              {progressMetric("工厂方案", factoryProposalCount)}
-              {progressMetric("采购意向", buyerIntentCount)}
-            </div>
-
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              <Link href={`/presale?workId=${work.id}`} className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
-                我想预定
-              </Link>
-              <Link href={`/partners?workId=${work.id}&type=fabric`} className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">
-                我来推荐面料
-              </Link>
-              <Link href={`/partners?workId=${work.id}&type=sample`} className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">
-                我可以打样
-              </Link>
-              <Link href={`/partners?workId=${work.id}&type=factory`} className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">
-                我可以生产
-              </Link>
-              <Link href={`/partners?workId=${work.id}&type=buyer`} className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">
-                我想采购
-              </Link>
-              <a href="#incubation-actions" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">
-                推荐进入孵化
-              </a>
             </div>
           </section>
 
@@ -596,6 +562,29 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
               </div>
             </div>
           </section>
+
+          <div id="incubation-actions">
+            <WorkInteractionBar
+              workId={work.id}
+              isLoggedIn={Boolean(currentUser)}
+              initialLiked={Boolean(liked)}
+              initialFavorited={Boolean(favorited)}
+              initialIncubationRecommended={Boolean(incubationRecommended)}
+              likeCount={work.likeCount}
+              favoriteCount={work.favoriteCount}
+              commentCount={work.commentCount}
+              shareCount={work.shareCount}
+              incubationRecommendCount={work.incubationRecommendCount}
+              comments={work.comments.map((comment) => ({
+                id: comment.id,
+                content: comment.content,
+                createdAt: comment.createdAt.toISOString(),
+                user: {
+                  nickname: comment.user.nickname
+                }
+              }))}
+            />
+          </div>
 
           <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3">
             {field("品类", work.category)}
