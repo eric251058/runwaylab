@@ -36,7 +36,7 @@ export default async function FabricDetailPage({ params }: FabricDetailPageProps
         <section>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Fabric</p>
           <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">{fabric.name}</h1>
-          <p className="mt-4 text-sm leading-6 text-ink/58">{fabric.description ?? "面料说明待补充"}</p>
+          <p className="mt-4 text-sm leading-6 text-ink/58">{fabric.description ?? "该面料可作为作品孵化阶段的材料参考，适合结合设计方向进一步确认手感、克重与落地工艺。"}</p>
           <div className="mt-5 flex flex-wrap gap-2">
             {fabric.isFeatured ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">推荐面料</span> : null}
             {fabric.tags.map((tag) => <span key={tag} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{tag}</span>)}
@@ -46,12 +46,12 @@ export default async function FabricDetailPage({ params }: FabricDetailPageProps
               供应商：{fabric.provider.name} / {PROVIDER_TYPE_LABELS[fabric.provider.type]}
             </Link>
           ) : null}
-          <p className="mt-5 rounded-[8px] bg-paper p-4 text-sm leading-6 text-ink/58">如需推荐给作品，可由后台在“面料推荐”中选择作品和面料。本阶段不做在线询价或交易。</p>
+          <p className="mt-5 rounded-[8px] bg-paper p-4 text-sm leading-6 text-ink/58">该页面用于作品孵化阶段的面料参考与推荐，不涉及在线询价、交易或订单。</p>
         </section>
       </div>
 
       <section className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {field("编号", fabric.code)}
+        {field("面料编号", fabric.code)}
         {field("成分", fabric.composition)}
         {field("克重", fabric.weight)}
         {field("门幅", fabric.width)}
@@ -64,17 +64,17 @@ export default async function FabricDetailPage({ params }: FabricDetailPageProps
       </section>
 
       <section className="mt-10">
-        <h2 className="mb-4 text-2xl font-semibold text-ink">已推荐给作品</h2>
+        <h2 className="mb-4 text-2xl font-semibold text-ink">适用设计场景</h2>
         {fabric.recommendations.length ? (
           <div className="grid gap-3 md:grid-cols-2">
             {fabric.recommendations.map((recommendation) => (
               <Link key={recommendation.id} href={`/works/${recommendation.workId}`} className="rounded-[8px] border border-black/8 bg-white p-4">
                 <h3 className="font-semibold text-ink">{recommendation.work.title}</h3>
-                <p className="mt-2 text-sm text-ink/52">{recommendation.reason ?? "推荐理由待补充"} / {recommendation.status}</p>
+                <p className="mt-2 text-sm text-ink/52">{recommendation.reason ?? "适合作为该作品的材料方向参考。"}</p>
               </Link>
             ))}
           </div>
-        ) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无作品推荐记录。</div>}
+        ) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">平台正在补充该面料适用的设计场景。</div>}
       </section>
     </div>
   );

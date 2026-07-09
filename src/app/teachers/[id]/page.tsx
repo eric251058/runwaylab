@@ -69,13 +69,13 @@ export default async function TeacherDetailPage({ params }: TeacherDetailPagePro
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Teacher</p>
             <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">{teacher.name}</h1>
             <p className="mt-3 text-sm text-ink/52">
-              {teacher.school ? <Link href={`/schools/${teacher.school.slug ?? teacher.school.id}`} className="font-semibold underline">{teacher.school.name}</Link> : "学校待关联"}
+              {teacher.school ? <Link href={`/schools/${teacher.school.slug ?? teacher.school.id}`} className="font-semibold underline">{teacher.school.name}</Link> : "院校合作资源"}
               {teacher.title ? ` / ${teacher.title}` : ""}
               {teacher.department ? ` / ${teacher.department}` : ""}
             </p>
           </div>
         </div>
-        <p className="mt-6 max-w-3xl text-sm leading-6 text-ink/60">{teacher.bio ?? "老师简介待补充"}</p>
+        <p className="mt-6 max-w-3xl text-sm leading-6 text-ink/60">{teacher.bio ?? "该老师参与学生作品推荐与课程作品展示，为优秀设计作品提供进一步展示和孵化背书。"}</p>
       </header>
 
       <div className="mt-10 space-y-12">
@@ -91,7 +91,7 @@ export default async function TeacherDetailPage({ params }: TeacherDetailPagePro
 
         <section>
           <div className="mb-4">
-            <h2 className="text-2xl font-semibold text-ink">老师推荐作品</h2>
+            <h2 className="text-2xl font-semibold text-ink">老师推荐代表作品</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/55">这些作品由老师或平台运营标记推荐，推荐理由会帮助作品获得更多展示和孵化机会。</p>
           </div>
           {visibleRecommendations.length ? (
@@ -104,7 +104,7 @@ export default async function TeacherDetailPage({ params }: TeacherDetailPagePro
               ))}
             </div>
           ) : (
-            <Empty text="暂无老师推荐作品。" />
+            <Empty text="平台正在补充老师推荐代表作品。" />
           )}
         </section>
 
@@ -122,7 +122,7 @@ export default async function TeacherDetailPage({ params }: TeacherDetailPagePro
               ))}
             </div>
           ) : (
-            <Empty text="暂无参与作品展。" />
+            <Empty text="平台正在补充该老师参与的作品展信息。" />
           )}
         </section>
 
@@ -140,7 +140,7 @@ export default async function TeacherDetailPage({ params }: TeacherDetailPagePro
               ))}
             </div>
           ) : (
-            <Empty text="暂无参与挑战赛。" />
+            <Empty text="平台正在补充该老师参与的挑战赛信息。" />
           )}
         </section>
       </div>

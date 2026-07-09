@@ -16,7 +16,7 @@ export default async function FabricsPage() {
       <header className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Fabric Library</p>
         <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">面料库</h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">展示可用于作品孵化的面料信息，本阶段只做展示和推荐，不做在线询价与交易。</p>
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">展示可用于作品孵化的专业面料信息，帮助设计师、老师和服务商围绕作品完成材料匹配。</p>
       </header>
 
       {fabrics.length ? (
@@ -30,16 +30,16 @@ export default async function FabricsPage() {
                   {fabric.tags.slice(0, 2).map((tag) => <span key={tag} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{tag}</span>)}
                 </div>
                 <h2 className="line-clamp-2 text-lg font-semibold text-ink">{fabric.name}</h2>
-                <p className="text-sm leading-6 text-ink/52">{[fabric.composition, fabric.weight, fabric.width].filter(Boolean).join(" / ") || "参数待补充"}</p>
+                <p className="text-sm leading-6 text-ink/52">{[fabric.composition, fabric.weight, fabric.width].filter(Boolean).join(" / ") || "基础参数待补充"}</p>
                 <p className="text-xs font-semibold text-ink/40">
-                  {fabric.usage ?? "适用方向待补充"} / {fabric.provider ? `${fabric.provider.name} · ${PROVIDER_TYPE_LABELS[fabric.provider.type]}` : "供应商待关联"}
+                  {fabric.usage ?? "适用方向待补充"} / {fabric.provider ? `${fabric.provider.name} · ${PROVIDER_TYPE_LABELS[fabric.provider.type]}` : "供应商待对接"}
                 </p>
               </div>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无面料数据，后台新增面料后会显示在这里。</div>
+        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">平台正在补充首批专业面料信息。</div>
       )}
     </div>
   );

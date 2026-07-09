@@ -54,7 +54,7 @@ export function PresaleCampaignPanel({ campaign, workTitle, source, compact = fa
 
       {campaign.description ? <p className="mt-4 text-sm leading-6 text-ink/62">{campaign.description}</p> : null}
       <p className="mt-3 rounded-[6px] bg-paper px-4 py-3 text-sm leading-6 text-ink/58">
-        这是预售意向验证，不收款，不构成订单。提交后只表示你对这件作品感兴趣，平台会在作品进入打样或预售阶段后联系确认。
+        不需要付款。这里收集的是预售意向验证，不构成订单；提交后只表示你对这件作品感兴趣，平台会在作品进入打样或预售阶段后联系确认。
       </p>
 
       <div className="mt-5">

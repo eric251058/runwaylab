@@ -17,7 +17,7 @@ export default async function CasesPage() {
       <header className="mb-6 rounded-[8px] bg-white p-5 shadow-[0_16px_48px_rgba(16,16,16,0.08)] md:mb-8 md:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Cases</p>
         <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">RunwayLab 孵化案例</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4">记录作品从发布到孵化验证的过程。</p>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4">记录设计作品从展示、推荐、资源匹配到孵化验证的真实故事。</p>
       </header>
       {cases.length ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -34,7 +34,7 @@ export default async function CasesPage() {
             </Link>
           ))}
         </div>
-      ) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无已发布案例。</div>}
+      ) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">平台正在积累首批孵化案例。</div>}
     </div>
   );
 }

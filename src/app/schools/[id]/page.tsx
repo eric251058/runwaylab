@@ -65,8 +65,8 @@ export default async function SchoolDetailPage({ params }: SchoolDetailPageProps
         <div className="p-6 md:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">School</p>
           <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">{school.name}</h1>
-          <p className="mt-3 text-sm text-ink/52">{school.city ?? "城市待补充"}</p>
-          <p className="mt-4 max-w-3xl text-sm leading-6 text-ink/60">{school.description ?? "学校简介待补充"}</p>
+          <p className="mt-3 text-sm text-ink/52">{school.city ?? "合作院校"}</p>
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-ink/60">{school.description ?? "该院校正在参与 RunwayLab 作品展示与孵化试运营。"}</p>
           {school.website ? (
             <a href={school.website} className="mt-5 inline-flex text-sm font-semibold text-ink underline">
               学校官网
@@ -77,18 +77,18 @@ export default async function SchoolDetailPage({ params }: SchoolDetailPageProps
 
       <div className="mt-10 space-y-12">
         <section>
-          <h2 className="mb-4 text-2xl font-semibold text-ink">老师列表</h2>
+          <h2 className="mb-4 text-2xl font-semibold text-ink">代表老师</h2>
           {school.teachers.length ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {school.teachers.map((teacher) => (
                 <Link key={teacher.id} href={`/teachers/${teacher.slug ?? teacher.id}`} className="rounded-[8px] border border-black/8 bg-white p-4">
                   <h3 className="font-semibold text-ink">{teacher.name}</h3>
-                  <p className="mt-1 text-sm text-ink/52">{teacher.title ?? teacher.department ?? "老师资料待补充"}</p>
+                  <p className="mt-1 text-sm text-ink/52">{teacher.title ?? teacher.department ?? "参与作品指导与推荐"}</p>
                 </Link>
               ))}
             </div>
           ) : (
-            <Empty text="暂无老师数据。" />
+            <Empty text="平台正在补充该院校的老师信息。" />
           )}
         </section>
 
@@ -101,7 +101,7 @@ export default async function SchoolDetailPage({ params }: SchoolDetailPageProps
               ))}
             </div>
           ) : (
-            <Empty text="暂无关联作品。" />
+            <Empty text="平台正在补充该院校的作品信息。" />
           )}
         </section>
 
@@ -119,7 +119,7 @@ export default async function SchoolDetailPage({ params }: SchoolDetailPageProps
               ))}
             </div>
           ) : (
-            <Empty text="暂无课程作品展。" />
+            <Empty text="平台正在补充该院校的课程作品展信息。" />
           )}
         </section>
 
@@ -137,7 +137,7 @@ export default async function SchoolDetailPage({ params }: SchoolDetailPageProps
               ))}
             </div>
           ) : (
-            <Empty text="暂无挑战赛。" />
+            <Empty text="平台正在补充该院校的挑战赛信息。" />
           )}
         </section>
       </div>

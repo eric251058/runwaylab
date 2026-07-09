@@ -19,6 +19,11 @@ const workCardInclude = {
       designerProfile: true
     }
   },
+  school: true,
+  teacher: true,
+  teacherRecommendations: {
+    take: 1
+  },
   challengeEntries: {
     include: {
       challenge: true
@@ -38,6 +43,19 @@ const workCardInclude = {
       }
     },
     take: 1
+  },
+  workIncubation: true,
+  _count: {
+    select: {
+      presaleIntents: true,
+      fabricProposals: true,
+      sampleProposals: true,
+      factoryProposals: true,
+      buyerIntents: true,
+      presaleCampaigns: true,
+      fabricRecommendations: true,
+      providerWorkProposals: true
+    }
   }
 } satisfies Prisma.WorkInclude;
 

@@ -1,8 +1,7 @@
-import type { WorkCardData } from "@/lib/works/queries";
-import { WorkCard } from "@/components/works/WorkCard";
+import { WorkCard, type WorkCardLike } from "@/components/works/WorkCard";
 
 type WorkMasonryProps = {
-  works: WorkCardData[];
+  works: WorkCardLike[];
   compact?: boolean;
   emptyText?: string;
 };

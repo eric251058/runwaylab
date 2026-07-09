@@ -28,10 +28,10 @@ export const VERIFICATION_STATUS_LABELS: Record<VerificationStatus, string> = {
 
 export const PROJECT_STATUS_LABELS: Record<CollaborationProjectStatus, string> = {
   DRAFT: "草稿",
-  MATCHING: "匹配中",
-  SAMPLING: "打样中",
+  MATCHING: "资源匹配中",
+  SAMPLING: "打样推进中",
   PRESALE_VALIDATING: "预售验证中",
-  PRODUCTION_DISCUSSION: "生产洽谈中",
+  PRODUCTION_DISCUSSION: "生产沟通中",
   COMPLETED: "已完成",
   CANCELLED: "已取消"
 };

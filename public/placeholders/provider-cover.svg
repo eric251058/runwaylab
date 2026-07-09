@@ -1,9 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="RunwayLab provider cover placeholder">
-  <rect width="1200" height="675" fill="#f6f6f6"/>
-  <rect x="84" y="92" width="1032" height="491" rx="18" fill="#ffffff" stroke="#111111" stroke-opacity="0.14"/>
-  <path d="M238 430h724M302 356h596M370 282h460" stroke="#111111" stroke-width="22" stroke-linecap="round"/>
-  <circle cx="314" cy="244" r="54" fill="#111111"/>
-  <circle cx="886" cy="468" r="54" fill="#111111" fill-opacity="0.72"/>
-  <text x="96" y="140" fill="#111111" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" letter-spacing="8">RUNWAYLAB</text>
-  <text x="96" y="548" fill="#111111" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700">Provider Network</text>
+  <rect width="1200" height="675" fill="#f5f5f3"/>
+  <rect x="86" y="84" width="1028" height="507" rx="28" fill="#fff" stroke="#111" stroke-opacity=".12"/>
+  <rect x="150" y="150" width="900" height="318" rx="18" fill="#f0f0ed"/>
+  <path d="M240 380h720M300 318h600M368 256h464" stroke="#111" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="250" cy="242" r="48" fill="#111"/>
+  <circle cx="950" cy="406" r="48" fill="#111" fill-opacity=".68"/>
+  <rect x="134" y="112" width="156" height="34" rx="17" fill="#111"/>
+  <text x="212" y="136" text-anchor="middle" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" letter-spacing="3">RUNWAYLAB</text>
+  <text x="134" y="552" fill="#111" font-family="Arial, Helvetica, sans-serif" font-size="50" font-weight="700">Provider Network</text>
+  <text x="835" y="552" fill="#111" fill-opacity=".42" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">verified partner</text>
 </svg>

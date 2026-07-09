@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ReviewStatus } from "@prisma/client";
-import { PROJECT_PRIORITY_LABELS, PROJECT_STATUS_LABELS, publicProjectWhere } from "@/lib/commercial-collaboration";
+import { PROJECT_ORDER_STATUS_LABELS, PROJECT_PRIORITY_LABELS, PROJECT_STATUS_LABELS, publicProjectWhere } from "@/lib/commercial-collaboration";
 import { prisma } from "@/lib/prisma";
+import { visualFor } from "@/components/works/work-visuals";
 
 export const dynamic = "force-dynamic";
 
@@ -39,12 +40,12 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
           <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{PROJECT_PRIORITY_LABELS[project.priority]}</span>
         </div>
         <h1 className="mt-4 text-4xl font-semibold text-ink md:text-6xl">{project.title}</h1>
-        <p className="mt-4 max-w-3xl text-sm leading-6 text-ink/60">{project.description ?? "项目说明待补充"}</p>
+        <p className="mt-4 max-w-3xl text-sm leading-6 text-ink/60">{project.description ?? "该合作项目正在围绕作品孵化推进资源匹配、打样验证与合作沟通。"}</p>
       </header>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_0.75fr]">
         <section className="rounded-[8px] border border-black/8 bg-white p-5">
-          <h2 className="text-2xl font-semibold text-ink">项目关联</h2>
+          <h2 className="text-2xl font-semibold text-ink">参与资源</h2>
           <div className="mt-4 grid gap-3 text-sm text-ink/58 md:grid-cols-2">
             <Link href={`/works/${project.workId}`} className="rounded-[6px] bg-paper p-3 font-semibold text-ink">作品：{project.work.title}</Link>
             <Link href={`/designers/${project.work.userId}`} className="rounded-[6px] bg-paper p-3">设计师：{project.designer?.nickname ?? project.work.user.nickname}</Link>
@@ -58,17 +59,26 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
         </section>
 
         <section className="rounded-[8px] border border-black/8 bg-white p-5">
-          <h2 className="text-2xl font-semibold text-ink">项目意向记录</h2>
+          <h2 className="text-2xl font-semibold text-ink">当前进展</h2>
+          <img src={visualFor(0, project.work.images[0])} alt={project.work.title} className="mt-4 aspect-[4/3] w-full rounded-[6px] object-cover" />
+          <p className="mt-4 text-sm leading-6 text-ink/58">当前阶段：{PROJECT_STATUS_LABELS[project.status]}</p>
+          <p className="mt-1 text-sm leading-6 text-ink/58">预售验证：{project.presaleCampaign?.title ?? "待开启"}</p>
+          <p className="mt-1 text-sm leading-6 text-ink/58">下一步：继续确认资源、打样和市场反馈。</p>
+        </section>
+      </div>
+
+      <section className="mt-8 rounded-[8px] border border-black/8 bg-white p-5">
+        <h2 className="text-2xl font-semibold text-ink">合作线索</h2>
           <div className="mt-4 space-y-3">
             {project.orders.length ? project.orders.map((order) => (
               <article key={order.id} className="rounded-[6px] bg-paper p-3 text-sm text-ink/58">
                 <p className="font-semibold text-ink">{order.title}</p>
                 <p className="mt-1">{[order.quantityNote, order.amountNote, order.deliveryNote].filter(Boolean).join(" / ") || "细节待线下确认"}</p>
+                <p className="mt-1 text-xs font-semibold text-ink/40">{PROJECT_ORDER_STATUS_LABELS[order.status]}</p>
               </article>
             )) : <p className="text-sm text-ink/55">暂无项目意向记录。</p>}
           </div>
-        </section>
-      </div>
+      </section>
 
       <section className="mt-8 rounded-[8px] border border-black/8 bg-white p-5">
         <h2 className="text-2xl font-semibold text-ink">公开评价</h2>

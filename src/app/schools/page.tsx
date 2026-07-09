@@ -13,7 +13,9 @@ export default async function SchoolsPage() {
       _count: {
         select: {
           teachers: true,
-          works: true
+          works: true,
+          exhibitions: true,
+          challenges: true
         }
       }
     },
@@ -25,7 +27,7 @@ export default async function SchoolsPage() {
       <header className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Schools</p>
         <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">服装设计院校</h1>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">展示院校、老师、课程作品展和毕业设计专题，让学生作品更容易被看见。</p>
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">展示参与 RunwayLab 作品展示与孵化试运营的院校资源，让学生作品更容易被老师、产业和用户看见。</p>
       </header>
 
       {schools.length ? (
@@ -38,18 +40,20 @@ export default async function SchoolsPage() {
                   <h2 className="line-clamp-1 text-xl font-semibold text-ink">{school.name}</h2>
                   {school.isFeatured ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">推荐</span> : null}
                 </div>
-                <p className="text-sm text-ink/52">{school.city ?? "城市待补充"}</p>
-                <p className="line-clamp-2 text-sm leading-6 text-ink/58">{school.description ?? "学校简介待补充"}</p>
-                <div className="flex gap-2 text-xs font-semibold text-ink/45">
+                <p className="text-sm text-ink/52">{school.city ?? "合作院校"}</p>
+                <p className="line-clamp-2 text-sm leading-6 text-ink/58">{school.description ?? "该院校正在参与 RunwayLab 作品展示与孵化试运营。"}</p>
+                <div className="flex flex-wrap gap-2 text-xs font-semibold text-ink/45">
                   <span>老师 {school._count.teachers}</span>
                   <span>作品 {school._count.works}</span>
+                  <span>作品展 {school._count.exhibitions}</span>
+                  <span>挑战赛 {school._count.challenges}</span>
                 </div>
               </div>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无学校数据，后台创建学校后会显示在这里。</div>
+        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">平台正在补充合作院校与课程作品信息。</div>
       )}
     </div>
   );

@@ -14,7 +14,7 @@ import { incubationStatusLabels } from "@/lib/incubation";
 import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
 import { canViewWorkDetail } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { fabricCoverUrl, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
+import { fabricCoverUrl, PROVIDER_PROPOSAL_STATUS_LABELS, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
 import { getWorkDetailById } from "@/lib/works/queries";
 import { PresaleCampaignStatus, UserPersona, WorkIncubationStatus } from "@prisma/client";
 
@@ -78,6 +78,11 @@ function summarySignal(label: string, value: string, state: "done" | "active" | 
       <p className="mt-1 text-sm font-semibold">{value}</p>
     </div>
   );
+}
+
+function designHighlight(description: string) {
+  const text = description.replace(/\s+/g, " ").trim();
+  return text.length > 88 ? `${text.slice(0, 88)}...` : text;
 }
 
 function nextActionCopy({
@@ -366,6 +371,19 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
   const fabricSignalCount = fabricProposalCount + (providerMarketInfo?.fabricRecommendations.length ?? 0);
   const providerProposalSignalCount = sampleProposalCount + factoryProposalCount + (providerMarketInfo?.providerWorkProposals.length ?? 0);
   const presaleSignalCount = presaleIntentCount + (activePresaleCampaign?.currentCount ?? 0);
+  const completedSignals = [
+    teacherRecommendationCount ? "老师推荐" : null,
+    fabricSignalCount ? "面料建议" : null,
+    providerProposalSignalCount ? "服务商方案" : null,
+    presaleSignalCount ? "预售意向" : null
+  ].filter(Boolean);
+  const nextStep = presaleSignalCount
+    ? "跟进预售意向与合作资源"
+    : fabricSignalCount
+      ? "收集预售意向"
+      : teacherRecommendationCount
+        ? "补充面料建议"
+        : "完善作品背书";
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-4 md:px-8 md:py-10">
@@ -399,6 +417,21 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
             </div>
           </Link>
 
+          <section className="grid gap-3 md:grid-cols-[1fr_0.85fr]">
+            <div className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Design Highlight</p>
+              <h2 className="mt-2 text-xl font-semibold text-ink">设计亮点</h2>
+              <p className="mt-3 text-sm leading-6 text-ink/62">{designHighlight(work.description)}</p>
+            </div>
+            <div className="rounded-[8px] border border-black/8 bg-paper p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Incubation</p>
+              <h2 className="mt-2 text-xl font-semibold text-ink">当前孵化状态</h2>
+              <p className="mt-3 text-sm leading-6 text-ink/62">当前阶段：{incubationStatusLabels[crowdStatus]}</p>
+              <p className="mt-1 text-sm leading-6 text-ink/62">已完成：{completedSignals.join("、") || "作品展示"}</p>
+              <p className="mt-1 text-sm leading-6 text-ink/62">下一步：{nextStep}</p>
+            </div>
+          </section>
+
           <ActionGuide
             eyebrow="Next Action"
             title={actionCopy.title}
@@ -414,7 +447,11 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
 
           {(activityInfo?.school || activityInfo?.teacher || activityInfo?.teacherRecommendations.length) ? (
             <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
-              <div className="flex flex-wrap gap-2">
+              <h2 className="text-xl font-semibold text-ink">老师推荐</h2>
+              {activityInfo.teacherRecommendations.length ? (
+                <p className="mt-2 text-sm leading-6 text-ink/58">该作品已获得老师推荐，具备进一步展示和孵化价值。</p>
+              ) : null}
+              <div className="mt-4 flex flex-wrap gap-2">
                 {activityInfo.teacherRecommendations.length ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">老师推荐</span> : null}
                 {activityInfo.school ? (
                   <Link href={`/schools/${activityInfo.school.slug ?? activityInfo.school.id}`} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/60">
@@ -518,7 +555,7 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
 
             <div className="mt-5 space-y-6">
               <div>
-                <h3 className="mb-3 text-sm font-semibold text-ink">推荐面料</h3>
+                        <h3 className="mb-3 text-sm font-semibold text-ink">推荐面料</h3>
                 {providerMarketInfo?.fabricRecommendations.length ? (
                   <div className="grid gap-3 md:grid-cols-2">
                     {providerMarketInfo.fabricRecommendations.map((recommendation) => (
@@ -527,7 +564,7 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
                         <span className="min-w-0 text-sm">
                           <span className="block truncate font-semibold text-ink">{recommendation.fabric.name}</span>
                           <span className="mt-1 block text-ink/52">{recommendation.provider?.name ?? recommendation.fabric.provider?.name ?? "供应商待关联"}</span>
-                          <span className="mt-1 block line-clamp-2 text-xs leading-5 text-ink/52">{recommendation.reason ?? "推荐理由待补充"} / {recommendation.status}</span>
+                          <span className="mt-1 block line-clamp-2 text-xs leading-5 text-ink/52">{recommendation.reason ?? "推荐理由待补充"}</span>
                         </span>
                       </Link>
                     ))}
@@ -545,7 +582,7 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
                       <article key={proposal.id} className="rounded-[8px] border border-black/8 bg-paper p-4">
                         <div className="flex flex-wrap gap-2">
                           <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{PROVIDER_PROPOSAL_TYPE_LABELS[proposal.type]}</span>
-                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">{proposal.status}</span>
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">{PROVIDER_PROPOSAL_STATUS_LABELS[proposal.status]}</span>
                         </div>
                         <h4 className="mt-3 font-semibold text-ink">{proposal.title}</h4>
                         <p className="mt-1 text-sm text-ink/52">{proposal.provider.name}</p>

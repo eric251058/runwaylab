@@ -1,12 +1,37 @@
 import Link from "next/link";
 import { Bookmark, Heart, MessageCircle, Sparkles } from "lucide-react";
-import type { WorkCardData } from "@/lib/works/queries";
+import type { IncubationStatus } from "@prisma/client";
 import { WorkStatusBadge, getWorkBadges } from "@/components/works/WorkStatusBadge";
-import { initials, visualFor } from "@/components/works/work-visuals";
+import { initials, visualFor, type WorkImageLike } from "@/components/works/work-visuals";
 import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
 
+export type WorkCardLike = {
+  id: string;
+  title: string;
+  description: string;
+  images: WorkImageLike[];
+  user: {
+    nickname: string;
+    designerProfile?: {
+      school?: string | null;
+      city?: string | null;
+    } | null;
+  };
+  challengeEntries?: unknown[];
+  likeCount: number;
+  favoriteCount: number;
+  commentCount: number;
+  incubationRecommendCount: number;
+  isFeatured: boolean;
+  isEditorPick: boolean;
+  isOpenCoop: boolean;
+  wantsIncubation: boolean;
+  isAiAssisted: boolean;
+  incubationStatus: IncubationStatus | null;
+};
+
 type WorkCardProps = {
-  work: WorkCardData;
+  work: WorkCardLike & WorkCardSignals;
   index?: number;
   compact?: boolean;
 };
@@ -14,19 +39,53 @@ type WorkCardProps = {
 type WorkCardCounts = {
   _count?: {
     presaleIntents?: number;
+    presaleCampaigns?: number;
     fabricProposals?: number;
+    fabricRecommendations?: number;
     sampleProposals?: number;
     factoryProposals?: number;
     buyerIntents?: number;
+    providerWorkProposals?: number;
   };
 };
 
+type WorkCardSignals = WorkCardCounts & {
+  school?: {
+    name: string;
+  } | null;
+  teacher?: {
+    name: string;
+  } | null;
+  teacherRecommendations?: unknown[];
+  workIncubation?: {
+    status?: string;
+  } | null;
+};
+
+function shortText(value: string, max = 72) {
+  const text = value.replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max)}...` : text;
+}
+
 export function WorkCard({ work, index = 0, compact = false }: WorkCardProps) {
-  const counts = (work as WorkCardData & WorkCardCounts)._count;
+  const workSignals = work;
+  const counts = workSignals._count;
   const profile = work.user.designerProfile;
   const imageUrl = visualFor(index, work.images[0]);
   const badges = getWorkBadges(work);
-  const location = [profile?.school, profile?.city].filter(Boolean).join(" / ") || "新锐设计师";
+  const profileLine = [profile?.school, profile?.city].filter(Boolean).join(" / ");
+  const resourceLine = (workSignals.school?.name ?? workSignals.teacher?.name ?? profileLine) || "新锐设计师";
+  const hasPresale = Boolean((counts?.presaleCampaigns ?? 0) + (counts?.presaleIntents ?? 0));
+  const hasFabric = Boolean((counts?.fabricRecommendations ?? 0) + (counts?.fabricProposals ?? 0));
+  const hasProviderPlan = Boolean((counts?.providerWorkProposals ?? 0) + (counts?.sampleProposals ?? 0) + (counts?.factoryProposals ?? 0) + (counts?.buyerIntents ?? 0));
+  const isIncubating = Boolean(work.wantsIncubation || work.incubationStatus || (workSignals.workIncubation && workSignals.workIncubation.status !== "DISPLAYING"));
+  const statusBadges = [
+    hasPresale ? "预售验证中" : null,
+    isIncubating ? "孵化中" : null,
+    workSignals.teacherRecommendations?.length ? "老师推荐" : null,
+    hasFabric ? "面料已匹配" : null,
+    hasProviderPlan ? "服务商方案" : null
+  ].filter(Boolean) as string[];
   const heatSignals = {
     likeCount: work.likeCount,
     favoriteCount: work.favoriteCount,
@@ -49,11 +108,18 @@ export function WorkCard({ work, index = 0, compact = false }: WorkCardProps) {
         <img src={imageUrl} alt={work.title} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-105" />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 md:p-3">
           <div className="flex flex-wrap gap-1.5">
-            {badges.slice(0, compact ? 2 : 3).map((badge) => (
-              <WorkStatusBadge key={`${work.id}-${badge.label}`} kind={badge.kind}>
-                {badge.label}
-              </WorkStatusBadge>
+            {statusBadges.slice(0, 2).map((badge) => (
+              <span key={`${work.id}-${badge}`} className="inline-flex rounded-full border border-white/25 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-ink">
+                {badge}
+              </span>
             ))}
+            {!statusBadges.length
+              ? badges.slice(0, compact ? 1 : 2).map((badge) => (
+                  <WorkStatusBadge key={`${work.id}-${badge.label}`} kind={badge.kind}>
+                    {badge.label}
+                  </WorkStatusBadge>
+                ))
+              : null}
           </div>
         </div>
       </div>
@@ -66,8 +132,9 @@ export function WorkCard({ work, index = 0, compact = false }: WorkCardProps) {
               {initials(work.user.nickname)}
             </div>
             <span className="shrink-0 font-medium text-ink/75">{work.user.nickname}</span>
-            <span className="hidden truncate sm:inline">{location}</span>
+            <span className="hidden truncate sm:inline">{resourceLine}</span>
           </div>
+          <p className="mt-2 line-clamp-2 text-xs leading-5 text-ink/50">{shortText(work.description)}</p>
         </div>
 
         <div className="grid grid-cols-3 gap-1 border-t border-black/5 pt-2 text-[10px] text-ink/60 md:grid-cols-4 md:gap-2 md:pt-3 md:text-[11px]">

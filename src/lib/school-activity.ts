@@ -9,6 +9,11 @@ export const activityWorkInclude = {
       designerProfile: true
     }
   },
+  school: true,
+  teacher: true,
+  teacherRecommendations: {
+    take: 1
+  },
   challengeEntries: {
     include: {
       challenge: true
@@ -24,13 +29,17 @@ export const activityWorkInclude = {
   incubationApplications: {
     take: 1
   },
+  workIncubation: true,
   _count: {
     select: {
       presaleIntents: true,
       fabricProposals: true,
       sampleProposals: true,
       factoryProposals: true,
-      buyerIntents: true
+      buyerIntents: true,
+      presaleCampaigns: true,
+      fabricRecommendations: true,
+      providerWorkProposals: true
     }
   }
 };

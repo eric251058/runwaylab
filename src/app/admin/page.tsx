@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ActionGuide } from "@/components/ActionGuide";
+import { PROJECT_STATUS_LABELS, VERIFICATION_STATUS_LABELS, VERIFICATION_TYPE_LABELS, publicProjectWhere } from "@/lib/commercial-collaboration";
+import { PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +22,12 @@ const operationActions = [
   ["/admin/projects", "创建合作项目", "把成熟作品推进到合作项目展示。"]
 ];
 
+const providerApplicationStatusLabels: Record<string, string> = {
+  PENDING: "待审核",
+  APPROVED: "已通过",
+  REJECTED: "已拒绝"
+};
+
 function stat(label: string, value: number) {
   return (
     <div className="rounded-[8px] border border-black/8 bg-white p-4">
@@ -30,13 +38,23 @@ function stat(label: string, value: number) {
 }
 
 export default async function AdminPage() {
-  const [counts, latestVerifications, latestProjects, latestProviderApplications, latestPresaleIntents] = await Promise.all([
+  const [counts, contentCounts, latestVerifications, latestProjects, latestProviderApplications, latestPresaleIntents] = await Promise.all([
     Promise.all([
       prisma.user.count(),
       prisma.work.count(),
       prisma.provider.count(),
       prisma.presaleCampaignIntent.count(),
       prisma.collaborationProject.count()
+    ]),
+    Promise.all([
+      prisma.work.count({ where: { images: { none: {} } } }),
+      prisma.work.count({ where: { description: "" } }),
+      prisma.work.count({ where: { teacherRecommendations: { none: {} } } }),
+      prisma.work.count({ where: { fabricRecommendations: { none: {} }, fabricProposals: { none: {} } } }),
+      prisma.work.count({ where: { providerWorkProposals: { none: {} }, sampleProposals: { none: {} }, factoryProposals: { none: {} }, buyerIntents: { none: {} } } }),
+      prisma.work.count({ where: { presaleCampaigns: { none: {} } } }),
+      prisma.work.count({ where: { collaborationProjects: { none: {} } } }),
+      prisma.collaborationProject.count({ where: { ...publicProjectWhere(), caseStudies: { none: {} } } })
     ]),
     prisma.verificationRequest.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 5 }),
     prisma.collaborationProject.findMany({ include: { work: true }, orderBy: { createdAt: "desc" }, take: 5 }),
@@ -45,6 +63,16 @@ export default async function AdminPage() {
   ]);
 
   const [userCount, workCount, providerCount, presaleIntentCount, projectCount] = counts;
+  const completenessItems = [
+    ["缺少真实图片的作品", contentCounts[0], "/admin/works"],
+    ["缺少作品说明的作品", contentCounts[1], "/admin/works"],
+    ["缺少老师推荐的作品", contentCounts[2], "/admin/recommendations"],
+    ["缺少面料推荐的作品", contentCounts[3], "/admin/work-fabric-recommendations"],
+    ["缺少服务商方案的作品", contentCounts[4], "/admin/provider-proposals"],
+    ["缺少预售活动的作品", contentCounts[5], "/admin/presale-campaigns"],
+    ["缺少合作项目的作品", contentCounts[6], "/admin/projects"],
+    ["缺少成功案例的项目", contentCounts[7], "/admin/cases"]
+  ] as const;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-5 md:px-8 md:py-12">
@@ -84,6 +112,22 @@ export default async function AdminPage() {
         {stat("合作项目", projectCount)}
       </section>
 
+      <section className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 lg:mb-8">
+        <div className="mb-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Content Quality</p>
+          <h2 className="mt-2 text-xl font-semibold text-ink">内容完整度提醒</h2>
+          <p className="mt-2 text-sm leading-6 text-ink/55">这些项目会影响平台真实感，建议优先补齐图片、推荐、服务商方案和案例。</p>
+        </div>
+        <div className="grid gap-2 md:grid-cols-2">
+          {completenessItems.map(([label, value, href]) => (
+            <Link key={label} href={href} className="flex items-center justify-between gap-3 rounded-[6px] bg-paper px-4 py-3 text-sm">
+              <span className="font-semibold text-ink">{label}</span>
+              <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">{value}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:mb-8 lg:grid-cols-3">
         {adminLinks.map(([href, title]) => (
           <Link key={href} href={href} className="rounded-[8px] border border-black/8 bg-white p-4 text-base font-semibold text-ink transition hover:border-ink/35 md:p-5 md:text-lg">
@@ -96,19 +140,19 @@ export default async function AdminPage() {
         <div className="rounded-[8px] border border-black/8 bg-white p-5">
           <h2 className="font-semibold text-ink">最新认证申请</h2>
           <div className="mt-3 space-y-2 text-sm text-ink/58">
-            {latestVerifications.length ? latestVerifications.map((item) => <p key={item.id}>{item.user.nickname} / {item.type} / {item.status}</p>) : <p>暂无认证申请</p>}
+            {latestVerifications.length ? latestVerifications.map((item) => <p key={item.id}>{item.user.nickname} / {VERIFICATION_TYPE_LABELS[item.type]} / {VERIFICATION_STATUS_LABELS[item.status]}</p>) : <p>暂无认证申请</p>}
           </div>
         </div>
         <div className="rounded-[8px] border border-black/8 bg-white p-5">
           <h2 className="font-semibold text-ink">最新合作项目</h2>
           <div className="mt-3 space-y-2 text-sm text-ink/58">
-            {latestProjects.length ? latestProjects.map((item) => <p key={item.id}>{item.title} / {item.work.title} / {item.status}</p>) : <p>暂无合作项目</p>}
+            {latestProjects.length ? latestProjects.map((item) => <p key={item.id}>{item.title} / {item.work.title} / {PROJECT_STATUS_LABELS[item.status]}</p>) : <p>暂无合作项目</p>}
           </div>
         </div>
         <div className="rounded-[8px] border border-black/8 bg-white p-5">
           <h2 className="font-semibold text-ink">最新服务商申请</h2>
           <div className="mt-3 space-y-2 text-sm text-ink/58">
-            {latestProviderApplications.length ? latestProviderApplications.map((item) => <p key={item.id}>{item.companyName} / {item.providerType} / {item.status}</p>) : <p>暂无服务商申请</p>}
+            {latestProviderApplications.length ? latestProviderApplications.map((item) => <p key={item.id}>{item.companyName} / {PROVIDER_TYPE_LABELS[item.providerType]} / {providerApplicationStatusLabels[item.status] ?? item.status}</p>) : <p>暂无服务商申请</p>}
           </div>
         </div>
         <div className="rounded-[8px] border border-black/8 bg-white p-5">

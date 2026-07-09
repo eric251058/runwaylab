@@ -32,6 +32,11 @@ const workInclude = {
       designerProfile: true
     }
   },
+  school: true,
+  teacher: true,
+  teacherRecommendations: {
+    take: 1
+  },
   challengeEntries: {
     include: {
       challenge: true
@@ -54,7 +59,10 @@ const workInclude = {
       fabricProposals: true,
       sampleProposals: true,
       factoryProposals: true,
-      buyerIntents: true
+      buyerIntents: true,
+      presaleCampaigns: true,
+      fabricRecommendations: true,
+      providerWorkProposals: true
     }
   }
 };
@@ -289,7 +297,7 @@ export default async function HomePage() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">RunwayLab</p>
         <h1 className="mt-3 line-clamp-3 max-w-4xl text-3xl font-semibold leading-tight md:mt-4 md:line-clamp-none md:text-6xl">让服装设计作品，从作业走向打样、预售和商业合作。</h1>
         <p className="mt-4 line-clamp-3 max-w-3xl text-sm leading-6 text-white/68 md:mt-5 md:line-clamp-none md:text-base md:leading-7">
-          RunwayLab 帮助优秀设计作品获得推荐、打样、预售验证和合作机会。
+          连接设计学生、老师、院校、面料商、打样工作室、工厂与买手，帮助优秀作品完成从展示到孵化验证的第一步。
         </p>
         <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap md:mt-7">
           <Link href="/publish" className="inline-flex h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-ink">
@@ -305,15 +313,6 @@ export default async function HomePage() {
       </section>
 
       <section className="mt-10 md:mt-12">
-        <SectionHeader title="你是谁？从这里开始。" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {roleCards.map((card) => (
-            <RoleCard key={card.title} card={card} />
-          ))}
-        </div>
-      </section>
-
-      <section className="mt-10 md:mt-12">
         <SectionHeader title="精选作品" eyebrow="Featured Works" action={<CompactAction href="/works">浏览作品库</CompactAction>} />
         {featuredWorks.length ? (
           <div className="grid gap-3 sm:grid-cols-2 md:gap-5 lg:grid-cols-3">
@@ -324,17 +323,21 @@ export default async function HomePage() {
             ))}
           </div>
         ) : (
-          <EmptyBlock text="暂时还没有可展示的精选作品。" />
+          <EmptyBlock text="平台正在积累首批孵化作品。" compact />
         )}
       </section>
 
       <section className="mt-10 md:mt-12">
-        <SectionHeader title="作品如何被孵化" eyebrow="Incubation Flow" />
-        <div className="flex gap-3 overflow-x-auto pb-2 md:overflow-visible">
-          {flowSteps.map((step, index) => (
-            <FlowStep key={step.title} step={step} index={index} />
-          ))}
-        </div>
+        <SectionHeader title="正在孵化" eyebrow="In Incubation" action={<CompactAction href="/incubation">查看孵化池</CompactAction>} />
+        {incubationWorks.length ? (
+          <div className="grid gap-3 sm:grid-cols-2 md:gap-5 lg:grid-cols-3">
+            {incubationWorks.slice(0, 3).map((work, index) => (
+              <WorkCard key={work.id} work={asWorkCard(work)} index={index + 6} compact />
+            ))}
+          </div>
+        ) : (
+          <EmptyBlock text="平台正在筛选首批可进入孵化验证的作品。" compact />
+        )}
       </section>
 
       <section className="mt-10 md:mt-12">
@@ -361,7 +364,7 @@ export default async function HomePage() {
             })}
           </div>
         ) : (
-          <EmptyBlock text="暂时没有进行中的预售验证。" compact />
+          <EmptyBlock text="平台正在准备首批预售验证作品。" compact />
         )}
       </section>
 
@@ -421,7 +424,7 @@ export default async function HomePage() {
                       <img src={providerLogoUrl(provider.logoUrl)} alt={provider.name} className="size-14 rounded-[6px] object-cover" />
                       <span className="min-w-0 text-sm">
                         <span className="block truncate font-semibold text-ink">{provider.name}</span>
-                        <span className="mt-1 block text-xs text-ink/45">{PROVIDER_TYPE_LABELS[provider.type]} / {provider._count.workProposals} 个方案</span>
+                        <span className="mt-1 block text-xs text-ink/45">{PROVIDER_TYPE_LABELS[provider.type]} / {provider._count.workProposals} 个服务商方案</span>
                       </span>
                     </Link>
                   ))}
@@ -491,6 +494,24 @@ export default async function HomePage() {
         ) : (
           <EmptyBlock text="平台正在积累首批孵化案例。" />
         )}
+      </section>
+
+      <section className="mt-10 md:mt-12">
+        <SectionHeader title="你是谁？从这里开始。" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {roleCards.map((card) => (
+            <RoleCard key={card.title} card={card} />
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-10 md:mt-12">
+        <SectionHeader title="作品孵化路径" eyebrow="Incubation Flow" />
+        <div className="flex gap-3 overflow-x-auto pb-2 md:overflow-visible">
+          {flowSteps.map((step, index) => (
+            <FlowStep key={step.title} step={step} index={index} />
+          ))}
+        </div>
       </section>
 
       <footer className="mt-12 border-t border-black/8 pt-6">

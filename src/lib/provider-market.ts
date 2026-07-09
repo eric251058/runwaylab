@@ -1,4 +1,4 @@
-import { FabricStatus, ProviderType, type ProviderWorkProposalType } from "@prisma/client";
+import { FabricStatus, ProviderType, type ProviderWorkProposalStatus, type ProviderWorkProposalType } from "@prisma/client";
 
 export const PROVIDER_TYPE_LABELS: Record<ProviderType, string> = {
   FABRIC_SUPPLIER: "面料商",
@@ -9,11 +9,18 @@ export const PROVIDER_TYPE_LABELS: Record<ProviderType, string> = {
 };
 
 export const PROVIDER_PROPOSAL_TYPE_LABELS: Record<ProviderWorkProposalType, string> = {
-  FABRIC: "面料方案",
+  FABRIC: "面料建议",
   SAMPLE: "打样方案",
   PRODUCTION: "生产方案",
-  BUYER_INTENT: "采购意向",
-  OTHER: "其他方案"
+  BUYER_INTENT: "买手反馈",
+  OTHER: "服务商方案"
+};
+
+export const PROVIDER_PROPOSAL_STATUS_LABELS: Record<ProviderWorkProposalStatus, string> = {
+  PENDING: "待设计师查看",
+  SHORTLISTED: "已进入备选",
+  ACCEPTED: "已采纳",
+  REJECTED: "暂不合适"
 };
 
 export const PROVIDER_PLACEHOLDERS = {
@@ -60,7 +67,7 @@ export function requiredText(value: FormDataEntryValue | null, label: string) {
 
 export function maskContact(value?: string | null) {
   const text = value?.trim();
-  if (!text) return "提交合作意向后由平台协助联系";
+  if (!text || text.includes("隐藏")) return "联系方式由平台协助对接";
   if (text.includes("@")) {
     const [name, domain] = text.split("@");
     return `${name.slice(0, 2)}***@${domain}`;

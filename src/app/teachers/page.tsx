@@ -39,17 +39,17 @@ export default async function TeachersPage() {
                     <h2 className="text-xl font-semibold text-ink">{teacher.name}</h2>
                     {teacher.isFeatured ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">推荐</span> : null}
                   </div>
-                  <p className="mt-1 text-sm text-ink/52">{teacher.school?.name ?? "学校待关联"}</p>
-                  <p className="mt-1 text-sm text-ink/52">{teacher.title ?? teacher.department ?? "职称待补充"}</p>
+                  <p className="mt-1 text-sm text-ink/52">{teacher.school?.name ?? "院校合作资源"}</p>
+                  <p className="mt-1 text-sm text-ink/52">{teacher.title ?? teacher.department ?? "作品指导老师"}</p>
                 </div>
               </div>
-              <p className="mt-4 line-clamp-2 text-sm leading-6 text-ink/58">{teacher.bio ?? "老师简介待补充"}</p>
+              <p className="mt-4 line-clamp-2 text-sm leading-6 text-ink/58">{teacher.bio ?? "参与学生作品推荐与课程作品展示，为优秀设计作品提供第一轮信任背书。"}</p>
               <p className="mt-4 text-xs font-semibold text-ink/45">推荐作品 {teacher._count.recommendations}</p>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无老师数据，后台创建老师后会显示在这里。</div>
+        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">平台正在补充老师与推荐作品信息。</div>
       )}
     </div>
   );

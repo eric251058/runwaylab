@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { fabricCoverUrl, maskContact, providerCoverUrl, providerLogoUrl, PROVIDER_PROPOSAL_TYPE_LABELS, PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
+import { fabricCoverUrl, maskContact, providerCoverUrl, providerLogoUrl, PROVIDER_PROPOSAL_STATUS_LABELS, PROVIDER_PROPOSAL_TYPE_LABELS, PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
 
 export const dynamic = "force-dynamic";
 
@@ -47,15 +47,16 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
             </div>
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
-            {provider.isVerified ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">已认证</span> : null}
-            {provider.isFeatured ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">推荐服务商</span> : null}
+            {provider.isVerified ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">认证服务商</span> : null}
+            {provider.isFeatured ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">平台协作服务商</span> : null}
+            <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">可参与作品孵化方案</span>
             {provider.tags.map((tag) => <span key={tag} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{tag}</span>)}
           </div>
-          <p className="mt-5 max-w-3xl text-sm leading-6 text-ink/60">{provider.description ?? "服务商简介待补充"}</p>
+          <p className="mt-5 max-w-3xl text-sm leading-6 text-ink/60">{provider.description ?? "该服务商可参与作品孵化方案，围绕面料、打样、生产或买手反馈提供专业支持。"}</p>
           <div className="mt-5 grid gap-3 text-sm text-ink/58 md:grid-cols-3">
-            <div className="rounded-[8px] bg-paper p-4">联系人：{provider.contactName ?? "待补充"}</div>
-            <div className="rounded-[8px] bg-paper p-4">电话：{maskContact(provider.contactPhone)}</div>
-            <div className="rounded-[8px] bg-paper p-4">邮箱/微信：{maskContact(provider.contactEmail ?? provider.wechat)}</div>
+            <div className="rounded-[8px] bg-paper p-4">服务类型：{PROVIDER_TYPE_LABELS[provider.type]}</div>
+            <div className="rounded-[8px] bg-paper p-4">擅长方向：{provider.tags.slice(0, 3).join(" / ") || "服务能力待补充"}</div>
+            <div className="rounded-[8px] bg-paper p-4">联系方式：{maskContact(provider.contactPhone ?? provider.contactEmail ?? provider.wechat)}</div>
           </div>
           {provider.website ? <a href={provider.website} className="mt-5 inline-flex text-sm font-semibold text-ink underline">访问官网</a> : null}
         </div>
@@ -63,7 +64,7 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
 
       <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_0.82fr]">
         <section>
-          <h2 className="mb-4 text-2xl font-semibold text-ink">关联面料</h2>
+          <h2 className="mb-4 text-2xl font-semibold text-ink">相关面料</h2>
           {provider.fabrics.length ? (
             <div className="grid gap-4 sm:grid-cols-2">
               {provider.fabrics.map((fabric) => (
@@ -76,11 +77,11 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
                 </Link>
               ))}
             </div>
-          ) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无关联面料。</div>}
+          ) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">平台正在补充该服务商的相关面料。</div>}
         </section>
 
         <section>
-          <h2 className="mb-4 text-2xl font-semibold text-ink">提交过的方案</h2>
+          <h2 className="mb-4 text-2xl font-semibold text-ink">服务商方案</h2>
           {provider.workProposals.length ? (
             <div className="space-y-3">
               {provider.workProposals.map((proposal) => (
@@ -88,11 +89,11 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
                   <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{PROVIDER_PROPOSAL_TYPE_LABELS[proposal.type]}</span>
                   <h3 className="mt-3 font-semibold text-ink">{proposal.title}</h3>
                   <p className="mt-1 text-sm text-ink/52">关联作品：<Link href={`/works/${proposal.workId}`} className="underline">{proposal.work.title}</Link></p>
-                  <p className="mt-2 text-sm text-ink/52">{proposal.status}</p>
+                  <p className="mt-2 text-sm text-ink/52">{PROVIDER_PROPOSAL_STATUS_LABELS[proposal.status]}</p>
                 </article>
               ))}
             </div>
-          ) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无服务方案。</div>}
+          ) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">该服务商暂未公开服务商方案。</div>}
         </section>
       </div>
     </div>

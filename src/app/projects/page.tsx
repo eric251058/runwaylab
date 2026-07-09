@@ -23,7 +23,7 @@ export default async function ProjectsPage() {
       <header className="mb-6 rounded-[8px] bg-white p-5 shadow-[0_16px_48px_rgba(16,16,16,0.08)] md:mb-8 md:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Collaboration Projects</p>
         <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">正在推进的合作项目</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4">这里展示从作品孵化、面料匹配、预售验证到商业合作的项目进展。</p>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4">这里展示从作品孵化、面料匹配、预售验证到商业合作的真实推进过程。</p>
       </header>
 
       {projects.length ? (
@@ -35,6 +35,7 @@ export default async function ProjectsPage() {
               </div>
               <h2 className="mt-4 line-clamp-2 text-xl font-semibold text-ink">{project.title}</h2>
               <p className="mt-2 text-sm text-ink/52">关联作品：{project.work.title}</p>
+              <p className="mt-3 line-clamp-2 text-sm leading-6 text-ink/56">{project.description ?? "围绕作品孵化推进资源匹配、打样验证与合作沟通。"}</p>
               <p className="mt-3 line-clamp-2 text-sm leading-6 text-ink/56">参与资源：{[project.school?.name, project.teacher?.name, project.provider?.name].filter(Boolean).join(" / ") || "待补充"}</p>
               <p className="mt-2 text-sm leading-6 text-ink/56">目标 / 预算：{[project.targetQuantity, project.estimatedBudget].filter(Boolean).join(" / ") || "待确认"}</p>
               <p className="mt-3 text-xs text-ink/42">意向 {project._count.orders}</p>
@@ -45,7 +46,7 @@ export default async function ProjectsPage() {
           ))}
         </div>
       ) : (
-        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无公开合作项目。</div>
+        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">平台正在积累首批合作项目。</div>
       )}
     </div>
   );
