@@ -1,4 +1,4 @@
-import { ContributionType, ReviewStatus, WorkVoteStatus, WorkVoteType } from "@prisma/client";
+import { ContributionType, IncubationApplicationStatus, IncubationStatus, ReviewStatus, WorkVoteStatus, WorkVoteType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { AdminWorksPanel, type AdminWorkItem } from "@/components/admin/AdminWorksPanel";
 import { getHeatScore } from "@/lib/operation-growth";
@@ -36,6 +36,14 @@ export default async function AdminWorksPage() {
       buyerIntents: true,
       presaleCampaigns: true,
       presaleCampaignIntents: true,
+      incubationApplications: {
+        where: {
+          status: {
+            in: [IncubationApplicationStatus.CANDIDATE, IncubationApplicationStatus.REVIEWING]
+          }
+        },
+        take: 1
+      },
       votes: {
         where: {
           status: WorkVoteStatus.ACTIVE
@@ -64,6 +72,7 @@ export default async function AdminWorksPage() {
     const productionVoteCount = work.votes.filter((vote) => vote.type === WorkVoteType.SUITABLE_PRODUCTION).length;
     const confusingVoteCount = work.votes.filter((vote) => vote.type === WorkVoteType.CONFUSING).length;
     const buyerInterestCount = work.contributions.filter((contribution) => contribution.type === ContributionType.BUYER_INTEREST).length;
+    const hasIncubationCandidate = work.incubationStatus === IncubationStatus.CANDIDATE || work.incubationApplications.length > 0;
     const heatScore = getHeatScore({
       likeCount: work.likeCount,
       favoriteCount: work.favoriteCount,
@@ -81,6 +90,8 @@ export default async function AdminWorksPage() {
       fabricSignalCount ? null : "缺面料推荐",
       serviceSignalCount ? null : "缺服务商方案",
       work.presaleCampaigns.length ? null : "缺预售验证",
+      work.wantsIncubation ? "已申请孵化" : null,
+      hasIncubationCandidate ? "已在孵化候选" : null,
       heatScore >= 20 || work.isFeatured || work.isEditorPick ? "高潜力" : null,
       work.wantsIncubation || work.teacherRecommendations.length > 0 || fabricSignalCount > 0 || serviceSignalCount > 0 ? "适合孵化" : null,
       presaleSignalCount > 0 || work.favoriteCount >= 5 || work.likeCount >= 10 ? "适合预售" : null,
@@ -106,6 +117,11 @@ export default async function AdminWorksPage() {
       wantsIncubation: work.wantsIncubation,
       isFeatured: work.isFeatured,
       isEditorPick: work.isEditorPick,
+      likeCount: work.likeCount,
+      favoriteCount: work.favoriteCount,
+      commentCount: work.commentCount,
+      incubationStatus: work.incubationStatus,
+      hasIncubationCandidate,
       heatScore,
       operationTags,
       createdAt: work.createdAt.toISOString(),

@@ -106,6 +106,11 @@ export type WorkDetailData = Prisma.WorkGetPayload<{ include: typeof workDetailI
 export type ChallengeEntryData = Awaited<ReturnType<typeof getPublicChallengeEntries>>[number];
 export type IncubationProjectData = Awaited<ReturnType<typeof getIncubationProjects>>[number];
 
+export type WorkCardInteractionState = {
+  likedByCurrentUser: boolean;
+  favoritedByCurrentUser: boolean;
+};
+
 export type RecommendedDesigner = Prisma.DesignerProfileGetPayload<{
   include: {
     user: {
@@ -186,6 +191,56 @@ export function getApprovedWorks(options: { take?: number; sort?: WorkSort; filt
         : [{ createdAt: "desc" }],
     take
   });
+}
+
+export async function attachWorkCardInteractionState<T extends { id: string }>(
+  works: T[],
+  userId?: string | null
+): Promise<Array<T & WorkCardInteractionState>> {
+  if (!works.length) return [];
+
+  if (!userId) {
+    return works.map((work) => ({
+      ...work,
+      likedByCurrentUser: false,
+      favoritedByCurrentUser: false
+    }));
+  }
+
+  const workIds = works.map((work) => work.id);
+  const [likes, favorites] = await Promise.all([
+    prisma.like.findMany({
+      where: {
+        userId,
+        workId: {
+          in: workIds
+        }
+      },
+      select: {
+        workId: true
+      }
+    }),
+    prisma.favorite.findMany({
+      where: {
+        userId,
+        workId: {
+          in: workIds
+        }
+      },
+      select: {
+        workId: true
+      }
+    })
+  ]);
+
+  const likedIds = new Set(likes.map((item) => item.workId));
+  const favoritedIds = new Set(favorites.map((item) => item.workId));
+
+  return works.map((work) => ({
+    ...work,
+    likedByCurrentUser: likedIds.has(work.id),
+    favoritedByCurrentUser: favoritedIds.has(work.id)
+  }));
 }
 
 export function getFeaturedWorks(take = 8) {

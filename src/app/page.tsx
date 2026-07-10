@@ -11,12 +11,13 @@ import {
 } from "@prisma/client";
 import { WorkCard } from "@/components/works/WorkCard";
 import { visualFor } from "@/components/works/work-visuals";
+import { getCurrentUser } from "@/lib/auth/session";
 import { getHeatScore } from "@/lib/operation-growth";
 import { presaleProgress } from "@/lib/presale-campaign";
 import { prisma } from "@/lib/prisma";
 import { PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
 import { approvedVisibleWorkWhere } from "@/lib/works/rules";
-import type { WorkCardData } from "@/lib/works/queries";
+import { attachWorkCardInteractionState, type WorkCardData } from "@/lib/works/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -232,6 +233,7 @@ function ResourceItem({
 
 export default async function HomePage() {
   const [
+    currentUser,
     works,
     featuredSchools,
     featuredTeachers,
@@ -241,6 +243,7 @@ export default async function HomePage() {
     featuredProjects,
     featuredCases
   ] = await Promise.all([
+    getCurrentUser(),
     getHomeWorks(),
     prisma.school.findMany({
       where: { status: "ACTIVE" },
@@ -293,8 +296,9 @@ export default async function HomePage() {
     })
   ]);
 
-  const hotWorks = works.slice().sort((a, b) => heatOf(b) - heatOf(a));
-  const incubationWorks = works.filter((work) => {
+  const worksWithInteractions = await attachWorkCardInteractionState(works, currentUser?.id);
+  const hotWorks = worksWithInteractions.slice().sort((a, b) => heatOf(b) - heatOf(a));
+  const incubationWorks = worksWithInteractions.filter((work) => {
     return (
       work.workIncubation?.status === WorkIncubationStatus.CANDIDATE ||
       work.workIncubation?.status === WorkIncubationStatus.FABRIC_MATCHING ||
@@ -307,8 +311,8 @@ export default async function HomePage() {
     );
   });
   const featuredWorks = dedupeWorks([
-    ...works.filter((work) => work.isEditorPick),
-    ...works.filter((work) => work.isFeatured),
+    ...worksWithInteractions.filter((work) => work.isEditorPick),
+    ...worksWithInteractions.filter((work) => work.isFeatured),
     ...hotWorks,
     ...incubationWorks
   ]).slice(0, 6);

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { DataUnavailable } from "@/components/layout/DataUnavailable";
 import { WorkMasonry } from "@/components/works/WorkMasonry";
-import { getApprovedWorks, type WorkFilter, type WorkSort } from "@/lib/works/queries";
+import { getCurrentUser } from "@/lib/auth/session";
+import { attachWorkCardInteractionState, getApprovedWorks, type WorkFilter, type WorkSort } from "@/lib/works/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,7 @@ export default async function WorksPage({ searchParams }: WorksPageProps) {
   const params = await searchParams;
   const sort: WorkSort = params?.sort === "popular" ? "popular" : "latest";
   const filter = getFilter(params?.filter);
+  const currentUser = await getCurrentUser();
   const works = await getApprovedWorks({ take: 36, sort, filter }).catch((error) => {
     console.error("Failed to load works", error);
     return null;
@@ -54,6 +56,8 @@ export default async function WorksPage({ searchParams }: WorksPageProps) {
   if (!works) {
     return <DataUnavailable title="作品库数据暂时没有读到" />;
   }
+
+  const worksWithInteractions = await attachWorkCardInteractionState(works, currentUser?.id);
 
   return (
     <div className="mx-auto max-w-7xl px-3 py-5 md:px-8 md:py-12">
@@ -96,7 +100,7 @@ export default async function WorksPage({ searchParams }: WorksPageProps) {
       </div>
 
       {works.length ? (
-        <WorkMasonry works={works} />
+        <WorkMasonry works={worksWithInteractions} />
       ) : (
         <div className="rounded-[6px] border border-dashed border-black/15 bg-white px-6 py-12 text-center md:py-16">
           <p className="text-base font-semibold text-ink">这个筛选下暂时没有作品</p>

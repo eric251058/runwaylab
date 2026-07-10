@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Bookmark, Heart, MessageCircle, Sparkles } from "lucide-react";
+import { MessageCircle, Sparkles } from "lucide-react";
 import type { IncubationStatus } from "@prisma/client";
+import { WorkQuickActions } from "@/components/works/WorkQuickActions";
 import { WorkStatusBadge, getWorkBadges } from "@/components/works/WorkStatusBadge";
 import { initials, visualFor, type WorkImageLike } from "@/components/works/work-visuals";
 import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
@@ -28,6 +29,8 @@ export type WorkCardLike = {
   wantsIncubation: boolean;
   isAiAssisted: boolean;
   incubationStatus: IncubationStatus | null;
+  likedByCurrentUser?: boolean;
+  favoritedByCurrentUser?: boolean;
 };
 
 type WorkCardProps = {
@@ -100,33 +103,34 @@ export function WorkCard({ work, index = 0, compact = false }: WorkCardProps) {
   const heatBadges = getHeatBadges(heatSignals);
 
   return (
-    <Link
-      href={`/works/${work.id}`}
-      className="group mb-2 block break-inside-avoid overflow-hidden rounded-[6px] bg-white shadow-[0_10px_30px_rgba(16,16,16,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(16,16,16,0.14)] md:mb-5 md:shadow-[0_18px_50px_rgba(16,16,16,0.08)]"
-    >
-      <div className={compact ? "relative aspect-[4/5] overflow-hidden bg-zinc-200" : "relative aspect-[3/4] overflow-hidden bg-zinc-200 md:aspect-[4/5]"}>
-        <img src={imageUrl} alt={work.title} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-105" />
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 md:p-3">
-          <div className="flex flex-wrap gap-1.5">
-            {statusBadges.slice(0, 2).map((badge) => (
-              <span key={`${work.id}-${badge}`} className="inline-flex rounded-full border border-white/25 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-ink">
-                {badge}
-              </span>
-            ))}
-            {!statusBadges.length
-              ? badges.slice(0, compact ? 1 : 2).map((badge) => (
-                  <WorkStatusBadge key={`${work.id}-${badge.label}`} kind={badge.kind}>
-                    {badge.label}
-                  </WorkStatusBadge>
-                ))
-              : null}
+    <article className="mb-2 break-inside-avoid overflow-hidden rounded-[6px] bg-white shadow-[0_10px_30px_rgba(16,16,16,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(16,16,16,0.14)] md:mb-5 md:shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
+      <Link href={`/works/${work.id}`} className="group block">
+        <div className={compact ? "relative aspect-[4/5] overflow-hidden bg-zinc-200" : "relative aspect-[3/4] overflow-hidden bg-zinc-200 md:aspect-[4/5]"}>
+          <img src={imageUrl} alt={work.title} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-105" />
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 md:p-3">
+            <div className="flex flex-wrap gap-1.5">
+              {statusBadges.slice(0, 2).map((badge) => (
+                <span key={`${work.id}-${badge}`} className="inline-flex rounded-full border border-white/25 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-ink">
+                  {badge}
+                </span>
+              ))}
+              {!statusBadges.length
+                ? badges.slice(0, compact ? 1 : 2).map((badge) => (
+                    <WorkStatusBadge key={`${work.id}-${badge.label}`} kind={badge.kind}>
+                      {badge.label}
+                    </WorkStatusBadge>
+                  ))
+                : null}
+            </div>
           </div>
         </div>
-      </div>
+      </Link>
 
       <div className="space-y-2 p-3 md:space-y-3 md:p-4">
         <div>
-          <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-ink md:text-base">{work.title}</h3>
+          <Link href={`/works/${work.id}`} className="block hover:text-ink/70">
+            <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-ink md:text-base">{work.title}</h3>
+          </Link>
           <div className="mt-2 flex items-center gap-1.5 text-[11px] text-ink/55 md:gap-2 md:text-xs">
             <div className="hidden size-6 shrink-0 items-center justify-center rounded-full bg-ink text-[10px] font-semibold text-white sm:flex">
               {initials(work.user.nickname)}
@@ -137,34 +141,37 @@ export function WorkCard({ work, index = 0, compact = false }: WorkCardProps) {
           <p className="mt-2 line-clamp-2 text-xs leading-5 text-ink/50">{shortText(work.description)}</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-1 border-t border-black/5 pt-2 text-[10px] text-ink/60 md:grid-cols-4 md:gap-2 md:pt-3 md:text-[11px]">
-          <span className="inline-flex items-center gap-1">
-            <Heart size={13} />
-            {work.likeCount}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Bookmark size={13} />
-            {work.favoriteCount}
-          </span>
-          <span className="inline-flex items-center gap-1">
+        <div className="grid grid-cols-3 gap-1 border-t border-black/5 pt-2 text-[10px] text-ink/60 md:gap-2 md:pt-3 md:text-[11px]">
+          <Link href={`/works/${work.id}#comments`} className="inline-flex items-center gap-1 rounded-full bg-paper px-2 py-1 font-semibold hover:text-ink">
             <MessageCircle size={13} />
-            {work.commentCount}
-          </span>
-          <span className="hidden items-center gap-1 md:inline-flex">
+            评论 {work.commentCount}
+          </Link>
+          <span className="inline-flex items-center gap-1 rounded-full bg-paper px-2 py-1 font-semibold">
             <Sparkles size={13} />
-            {work.incubationRecommendCount}
+            推荐 {work.incubationRecommendCount}
           </span>
+          <span className="inline-flex items-center justify-center rounded-full bg-ink px-2 py-1 font-semibold text-white">热度 {heatScore}</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 border-t border-black/5 pt-2">
-          <span className="rounded-full bg-ink px-2.5 py-1 text-[10px] font-semibold text-white">热度 {heatScore}</span>
-          {heatBadges.slice(0, compact ? 1 : 2).map((badge) => (
-            <span key={badge} className="rounded-full bg-paper px-2.5 py-1 text-[10px] font-semibold text-ink/55">
-              {badge}
-            </span>
-          ))}
-        </div>
+        {heatBadges.length ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {heatBadges.slice(0, compact ? 1 : 2).map((badge) => (
+              <span key={badge} className="rounded-full bg-paper px-2.5 py-1 text-[10px] font-semibold text-ink/55">
+                {badge}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
-    </Link>
+
+      <WorkQuickActions
+        workId={work.id}
+        title={work.title}
+        initialLikeCount={work.likeCount}
+        initialFavoriteCount={work.favoriteCount}
+        initialLiked={work.likedByCurrentUser}
+        initialFavorited={work.favoritedByCurrentUser}
+      />
+    </article>
   );
 }
