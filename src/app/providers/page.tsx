@@ -41,6 +41,7 @@ export default async function ProvidersPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/providers/opportunities" className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white sm:w-fit">查看合格机会</Link>
+          <Link href="/providers/batches" className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white sm:w-fit">查看批次机会</Link>
           <Link href="/me/provider-profile" className="inline-flex h-11 w-full items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink sm:w-fit">完善服务能力</Link>
           <Link href="/providers/apply" className="inline-flex h-11 w-full items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink sm:w-fit">服务商入驻</Link>
         </div>

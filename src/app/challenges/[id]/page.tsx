@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { WorkCard } from "@/components/works/WorkCard";
 import { activityWorkInclude, challengeCoverUrl, displayDateRange } from "@/lib/school-activity";
+import { INCUBATION_BATCH_STATUS_LABELS, INCUBATION_BATCH_TYPE_LABELS, publicBatchWhere } from "@/lib/incubation-batches";
 import { prisma } from "@/lib/prisma";
 import type { WorkCardData } from "@/lib/works/queries";
 import { ChallengeStatus } from "@prisma/client";
@@ -39,6 +40,12 @@ export default async function ChallengeDetailPage({ params }: ChallengeDetailPag
           }
         },
         orderBy: [{ manualRank: "asc" }, { popularityScore: "desc" }, { incubationScore: "desc" }]
+      },
+      incubationBatches: {
+        where: publicBatchWhere(),
+        include: { _count: { select: { works: true, providers: true } } },
+        orderBy: [{ featured: "desc" }, { updatedAt: "desc" }],
+        take: 6
       }
     }
   });
@@ -91,6 +98,26 @@ export default async function ChallengeDetailPage({ params }: ChallengeDetailPag
           </div>
         ) : (
           <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无关联作品。</div>
+        )}
+      </section>
+
+      <section className="mt-10">
+        <h2 className="mb-4 text-2xl font-semibold text-ink">相关孵化批次</h2>
+        {challenge.incubationBatches.length ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            {challenge.incubationBatches.map((batch) => (
+              <Link key={batch.id} href={`/batches/${batch.slug}`} className="rounded-[8px] border border-black/8 bg-white p-4">
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{INCUBATION_BATCH_TYPE_LABELS[batch.type]}</span>
+                  <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{INCUBATION_BATCH_STATUS_LABELS[batch.status]}</span>
+                </div>
+                <h3 className="mt-3 font-semibold text-ink">{batch.title}</h3>
+                <p className="mt-2 text-sm text-ink/52">作品 {batch._count.works} / 服务商 {batch._count.providers}</p>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">该挑战赛暂未关联公开孵化批次。</div>
         )}
       </section>
     </div>

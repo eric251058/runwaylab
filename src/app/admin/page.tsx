@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   CollaborationProjectStatus,
   ContributionStatus,
+  IncubationBatchStatus,
   OpportunityStage,
   ProviderApplicationStatus,
   ProviderWorkProposalStatus,
@@ -23,6 +24,7 @@ const adminLinks = [
   ["/admin/works", "作品管理", "审核、下架、精选和孵化候选"],
   ["/admin/editorial", "编辑推荐", "首页精选、榜单和运营推荐"],
   ["/admin/incubation", "孵化管理", "查看孵化状态和产业信号"],
+  ["/admin/batches", "批次管理", "聚合课程、挑战赛和小单试产机会"],
   ["/admin/opportunities", "机会管理", "审核订单成熟度和服务商机会池"],
   ["/admin/recommendations", "老师推荐", "维护老师推荐作品"],
   ["/admin/work-fabric-recommendations", "面料推荐", "为作品匹配面料资源"],
@@ -181,6 +183,15 @@ export default async function AdminPage() {
     prisma.workOpportunityProfile.count({ where: { work: { providerOpportunityInterests: { some: {} } } } }),
     prisma.workOpportunityProfile.count({ where: { OR: [{ buyerInterestCount: { gt: 0 } }, { confirmedBuyerQuantity: { gt: 0 } }] } })
   ]);
+  const batchOverview = await Promise.all([
+    prisma.incubationBatch.count({ where: { status: IncubationBatchStatus.RECRUITING } }),
+    prisma.incubationBatch.count({ where: { status: IncubationBatchStatus.EVALUATING } }),
+    prisma.incubationBatch.count({ where: { status: IncubationBatchStatus.SAMPLING } }),
+    prisma.incubationBatch.count({ where: { status: IncubationBatchStatus.VALIDATING } }),
+    prisma.incubationBatch.count({ where: { status: IncubationBatchStatus.PRODUCTION_READY } }),
+    prisma.incubationBatchProvider.count({ where: { status: "CONFIRMED" } }),
+    prisma.incubationBatch.aggregate({ _sum: { targetProductionQuantity: true, confirmedProductionQuantity: true } })
+  ]);
 
   const highPotentialWorks = potentialWorks
     .map((work) => {
@@ -320,6 +331,29 @@ export default async function AdminPage() {
           {stat("已审核机会", opportunityFunnel[4], "管理员放入机会池")}
           {stat("有服务商意向", opportunityFunnel[5], "服务商已提交兴趣")}
           {stat("有买手兴趣", opportunityFunnel[6], "存在采购侧信号")}
+        </div>
+      </section>
+
+      <section className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 lg:mb-8">
+        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Batch Incubation</p>
+            <h2 className="mt-2 text-xl font-semibold text-ink">批次孵化</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/55">把分散作品聚合成课程、挑战赛、选品和小单试产批次，跟进目标数量与确认数量的差距。</p>
+          </div>
+          <Link href="/admin/batches" className="inline-flex h-10 w-full items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white sm:w-fit">
+            管理批次
+          </Link>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-8">
+          {stat("招募中", batchOverview[0], "正在收集作品")}
+          {stat("评估中", batchOverview[1], "平台筛选作品")}
+          {stat("打样中", batchOverview[2], "样衣推进阶段")}
+          {stat("市场验证", batchOverview[3], "预售和买手反馈")}
+          {stat("可生产", batchOverview[4], "进入生产准备")}
+          {stat("确认服务商", batchOverview[5], "已确认参与")}
+          {stat("目标聚合数量", batchOverview[6]._sum.targetProductionQuantity ?? 0, "预计数量，不是订单")}
+          {stat("确认生产数量", batchOverview[6]._sum.confirmedProductionQuantity ?? 0, "管理员确认数量")}
         </div>
       </section>
 

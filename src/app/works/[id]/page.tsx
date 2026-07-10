@@ -19,6 +19,12 @@ import {
   OPPORTUNITY_STAGE_LABELS,
   SAMPLE_STATUS_LABELS
 } from "@/lib/order-maturity";
+import {
+  BATCH_WORK_STATUS_LABELS,
+  INCUBATION_BATCH_STATUS_LABELS,
+  INCUBATION_BATCH_TYPE_LABELS,
+  publicBatchWhere
+} from "@/lib/incubation-batches";
 import { canViewWorkDetail } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { fabricCoverUrl, PROVIDER_PROPOSAL_STATUS_LABELS, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
@@ -351,6 +357,17 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
       }
     }
   });
+  const batchMemberships = await prisma.incubationBatchWork.findMany({
+    where: {
+      workId: work.id,
+      status: { not: "REMOVED" },
+      batch: publicBatchWhere()
+    },
+    include: {
+      batch: true
+    },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }]
+  });
   const crowdStatus = workIncubation?.status ?? crowdIncubationStatus(incubationProject?.status ?? work.incubationStatus);
   const heatSignals = {
     likeCount: work.likeCount,
@@ -530,6 +547,28 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
                   <p className="text-sm font-semibold text-ink">下一步</p>
                   <p className="mt-2 text-sm leading-6 text-ink/58">{orderMaturity.missingItems.slice(0, 4).join("、") || "继续跟进服务商和市场反馈"}</p>
                 </div>
+              </div>
+            </section>
+          ) : null}
+
+          {batchMemberships.length ? (
+            <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
+              <div className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Batch Incubation</p>
+                <h2 className="mt-2 text-2xl font-semibold text-ink">所属孵化批次</h2>
+              </div>
+              <div className="space-y-3">
+                {batchMemberships.map((item) => (
+                  <Link key={item.id} href={`/batches/${item.batch.slug}`} className="block rounded-[8px] bg-paper p-4 transition hover:bg-white">
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{BATCH_WORK_STATUS_LABELS[item.status]}</span>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">{INCUBATION_BATCH_TYPE_LABELS[item.batch.type]}</span>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">{INCUBATION_BATCH_STATUS_LABELS[item.batch.status]}</span>
+                    </div>
+                    <h3 className="mt-3 font-semibold text-ink">{item.batch.title}</h3>
+                    <p className="mt-1 text-sm text-ink/52">{item.batch.organizerName}</p>
+                  </Link>
+                ))}
               </div>
             </section>
           ) : null}

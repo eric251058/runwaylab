@@ -185,6 +185,60 @@ enum ProviderOpportunityInterestStatus {
   CLOSED
 }
 
+enum IncubationBatchType {
+  SCHOOL_COURSE
+  GRADUATION_PROJECT
+  CHALLENGE
+  BRAND_BRIEF
+  BUYER_SELECTION
+  FABRIC_CLUSTER
+  PRODUCTION_CLUSTER
+  SMALL_BATCH_PILOT
+  OTHER
+}
+
+enum IncubationBatchStatus {
+  DRAFT
+  RECRUITING
+  EVALUATING
+  MATCHING
+  SAMPLING
+  VALIDATING
+  PRODUCTION_READY
+  COMPLETED
+  CANCELLED
+}
+
+enum BatchWorkStatus {
+  NOMINATED
+  SUBMITTED
+  SHORTLISTED
+  SELECTED
+  SAMPLING
+  VALIDATING
+  PRODUCTION_READY
+  REMOVED
+}
+
+enum BatchProviderRole {
+  FABRIC_SUPPORT
+  SAMPLE_SUPPORT
+  PRODUCTION_SUPPORT
+  BUYER
+  SPONSOR
+  MENTOR
+  OTHER
+}
+
+enum BatchProviderStatus {
+  INTERESTED
+  APPLIED
+  SHORTLISTED
+  CONFIRMED
+  DECLINED
+  COMPLETED
+}
+
 enum RecommendationStatus {
   PENDING
   ACCEPTED
@@ -411,6 +465,7 @@ model User {
   projectOrders              ProjectOrder[]          @relation("ProjectOrderBuyer")
   givenReviews               Review[]                @relation("ReviewReviewer")
   receivedReviews            Review[]                @relation("ReviewTargetUser")
+  createdIncubationBatches    IncubationBatch[]       @relation("IncubationBatchCreatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -518,6 +573,7 @@ model Work {
   contributions             WorkContribution[]
   opportunityProfile        WorkOpportunityProfile?
   providerOpportunityInterests ProviderOpportunityInterest[]
+  incubationBatchWorks      IncubationBatchWork[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -548,6 +604,7 @@ model School {
   challenges            Challenge[]
   collaborationProjects CollaborationProject[]
   caseStudies           CaseStudy[]
+  incubationBatches     IncubationBatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -764,6 +821,7 @@ model Provider {
   fabricRecommendations WorkFabricRecommendation[]
   workProposals         ProviderWorkProposal[]
   opportunityInterests  ProviderOpportunityInterest[]
+  incubationBatchProviders IncubationBatchProvider[]
   collaborationProjects CollaborationProject[]
   projectOrders         ProjectOrder[]
   reviews               Review[]
@@ -834,6 +892,116 @@ model ProviderOpportunityInterest {
   @@index([providerId])
   @@index([workId])
   @@index([interestType])
+  @@index([status])
+}
+
+model IncubationBatch {
+  id String @id @default(cuid())
+  slug String @unique
+  title String
+  summary String
+  description String?
+  type IncubationBatchType
+  status IncubationBatchStatus @default(DRAFT)
+
+  organizerName String
+  organizerType String?
+  schoolId String?
+  challengeId String?
+  coverImage String?
+  city String?
+
+  startDate DateTime?
+  submissionDeadline DateTime?
+  evaluationDeadline DateTime?
+  targetCompletionDate DateTime?
+
+  targetWorkCount Int?
+  targetSampleCount Int?
+  targetProductionQuantity Int?
+  confirmedProductionQuantity Int @default(0)
+  estimatedFabricMeters Decimal? @db.Decimal(10, 2)
+
+  targetCategories String?
+  targetMaterials String?
+  targetPriceRange String?
+  targetMarket String?
+
+  expectedRepeatOrder Boolean @default(false)
+  adminApproved Boolean @default(false)
+  featured Boolean @default(false)
+
+  publicNote String?
+  adminNote String?
+
+  createdById String?
+
+  school School? @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  challenge Challenge? @relation(fields: [challengeId], references: [id], onDelete: SetNull)
+  createdBy User? @relation("IncubationBatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  works IncubationBatchWork[]
+  providers IncubationBatchProvider[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([adminApproved])
+  @@index([featured])
+  @@index([schoolId])
+  @@index([challengeId])
+  @@index([createdById])
+  @@index([submissionDeadline])
+}
+
+model IncubationBatchWork {
+  id String @id @default(cuid())
+  batchId String
+  workId String
+  status BatchWorkStatus @default(SUBMITTED)
+  nominationReason String?
+  reviewNote String?
+  sortOrder Int @default(0)
+  selectedAt DateTime?
+
+  batch IncubationBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([batchId, workId])
+  @@index([batchId])
+  @@index([workId])
+  @@index([status])
+  @@index([sortOrder])
+}
+
+model IncubationBatchProvider {
+  id String @id @default(cuid())
+  batchId String
+  providerId String
+  role BatchProviderRole
+  status BatchProviderStatus @default(INTERESTED)
+  note String?
+  minimumQuantity Int?
+  maximumQuantity Int?
+  expectedPriceMin Decimal? @db.Decimal(10, 2)
+  expectedPriceMax Decimal? @db.Decimal(10, 2)
+  sampleLeadDays Int?
+  productionLeadDays Int?
+
+  batch IncubationBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([batchId, providerId, role])
+  @@index([batchId])
+  @@index([providerId])
+  @@index([role])
   @@index([status])
 }
 
@@ -958,6 +1126,7 @@ model Challenge {
   teacher Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   entries ChallengeEntry[]
   works   ChallengeWork[]
+  incubationBatches IncubationBatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

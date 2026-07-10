@@ -11,6 +11,12 @@ import {
   PROVIDER_INTEREST_TYPE_LABELS,
   SAMPLE_STATUS_LABELS
 } from "@/lib/order-maturity";
+import {
+  BATCH_WORK_STATUS_LABELS,
+  INCUBATION_BATCH_STATUS_LABELS,
+  INCUBATION_BATCH_TYPE_LABELS,
+  publicBatchWhere
+} from "@/lib/incubation-batches";
 import { PRESALE_CAMPAIGN_STATUS_LABELS, presaleProgress } from "@/lib/presale-campaign";
 import { prisma } from "@/lib/prisma";
 import { maskContact, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
@@ -107,6 +113,43 @@ export default async function MeIncubationPage() {
       createdAt: "desc"
     }
   });
+  const [myBatchWorks, availableBatches] = await Promise.all([
+    prisma.incubationBatchWork.findMany({
+      where: {
+        work: {
+          userId: user.id
+        },
+        batch: publicBatchWhere()
+      },
+      include: {
+        work: {
+          select: {
+            id: true,
+            title: true
+          }
+        },
+        batch: true
+      },
+      orderBy: { createdAt: "desc" },
+      take: 12
+    }),
+    prisma.incubationBatch.findMany({
+      where: {
+        ...publicBatchWhere(),
+        status: "RECRUITING"
+      },
+      include: {
+        _count: {
+          select: {
+            works: true,
+            providers: true
+          }
+        }
+      },
+      orderBy: [{ featured: "desc" }, { submissionDeadline: "asc" }],
+      take: 6
+    })
+  ]);
 
   const presaleCampaigns = works.flatMap((work) =>
     work.presaleCampaigns.map((campaign) => ({
@@ -337,6 +380,50 @@ export default async function MeIncubationPage() {
         ) : (
           <div className="rounded-[8px] border border-black/8 bg-paper p-4 text-sm text-ink/55">你还没有发布作品。先发布作品后，这里会显示孵化信号。</div>
         )}
+      </section>
+
+      <section className="mb-6 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
+          <div className="mb-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">My Batches</p>
+            <h2 className="mt-2 text-2xl font-semibold text-ink">我参与的批次</h2>
+          </div>
+          <div className="space-y-3">
+            {myBatchWorks.length ? myBatchWorks.map((item) => (
+              <Link key={item.id} href={`/batches/${item.batch.slug}`} className="block rounded-[8px] bg-paper p-4">
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{BATCH_WORK_STATUS_LABELS[item.status]}</span>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">{INCUBATION_BATCH_STATUS_LABELS[item.batch.status]}</span>
+                </div>
+                <h3 className="mt-3 font-semibold text-ink">{item.batch.title}</h3>
+                <p className="mt-1 text-sm text-ink/52">{item.work.title}</p>
+                <p className="mt-2 text-xs text-ink/45">下一步：{item.status === "SELECTED" ? "等待批次推进打样或验证" : item.status === "REMOVED" ? "该作品已移出批次" : "等待平台评估"}</p>
+              </Link>
+            )) : <p className="rounded-[8px] bg-paper p-4 text-sm text-ink/55">你还没有作品加入孵化批次。</p>}
+          </div>
+        </div>
+
+        <div className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Open Batches</p>
+              <h2 className="mt-2 text-2xl font-semibold text-ink">可报名批次</h2>
+            </div>
+            <Link href="/batches?recruiting=true" className="text-sm font-semibold text-ink/55 hover:text-ink">全部</Link>
+          </div>
+          <div className="space-y-3">
+            {availableBatches.length ? availableBatches.map((batch) => (
+              <Link key={batch.id} href={`/batches/${batch.slug}`} className="block rounded-[8px] bg-paper p-4">
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{INCUBATION_BATCH_TYPE_LABELS[batch.type]}</span>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">作品 {batch._count.works}</span>
+                </div>
+                <h3 className="mt-3 font-semibold text-ink">{batch.title}</h3>
+                <p className="mt-1 text-sm text-ink/52">{batch.organizerName}</p>
+              </Link>
+            )) : <p className="rounded-[8px] bg-paper p-4 text-sm text-ink/55">暂无正在招募的公开批次。</p>}
+          </div>
+        </div>
       </section>
 
       <section className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
