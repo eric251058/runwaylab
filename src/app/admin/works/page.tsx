@@ -1,4 +1,4 @@
-import { ReviewStatus } from "@prisma/client";
+import { ContributionType, ReviewStatus, WorkVoteType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { AdminWorksPanel, type AdminWorkItem } from "@/components/admin/AdminWorksPanel";
 import { getHeatScore } from "@/lib/operation-growth";
@@ -35,7 +35,9 @@ export default async function AdminWorksPage() {
       factoryProposals: true,
       buyerIntents: true,
       presaleCampaigns: true,
-      presaleCampaignIntents: true
+      presaleCampaignIntents: true,
+      votes: true,
+      contributions: true
     },
     orderBy: {
       createdAt: "desc"
@@ -53,6 +55,11 @@ export default async function AdminWorksPage() {
     const fabricSignalCount = work.fabricRecommendations.length + work.fabricProposals.length;
     const serviceSignalCount = work.providerWorkProposals.length + work.sampleProposals.length + work.factoryProposals.length + work.buyerIntents.length;
     const presaleSignalCount = work.presaleCampaigns.length + work.presaleCampaignIntents.length;
+    const wantBuyVoteCount = work.votes.filter((vote) => vote.type === WorkVoteType.WANT_BUY).length;
+    const sampleVoteCount = work.votes.filter((vote) => vote.type === WorkVoteType.SUITABLE_SAMPLE).length;
+    const productionVoteCount = work.votes.filter((vote) => vote.type === WorkVoteType.SUITABLE_PRODUCTION).length;
+    const confusingVoteCount = work.votes.filter((vote) => vote.type === WorkVoteType.CONFUSING).length;
+    const buyerInterestCount = work.contributions.filter((contribution) => contribution.type === ContributionType.BUYER_INTEREST).length;
     const heatScore = getHeatScore({
       likeCount: work.likeCount,
       favoriteCount: work.favoriteCount,
@@ -72,7 +79,13 @@ export default async function AdminWorksPage() {
       work.presaleCampaigns.length ? null : "缺预售验证",
       heatScore >= 20 || work.isFeatured || work.isEditorPick ? "高潜力" : null,
       work.wantsIncubation || work.teacherRecommendations.length > 0 || fabricSignalCount > 0 || serviceSignalCount > 0 ? "适合孵化" : null,
-      presaleSignalCount > 0 || work.favoriteCount >= 5 || work.likeCount >= 10 ? "适合预售" : null
+      presaleSignalCount > 0 || work.favoriteCount >= 5 || work.likeCount >= 10 ? "适合预售" : null,
+      wantBuyVoteCount >= 3 ? "想买较多" : null,
+      sampleVoteCount >= 2 ? "适合打样" : null,
+      productionVoteCount >= 2 ? "适合量产" : null,
+      confusingVoteCount >= 3 ? "看不懂较多" : null,
+      work.contributions.length ? "有用户建议" : null,
+      buyerInterestCount ? "有买手兴趣" : null
     ].filter((tag): tag is string => Boolean(tag));
 
     return {

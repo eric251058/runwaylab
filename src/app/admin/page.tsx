@@ -1,10 +1,12 @@
 import Link from "next/link";
 import {
   CollaborationProjectStatus,
+  ContributionStatus,
   ProviderApplicationStatus,
   ProviderWorkProposalStatus,
   PresaleCampaignIntentStatus,
-  ReviewStatus
+  ReviewStatus,
+  WorkVoteType
 } from "@prisma/client";
 import { ActionGuide } from "@/components/ActionGuide";
 import { PROJECT_STATUS_LABELS, VERIFICATION_STATUS_LABELS, VERIFICATION_TYPE_LABELS, publicProjectWhere } from "@/lib/commercial-collaboration";
@@ -23,6 +25,7 @@ const adminLinks = [
   ["/admin/work-fabric-recommendations", "面料推荐", "为作品匹配面料资源"],
   ["/admin/provider-applications", "服务商申请", "处理入驻申请"],
   ["/admin/provider-proposals", "服务商方案", "跟进打样、生产和买手方案"],
+  ["/admin/contributions", "用户贡献", "查看投票和孵化建议"],
   ["/admin/presale-campaigns", "预售活动", "创建和维护预售验证"],
   ["/admin/presale-intents", "预售意向", "跟进用户和买手兴趣"],
   ["/admin/projects", "合作项目", "推进商业合作项目"],
@@ -92,6 +95,7 @@ export default async function AdminPage() {
   const [
     todayCounts,
     pendingCounts,
+    contributionCounts,
     contentCounts,
     potentialWorks,
     latestVerifications,
@@ -115,6 +119,12 @@ export default async function AdminPage() {
       prisma.presaleCampaignIntent.count({ where: { status: PresaleCampaignIntentStatus.SUBMITTED } }),
       prisma.work.count({ where: { OR: [{ images: { none: {} } }, { description: "" }] } }),
       prisma.collaborationProject.count({ where: { status: { notIn: [CollaborationProjectStatus.DRAFT, CollaborationProjectStatus.CANCELLED] }, caseStudies: { none: {} } } })
+    ]),
+    Promise.all([
+      prisma.workContribution.count({ where: { status: ContributionStatus.NEW } }),
+      prisma.workVote.count({ where: { createdAt: { gte: since } } }),
+      prisma.workVote.count({ where: { type: WorkVoteType.WANT_BUY } }),
+      prisma.workVote.count({ where: { type: WorkVoteType.CONFUSING } })
     ]),
     Promise.all([
       prisma.work.count({ where: { images: { none: {} } } }),
@@ -155,6 +165,7 @@ export default async function AdminPage() {
 
   const [todayUsers, todayWorks, todayPresaleIntents, todayProviderApplications, todayProviderProposals, todayProjects] = todayCounts;
   const [pendingWorks, pendingProviderApplications, pendingProviderProposals, pendingPresaleIntents, incompleteWorks, projectsWithoutCases] = pendingCounts;
+  const [pendingContributions, todayContributionVotes, wantBuyVotes, confusingVotes] = contributionCounts;
 
   const highPotentialWorks = potentialWorks
     .map((work) => {
@@ -183,6 +194,7 @@ export default async function AdminPage() {
     ["待处理服务商申请", pendingProviderApplications, "/admin/provider-applications", "去服务商申请"],
     ["待处理服务商方案", pendingProviderProposals, "/admin/provider-proposals", "去服务商方案"],
     ["待跟进预售意向", pendingPresaleIntents, "/admin/presale-intents", "去预售意向"],
+    ["待处理用户建议", pendingContributions, "/admin/contributions", "去用户贡献"],
     ["待完善内容作品", incompleteWorks, "/admin/works", "去作品管理"],
     ["待生成案例项目", projectsWithoutCases, "/admin/cases", "去案例管理"]
   ] as const;
@@ -250,6 +262,25 @@ export default async function AdminPage() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 lg:mb-8">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">User Signals</p>
+            <h2 className="mt-2 text-xl font-semibold text-ink">用户贡献</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/55">把用户、老师、服务商和买手的判断集中起来，辅助运营筛选值得孵化、预售和合作推进的作品。</p>
+          </div>
+          <Link href="/admin/contributions" className="inline-flex h-11 w-fit items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
+            查看用户贡献
+          </Link>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {stat("待处理建议", pendingContributions, "需要运营筛选的孵化建议")}
+          {stat("今日新增投票", todayContributionVotes, "过去 24 小时用户判断")}
+          {stat("想买票数", wantBuyVotes, "累计表达购买兴趣")}
+          {stat("看不懂票数", confusingVotes, "需要优化表达的信号")}
         </div>
       </section>
 

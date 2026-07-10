@@ -274,6 +274,41 @@ enum NotificationType {
   CHALLENGE_RESULT
 }
 
+enum WorkVoteType {
+  WANT_BUY
+  SUITABLE_SAMPLE
+  SUITABLE_PRODUCTION
+  SUITABLE_RUNWAY
+  CONFUSING
+}
+
+enum ContributionPersona {
+  CONSUMER
+  STUDENT
+  TEACHER
+  PROVIDER
+  BUYER
+  OTHER
+}
+
+enum ContributionType {
+  DESIGN_ADVICE
+  FABRIC_ADVICE
+  SAMPLE_ADVICE
+  PRODUCTION_ADVICE
+  MARKET_ADVICE
+  BUYER_INTEREST
+  OTHER
+}
+
+enum ContributionStatus {
+  NEW
+  VALUABLE
+  REVIEWED
+  PROCESSED
+  IGNORED
+}
+
 model User {
   id               String      @id @default(cuid())
   email            String      @unique
@@ -424,6 +459,8 @@ model Work {
   fabricRequests            FabricRequest[]
   sampleRequests            SampleRequest[]
   cooperationRequests       CooperationRequest[]
+  votes                     WorkVote[]
+  contributions             WorkContribution[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -580,6 +617,46 @@ model WorkImage {
   updatedAt DateTime @updatedAt
 
   @@index([workId])
+}
+
+model WorkVote {
+  id           String       @id @default(cuid())
+  workId       String
+  type         WorkVoteType
+  voterName    String?
+  voterContact String?
+  voterPersona String?
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([workId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model WorkContribution {
+  id        String              @id @default(cuid())
+  workId    String
+  persona   ContributionPersona
+  type      ContributionType
+  content   String
+  name      String?
+  contact   String?
+  status    ContributionStatus  @default(NEW)
+  adminNote String?
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workId])
+  @@index([persona])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Provider {

@@ -6,6 +6,7 @@ import { DataUnavailable } from "@/components/layout/DataUnavailable";
 import { IncubationProgress } from "@/components/incubation/IncubationProgress";
 import { PresaleCampaignPanel } from "@/components/presale/PresaleCampaignPanel";
 import { WorkImageCarousel } from "@/components/works/WorkImageCarousel";
+import { WorkContributionPanel } from "@/components/works/WorkContributionPanel";
 import { WorkInteractionBar } from "@/components/works/WorkInteractionBar";
 import { WorkStatusBadge, getWorkBadges } from "@/components/works/WorkStatusBadge";
 import { initials } from "@/components/works/work-visuals";
@@ -205,7 +206,7 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
   const badges = getWorkBadges(work);
   const activeChallenge = work.challengeEntries[0]?.challenge;
   const incubationProject = work.incubationProjects[0];
-  const [workIncubation, presaleIntentCount, fabricProposalCount, sampleProposalCount, factoryProposalCount, buyerIntentCount, activePresaleCampaign] = await Promise.all([
+  const [workIncubation, presaleIntentCount, fabricProposalCount, sampleProposalCount, factoryProposalCount, buyerIntentCount, activePresaleCampaign, workVoteCount, workContributionCount] = await Promise.all([
     prisma.workIncubation.findUnique({
       where: {
         workId: work.id
@@ -242,6 +243,16 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
         status: PresaleCampaignStatus.ACTIVE
       },
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }]
+    }),
+    prisma.workVote.count({
+      where: {
+        workId: work.id
+      }
+    }),
+    prisma.workContribution.count({
+      where: {
+        workId: work.id
+      }
     })
   ]);
   const activityInfo = await prisma.work.findUnique({
@@ -531,6 +542,8 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
               {progressMetric("预售意向", presaleIntentCount)}
             </div>
           </section>
+
+          <WorkContributionPanel workId={work.id} hasContributionSignals={workVoteCount + workContributionCount > 0} />
 
           <div id="presale-validation">
             <PresaleCampaignPanel campaign={activePresaleCampaign} workTitle={work.title} source="WORK_DETAIL" />
