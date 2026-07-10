@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 
 export type DesignerIncubationItem = {
   id: string;
-  kind: "presale" | "fabric" | "sample" | "factory" | "buyer" | "providerFabric" | "providerProposal";
+  kind: "presale" | "fabric" | "sample" | "factory" | "buyer" | "providerFabric" | "providerProposal" | "opportunityInterest";
   kindLabel: string;
   workId: string;
   workTitle: string;
@@ -24,8 +24,12 @@ const statusLabels: Record<string, string> = {
   PENDING: "待处理",
   INTERESTED: "感兴趣",
   SHORTLISTED: "已短选",
+  SUBMITTED: "已提交",
+  REVIEWED: "已查看",
   ACCEPTED: "已采纳",
   REJECTED: "暂不合适",
+  DECLINED: "暂不推进",
+  CLOSED: "已关闭",
   INVALID: "违规/无效"
 };
 

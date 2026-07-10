@@ -133,6 +133,56 @@ enum FabricStatus {
   ACTIVE
   INACTIVE
   ARCHIVED
+  UNKNOWN
+  RECOMMENDED
+  SELECTED
+  CONFIRMED
+}
+
+enum OpportunityStage {
+  DISPLAY_ONLY
+  SAMPLE_READY
+  SMALL_BATCH_READY
+  SCALE_READY
+}
+
+enum SampleStatus {
+  NOT_STARTED
+  PLANNING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ProviderOrderPreference {
+  SAMPLE_ONLY
+  SMALL_BATCH
+  MEDIUM_ORDER
+  LARGE_ORDER
+  FLEXIBLE
+}
+
+enum ProviderCapacityStatus {
+  AVAILABLE
+  LIMITED
+  FULL
+  UNKNOWN
+}
+
+enum ProviderOpportunityInterestType {
+  INTERESTED
+  NEED_MORE_INFO
+  CAN_SAMPLE
+  CAN_SMALL_BATCH
+  CAN_SCALE
+  NOT_SUITABLE
+}
+
+enum ProviderOpportunityInterestStatus {
+  SUBMITTED
+  REVIEWED
+  SHORTLISTED
+  DECLINED
+  CLOSED
 }
 
 enum RecommendationStatus {
@@ -466,6 +516,8 @@ model Work {
   cooperationRequests       CooperationRequest[]
   votes                     WorkVote[]
   contributions             WorkContribution[]
+  opportunityProfile        WorkOpportunityProfile?
+  providerOpportunityInterests ProviderOpportunityInterest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -694,10 +746,24 @@ model Provider {
   isVerified   Boolean        @default(false)
   isFeatured   Boolean        @default(false)
   status       ProviderStatus @default(PENDING)
+  orderPreference ProviderOrderPreference @default(FLEXIBLE)
+  minimumOrderQuantity Int?
+  maximumOrderQuantity Int?
+  acceptsSampling Boolean @default(true)
+  acceptsSmallBatch Boolean @default(false)
+  acceptsLargeOrder Boolean @default(false)
+  sampleLeadDays Int?
+  productionLeadDays Int?
+  capacityStatus ProviderCapacityStatus @default(UNKNOWN)
+  supportedCategories String?
+  preferredMaterials String?
+  preferredRegions String?
+  opportunityVisible Boolean @default(true)
 
   fabrics               Fabric[]
   fabricRecommendations WorkFabricRecommendation[]
   workProposals         ProviderWorkProposal[]
+  opportunityInterests  ProviderOpportunityInterest[]
   collaborationProjects CollaborationProject[]
   projectOrders         ProjectOrder[]
   reviews               Review[]
@@ -710,6 +776,65 @@ model Provider {
   @@index([status])
   @@index([isFeatured])
   @@index([isVerified])
+  @@index([opportunityVisible])
+  @@index([orderPreference])
+  @@index([capacityStatus])
+}
+
+model WorkOpportunityProfile {
+  id String @id @default(cuid())
+  workId String @unique
+  stage OpportunityStage @default(DISPLAY_ONLY)
+  targetQuantity Int?
+  targetUnitCost Decimal? @db.Decimal(10, 2)
+  targetRetailPrice Decimal? @db.Decimal(10, 2)
+  sampleBudget Decimal? @db.Decimal(10, 2)
+  sampleStatus SampleStatus @default(NOT_STARTED)
+  fabricStatus FabricStatus @default(UNKNOWN)
+  targetLaunchDate DateTime?
+  targetDeliveryDate DateTime?
+  expectedFabricMeters Decimal? @db.Decimal(10, 2)
+  expectedReorder Boolean @default(false)
+  buyerInterestCount Int @default(0)
+  confirmedBuyerQuantity Int @default(0)
+  adminApproved Boolean @default(false)
+  adminNote String?
+  designerNote String?
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stage])
+  @@index([sampleStatus])
+  @@index([fabricStatus])
+  @@index([adminApproved])
+}
+
+model ProviderOpportunityInterest {
+  id String @id @default(cuid())
+  providerId String
+  workId String
+  interestType ProviderOpportunityInterestType
+  note String?
+  expectedPriceMin Decimal? @db.Decimal(10, 2)
+  expectedPriceMax Decimal? @db.Decimal(10, 2)
+  minimumQuantity Int?
+  leadDays Int?
+  status ProviderOpportunityInterestStatus @default(SUBMITTED)
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([providerId, workId])
+  @@index([providerId])
+  @@index([workId])
+  @@index([interestType])
+  @@index([status])
 }
 
 model ProviderApplication {

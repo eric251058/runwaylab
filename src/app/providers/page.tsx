@@ -39,8 +39,20 @@ export default async function ProvidersPage() {
           <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">服务商市场</h1>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">连接面料商、打样工作室、服装工厂和买手采购资源，为优秀设计作品提供可落地的服务商方案。</p>
         </div>
-        <Link href="/providers/apply" className="inline-flex h-11 w-fit items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">服务商入驻</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/providers/opportunities" className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white sm:w-fit">查看合格机会</Link>
+          <Link href="/me/provider-profile" className="inline-flex h-11 w-full items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink sm:w-fit">完善服务能力</Link>
+          <Link href="/providers/apply" className="inline-flex h-11 w-full items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink sm:w-fit">服务商入驻</Link>
+        </div>
       </header>
+
+      <section className="mb-8 rounded-[8px] border border-black/8 bg-white p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Opportunity Matching</p>
+        <h2 className="mt-2 text-2xl font-semibold text-ink">只关注适合你的成熟机会</h2>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/58">
+          RunwayLab 不会把所有早期作品直接推给工厂。平台会根据作品资料、样衣状态、目标数量、市场反馈和采购兴趣筛选项目，服务商只需要关注符合自身能力的机会。
+        </p>
+      </section>
 
       {providers.length ? (
         <div className="space-y-10">

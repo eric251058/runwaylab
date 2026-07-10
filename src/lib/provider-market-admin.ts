@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import {
   FabricStatus,
+  ProviderCapacityStatus,
   ProviderApplicationStatus,
+  ProviderOrderPreference,
   ProviderStatus,
   ProviderType,
   ProviderWorkProposalStatus,
@@ -22,6 +24,18 @@ async function requireAdmin() {
 
 function boolValue(formData: FormData, key: string) {
   return formData.get(key) === "on";
+}
+
+function optionalInt(value: FormDataEntryValue | null) {
+  const text = optionalText(value);
+  if (!text) return null;
+  const parsed = Number.parseInt(text, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function fabricCatalogStatus(value: FormDataEntryValue | null) {
+  const status = optionalText(value);
+  return status === FabricStatus.INACTIVE || status === FabricStatus.ARCHIVED ? status : FabricStatus.ACTIVE;
 }
 
 export async function applyProvider(formData: FormData) {
@@ -62,7 +76,20 @@ export async function saveProvider(formData: FormData) {
     tags: splitTags(formData.get("tags")),
     isVerified: boolValue(formData, "isVerified"),
     isFeatured: boolValue(formData, "isFeatured"),
-    status: (optionalText(formData.get("status")) ?? ProviderStatus.PENDING) as ProviderStatus
+    status: (optionalText(formData.get("status")) ?? ProviderStatus.PENDING) as ProviderStatus,
+    orderPreference: (optionalText(formData.get("orderPreference")) ?? ProviderOrderPreference.FLEXIBLE) as ProviderOrderPreference,
+    minimumOrderQuantity: optionalInt(formData.get("minimumOrderQuantity")),
+    maximumOrderQuantity: optionalInt(formData.get("maximumOrderQuantity")),
+    acceptsSampling: boolValue(formData, "acceptsSampling"),
+    acceptsSmallBatch: boolValue(formData, "acceptsSmallBatch"),
+    acceptsLargeOrder: boolValue(formData, "acceptsLargeOrder"),
+    sampleLeadDays: optionalInt(formData.get("sampleLeadDays")),
+    productionLeadDays: optionalInt(formData.get("productionLeadDays")),
+    capacityStatus: (optionalText(formData.get("capacityStatus")) ?? ProviderCapacityStatus.UNKNOWN) as ProviderCapacityStatus,
+    supportedCategories: optionalText(formData.get("supportedCategories")),
+    preferredMaterials: optionalText(formData.get("preferredMaterials")),
+    preferredRegions: optionalText(formData.get("preferredRegions")),
+    opportunityVisible: boolValue(formData, "opportunityVisible")
   };
 
   if (id) await prisma.provider.update({ where: { id }, data });
@@ -136,7 +163,7 @@ export async function saveFabric(formData: FormData) {
     moqNote: optionalText(formData.get("moqNote")),
     tags: splitTags(formData.get("tags")),
     isFeatured: boolValue(formData, "isFeatured"),
-    status: (optionalText(formData.get("status")) ?? FabricStatus.ACTIVE) as FabricStatus
+    status: fabricCatalogStatus(formData.get("status"))
   };
 
   if (id) await prisma.fabric.update({ where: { id }, data });

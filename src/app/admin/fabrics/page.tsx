@@ -5,6 +5,8 @@ import { fabricCoverUrl } from "@/lib/provider-market";
 
 export const dynamic = "force-dynamic";
 
+const fabricStatuses = [FabricStatus.ACTIVE, FabricStatus.INACTIVE, FabricStatus.ARCHIVED] as const;
+
 export default async function AdminFabricsPage() {
   const [fabrics, providers] = await Promise.all([
     prisma.fabric.findMany({ include: { provider: true }, orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }] }),
@@ -24,7 +26,7 @@ export default async function AdminFabricsPage() {
           <option value="">关联供应商</option>
           {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
         </select>
-        <select name="status" defaultValue={FabricStatus.ACTIVE} className="h-11 rounded-[6px] border border-black/10 px-3 text-sm">{Object.values(FabricStatus).map((status) => <option key={status} value={status}>{status}</option>)}</select>
+        <select name="status" defaultValue={FabricStatus.ACTIVE} className="h-11 rounded-[6px] border border-black/10 px-3 text-sm">{fabricStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select>
         <input name="code" placeholder="编号" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
         <input name="imageUrl" placeholder="图片 URL" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
         <input name="composition" placeholder="成分" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
@@ -49,7 +51,7 @@ export default async function AdminFabricsPage() {
             <img src={fabricCoverUrl(fabric.imageUrl)} alt={fabric.name} className="size-20 rounded-[6px] object-cover" />
             <input name="name" defaultValue={fabric.name} className="h-10 rounded-[6px] border border-black/10 px-3 text-sm" />
             <input name="slug" defaultValue={fabric.slug ?? ""} placeholder="slug" className="h-10 rounded-[6px] border border-black/10 px-3 text-sm" />
-            <select name="status" defaultValue={fabric.status} className="h-10 rounded-[6px] border border-black/10 px-3 text-sm">{Object.values(FabricStatus).map((status) => <option key={status} value={status}>{status}</option>)}</select>
+            <select name="status" defaultValue={fabric.status} className="h-10 rounded-[6px] border border-black/10 px-3 text-sm">{fabricStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select>
             <select name="providerId" defaultValue={fabric.providerId ?? ""} className="h-10 rounded-[6px] border border-black/10 px-3 text-sm">
               <option value="">未关联供应商</option>
               {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}

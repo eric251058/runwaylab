@@ -1,16 +1,29 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DesignerIncubationPanel, type DesignerIncubationItem } from "@/components/incubation/DesignerIncubationPanel";
+import { OpportunityProfileForm } from "@/components/incubation/OpportunityProfileForm";
 import { getCurrentUser } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/incubation";
+import {
+  calculateOrderMaturity,
+  OPPORTUNITY_FABRIC_STATUS_LABELS,
+  OPPORTUNITY_STAGE_LABELS,
+  PROVIDER_INTEREST_TYPE_LABELS,
+  SAMPLE_STATUS_LABELS
+} from "@/lib/order-maturity";
 import { PRESALE_CAMPAIGN_STATUS_LABELS, presaleProgress } from "@/lib/presale-campaign";
 import { prisma } from "@/lib/prisma";
 import { maskContact, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
+import { WorkVoteStatus, WorkVoteType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 function sentence(parts: Array<string | null | undefined>) {
   return parts.filter(Boolean).join(" / ") || "未填写补充说明";
+}
+
+function decimalText(value?: { toString(): string } | null) {
+  return value ? value.toString() : null;
 }
 
 function signalState(done: boolean, active = false) {
@@ -33,6 +46,21 @@ export default async function MeIncubationPage() {
     select: {
       id: true,
       title: true,
+      description: true,
+      isEditorPick: true,
+      favoriteCount: true,
+      commentCount: true,
+      images: {
+        select: { id: true }
+      },
+      votes: {
+        where: {
+          status: WorkVoteStatus.ACTIVE,
+          type: WorkVoteType.WANT_BUY
+        },
+        select: { id: true }
+      },
+      opportunityProfile: true,
       teacherRecommendations: {
         select: { id: true },
         take: 1
@@ -63,6 +91,12 @@ export default async function MeIncubationPage() {
           provider: true
         },
         orderBy: { createdAt: "desc" }
+      },
+      providerOpportunityInterests: {
+        include: {
+          provider: true
+        },
+        orderBy: { updatedAt: "desc" }
       },
       collaborationProjects: {
         select: { id: true },
@@ -172,6 +206,24 @@ export default async function MeIncubationPage() {
         summary: sentence([item.description, item.estimatedPrice && `预计价格 ${item.estimatedPrice}`, item.estimatedTime && `预计周期 ${item.estimatedTime}`, item.moq && `MOQ ${item.moq}`]),
         status: item.status,
         createdAt: formatDateTime(item.createdAt)
+      })),
+      ...work.providerOpportunityInterests.map((item) => ({
+        id: item.id,
+        kind: "opportunityInterest" as const,
+        kindLabel: "服务商机会意向",
+        workId: work.id,
+        workTitle: work.title,
+        primary: item.provider.name,
+        company: PROVIDER_INTEREST_TYPE_LABELS[item.interestType],
+        contact: "联系方式由平台协助对接",
+        summary: sentence([
+          item.expectedPriceMin || item.expectedPriceMax ? `预计价格 ${decimalText(item.expectedPriceMin) ?? "-"}-${decimalText(item.expectedPriceMax) ?? "-"}` : null,
+          item.minimumQuantity ? `最低数量 ${item.minimumQuantity}` : null,
+          item.leadDays ? `预计周期 ${item.leadDays} 天` : null,
+          item.note
+        ]),
+        status: item.status,
+        createdAt: formatDateTime(item.updatedAt)
       }))
     ])
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -199,11 +251,27 @@ export default async function MeIncubationPage() {
         {works.length ? (
           <div className="grid gap-4">
             {works.map((work) => {
+              const profile = work.opportunityProfile;
               const fabricCount = work.fabricProposals.length + work.fabricRecommendations.length;
               const presaleCount = work.presaleIntents.length + work.presaleCampaigns.reduce((sum, campaign) => sum + campaign.currentCount, 0);
               const providerProposalCount = work.sampleProposals.length + work.factoryProposals.length + work.providerWorkProposals.length;
+              const opportunityInterestCount = work.providerOpportunityInterests.length;
               const hasTeacherRecommendation = work.teacherRecommendations.length > 0;
               const hasProject = work.collaborationProjects.length > 0;
+              const maturity = calculateOrderMaturity({
+                description: work.description,
+                imageCount: work.images.length,
+                isEditorPick: work.isEditorPick,
+                teacherRecommendationCount: work.teacherRecommendations.length,
+                fabricRecommendationCount: fabricCount,
+                providerProposalCount,
+                presaleIntentCount: presaleCount,
+                buyerInterestCount: work.buyerIntents.length,
+                wantBuyVoteCount: work.votes.length,
+                favoriteCount: work.favoriteCount,
+                commentCount: work.commentCount,
+                profile
+              });
               const advice = !hasTeacherRecommendation
                 ? "建议完善作品说明，或参加挑战赛。"
                 : fabricCount === 0
@@ -211,12 +279,13 @@ export default async function MeIncubationPage() {
                   : presaleCount === 0
                     ? "可以联系平台开启预售活动。"
                     : providerProposalCount === 0
-                      ? "等待服务商提交打样或生产方案。"
+                      ? "可以补充机会资料，等待匹配服务商。"
                       : "继续跟进收到的方案。";
               const signals = [
                 ["老师推荐", signalState(hasTeacherRecommendation)],
                 ["面料推荐", signalState(false, fabricCount > 0)],
                 ["服务商方案", signalState(false, providerProposalCount > 0)],
+                ["机会意向", signalState(false, opportunityInterestCount > 0)],
                 ["预售意向", signalState(false, presaleCount > 0)],
                 ["合作项目", signalState(hasProject)]
               ];
@@ -237,6 +306,30 @@ export default async function MeIncubationPage() {
                       查看作品
                     </Link>
                   </div>
+                  <div className="mt-4 grid gap-2 rounded-[8px] bg-white p-3 text-xs text-ink/55 sm:grid-cols-2 lg:grid-cols-4">
+                    <span>机会阶段：{profile ? OPPORTUNITY_STAGE_LABELS[profile.stage] : "未维护"}</span>
+                    <span>推荐阶段：{OPPORTUNITY_STAGE_LABELS[maturity.recommendedStage]}</span>
+                    <span>样衣：{profile ? SAMPLE_STATUS_LABELS[profile.sampleStatus] : "未维护"}</span>
+                    <span>面料：{profile ? OPPORTUNITY_FABRIC_STATUS_LABELS[profile.fabricStatus] ?? "未维护" : "未维护"}</span>
+                    <span>专业 {maturity.professionalScore}</span>
+                    <span>生产 {maturity.productionScore}</span>
+                    <span>市场 {maturity.marketScore}</span>
+                    <span>服务商意向 {opportunityInterestCount}</span>
+                  </div>
+                  <OpportunityProfileForm
+                    workId={work.id}
+                    initialProfile={profile ? {
+                      stage: profile.stage,
+                      targetQuantity: profile.targetQuantity,
+                      targetRetailPrice: decimalText(profile.targetRetailPrice),
+                      sampleBudget: decimalText(profile.sampleBudget),
+                      sampleStatus: profile.sampleStatus,
+                      fabricStatus: profile.fabricStatus,
+                      targetLaunchDate: profile.targetLaunchDate ? profile.targetLaunchDate.toISOString().slice(0, 10) : null,
+                      expectedReorder: profile.expectedReorder,
+                      designerNote: profile.designerNote
+                    } : null}
+                  />
                 </article>
               );
             })}

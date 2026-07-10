@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   CollaborationProjectStatus,
   ContributionStatus,
+  OpportunityStage,
   ProviderApplicationStatus,
   ProviderWorkProposalStatus,
   PresaleCampaignIntentStatus,
@@ -22,6 +23,7 @@ const adminLinks = [
   ["/admin/works", "作品管理", "审核、下架、精选和孵化候选"],
   ["/admin/editorial", "编辑推荐", "首页精选、榜单和运营推荐"],
   ["/admin/incubation", "孵化管理", "查看孵化状态和产业信号"],
+  ["/admin/opportunities", "机会管理", "审核订单成熟度和服务商机会池"],
   ["/admin/recommendations", "老师推荐", "维护老师推荐作品"],
   ["/admin/work-fabric-recommendations", "面料推荐", "为作品匹配面料资源"],
   ["/admin/provider-applications", "服务商申请", "处理入驻申请"],
@@ -38,6 +40,7 @@ const operationActions = [
   ["/admin/works", "审核作品", "先让优质作品通过审核，进入公开展示。"],
   ["/admin/editorial", "设置首页精选", "把适合转化的作品放到首页和榜单入口。"],
   ["/admin/presale-campaigns", "创建预售活动", "开启不收款的预售意向验证。"],
+  ["/admin/opportunities", "管理合格机会", "审核可打样、小单和规模生产项目。"],
   ["/admin/projects", "创建合作项目", "把成熟作品推进到合作项目展示。"]
 ] as const;
 
@@ -169,6 +172,15 @@ export default async function AdminPage() {
   const [todayUsers, todayWorks, todayPresaleIntents, todayProviderApplications, todayProviderProposals, todayProjects] = todayCounts;
   const [pendingWorks, pendingProviderApplications, pendingProviderProposals, pendingPresaleIntents, incompleteWorks, projectsWithoutCases] = pendingCounts;
   const [pendingContributions, todayNewContributions, todayContributionVotes, hiddenVotes, wantBuyVotes, confusingVotes] = contributionCounts;
+  const opportunityFunnel = await Promise.all([
+    prisma.workOpportunityProfile.count({ where: { stage: OpportunityStage.DISPLAY_ONLY } }),
+    prisma.workOpportunityProfile.count({ where: { stage: OpportunityStage.SAMPLE_READY } }),
+    prisma.workOpportunityProfile.count({ where: { stage: OpportunityStage.SMALL_BATCH_READY } }),
+    prisma.workOpportunityProfile.count({ where: { stage: OpportunityStage.SCALE_READY } }),
+    prisma.workOpportunityProfile.count({ where: { adminApproved: true } }),
+    prisma.workOpportunityProfile.count({ where: { work: { providerOpportunityInterests: { some: {} } } } }),
+    prisma.workOpportunityProfile.count({ where: { OR: [{ buyerInterestCount: { gt: 0 } }, { confirmedBuyerQuantity: { gt: 0 } }] } })
+  ]);
 
   const highPotentialWorks = potentialWorks
     .map((work) => {
@@ -286,6 +298,28 @@ export default async function AdminPage() {
           {stat("隐藏投票", hiddenVotes, "不参与统计的投票")}
           {stat("想买判断", wantBuyVotes, "累计有效购买兴趣")}
           {stat("看不懂判断", confusingVotes, "需要优化表达的信号")}
+        </div>
+      </section>
+
+      <section className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 lg:mb-8">
+        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Order Funnel</p>
+            <h2 className="mt-2 text-xl font-semibold text-ink">订单机会漏斗</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/55">区分仅展示、可打样、可小单和可规模生产，避免把早期作品直接推给不匹配的服务商。</p>
+          </div>
+          <Link href="/admin/opportunities" className="inline-flex h-10 w-full items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white sm:w-fit">
+            查看机会管理
+          </Link>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
+          {stat("仅展示", opportunityFunnel[0], "尚未进入机会池")}
+          {stat("可打样", opportunityFunnel[1], "适合打样工作室")}
+          {stat("可小单", opportunityFunnel[2], "适合小单快反")}
+          {stat("可规模生产", opportunityFunnel[3], "适合更成熟工厂")}
+          {stat("已审核机会", opportunityFunnel[4], "管理员放入机会池")}
+          {stat("有服务商意向", opportunityFunnel[5], "服务商已提交兴趣")}
+          {stat("有买手兴趣", opportunityFunnel[6], "存在采购侧信号")}
         </div>
       </section>
 

@@ -13,11 +13,17 @@ import { initials } from "@/components/works/work-visuals";
 import { getCurrentUser } from "@/lib/auth/session";
 import { incubationStatusLabels } from "@/lib/incubation";
 import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
+import {
+  calculateOrderMaturity,
+  OPPORTUNITY_FABRIC_STATUS_LABELS,
+  OPPORTUNITY_STAGE_LABELS,
+  SAMPLE_STATUS_LABELS
+} from "@/lib/order-maturity";
 import { canViewWorkDetail } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { fabricCoverUrl, PROVIDER_PROPOSAL_STATUS_LABELS, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
 import { getWorkDetailById } from "@/lib/works/queries";
-import { PresaleCampaignStatus, UserPersona, WorkIncubationStatus, WorkVoteStatus } from "@prisma/client";
+import { PresaleCampaignStatus, UserPersona, WorkIncubationStatus, WorkVoteStatus, WorkVoteType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +75,14 @@ function progressMetric(label: string, value: number) {
       <p className="mt-1 text-xl font-semibold text-ink">{value}</p>
     </div>
   );
+}
+
+function decimalText(value?: { toString(): string } | null) {
+  return value ? value.toString() : "未填写";
+}
+
+function dateText(value?: Date | null) {
+  return value ? value.toLocaleDateString("zh-CN") : "未填写";
 }
 
 function summarySignal(label: string, value: string, state: "done" | "active" | "todo") {
@@ -206,7 +220,7 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
   const badges = getWorkBadges(work);
   const activeChallenge = work.challengeEntries[0]?.challenge;
   const incubationProject = work.incubationProjects[0];
-  const [workIncubation, presaleIntentCount, fabricProposalCount, sampleProposalCount, factoryProposalCount, buyerIntentCount, activePresaleCampaign, workVoteCount, workContributionCount] = await Promise.all([
+  const [workIncubation, presaleIntentCount, fabricProposalCount, sampleProposalCount, factoryProposalCount, buyerIntentCount, activePresaleCampaign, workVoteCount, workContributionCount, opportunityProfile, wantBuyVoteCount] = await Promise.all([
     prisma.workIncubation.findUnique({
       where: {
         workId: work.id
@@ -253,6 +267,18 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
     prisma.workContribution.count({
       where: {
         workId: work.id
+      }
+    }),
+    prisma.workOpportunityProfile.findUnique({
+      where: {
+        workId: work.id
+      }
+    }),
+    prisma.workVote.count({
+      where: {
+        workId: work.id,
+        status: WorkVoteStatus.ACTIVE,
+        type: WorkVoteType.WANT_BUY
       }
     })
   ]);
@@ -396,6 +422,20 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
       : teacherRecommendationCount
         ? "补充面料建议"
         : "完善作品背书";
+  const orderMaturity = opportunityProfile ? calculateOrderMaturity({
+    description: work.description,
+    imageCount: work.images.length,
+    isEditorPick: work.isEditorPick,
+    teacherRecommendationCount,
+    fabricRecommendationCount: fabricSignalCount,
+    providerProposalCount: providerProposalSignalCount,
+    presaleIntentCount: presaleSignalCount,
+    buyerInterestCount: buyerIntentCount,
+    wantBuyVoteCount,
+    favoriteCount: work.favoriteCount,
+    commentCount: work.commentCount,
+    profile: opportunityProfile
+  }) : null;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-4 md:px-8 md:py-10">
@@ -451,6 +491,48 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
             note={"note" in actionCopy ? actionCopy.note : undefined}
             actions={actionCopy.actions}
           />
+
+          {opportunityProfile && orderMaturity ? (
+            <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Order Maturity</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-ink">项目推进状态</h2>
+                  <p className="mt-2 text-sm leading-6 text-ink/58">当前阶段：{OPPORTUNITY_STAGE_LABELS[opportunityProfile.stage]}</p>
+                </div>
+                {opportunityProfile.adminApproved ? (
+                  <span className="w-fit rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">已进入机会池</span>
+                ) : (
+                  <span className="w-fit rounded-full bg-paper px-4 py-2 text-sm font-semibold text-ink/55">等待平台审核</span>
+                )}
+              </div>
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                {progressMetric("专业成熟度", orderMaturity.professionalScore)}
+                {progressMetric("生产成熟度", orderMaturity.productionScore)}
+                {progressMetric("市场成熟度", orderMaturity.marketScore)}
+              </div>
+              <div className="mt-5 grid gap-2 text-sm text-ink/58 sm:grid-cols-2">
+                <p>目标数量：{opportunityProfile.targetQuantity ?? "未填写"}</p>
+                <p>目标零售价：{decimalText(opportunityProfile.targetRetailPrice)}</p>
+                <p>样衣状态：{SAMPLE_STATUS_LABELS[opportunityProfile.sampleStatus]}</p>
+                <p>面料状态：{OPPORTUNITY_FABRIC_STATUS_LABELS[opportunityProfile.fabricStatus] ?? "未填写"}</p>
+                <p>预计上线：{dateText(opportunityProfile.targetLaunchDate)}</p>
+                <p>后续补单：{opportunityProfile.expectedReorder ? "有可能" : "未明确"}</p>
+                <p>推荐阶段：{OPPORTUNITY_STAGE_LABELS[orderMaturity.recommendedStage]}</p>
+                <p>采购意向：{opportunityProfile.confirmedBuyerQuantity > 0 ? "已有平台确认采购意向" : "等待进一步验证"}</p>
+              </div>
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <div className="rounded-[8px] bg-paper p-4">
+                  <p className="text-sm font-semibold text-ink">已具备</p>
+                  <p className="mt-2 text-sm leading-6 text-ink/58">{orderMaturity.strengths.slice(0, 4).join("、") || "资料仍在完善中"}</p>
+                </div>
+                <div className="rounded-[8px] bg-paper p-4">
+                  <p className="text-sm font-semibold text-ink">下一步</p>
+                  <p className="mt-2 text-sm leading-6 text-ink/58">{orderMaturity.missingItems.slice(0, 4).join("、") || "继续跟进服务商和市场反馈"}</p>
+                </div>
+              </div>
+            </section>
+          ) : null}
 
           <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
             <h2 className="text-xl font-semibold text-ink">作品说明</h2>
