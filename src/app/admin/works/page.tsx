@@ -1,4 +1,4 @@
-import { ContributionType, ReviewStatus, WorkVoteType } from "@prisma/client";
+import { ContributionType, ReviewStatus, WorkVoteStatus, WorkVoteType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { AdminWorksPanel, type AdminWorkItem } from "@/components/admin/AdminWorksPanel";
 import { getHeatScore } from "@/lib/operation-growth";
@@ -36,7 +36,11 @@ export default async function AdminWorksPage() {
       buyerIntents: true,
       presaleCampaigns: true,
       presaleCampaignIntents: true,
-      votes: true,
+      votes: {
+        where: {
+          status: WorkVoteStatus.ACTIVE
+        }
+      },
       contributions: true
     },
     orderBy: {

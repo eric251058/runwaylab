@@ -6,6 +6,7 @@ import {
   ProviderWorkProposalStatus,
   PresaleCampaignIntentStatus,
   ReviewStatus,
+  WorkVoteStatus,
   WorkVoteType
 } from "@prisma/client";
 import { ActionGuide } from "@/components/ActionGuide";
@@ -122,9 +123,11 @@ export default async function AdminPage() {
     ]),
     Promise.all([
       prisma.workContribution.count({ where: { status: ContributionStatus.NEW } }),
-      prisma.workVote.count({ where: { createdAt: { gte: since } } }),
-      prisma.workVote.count({ where: { type: WorkVoteType.WANT_BUY } }),
-      prisma.workVote.count({ where: { type: WorkVoteType.CONFUSING } })
+      prisma.workContribution.count({ where: { createdAt: { gte: since } } }),
+      prisma.workVote.count({ where: { status: WorkVoteStatus.ACTIVE, createdAt: { gte: since } } }),
+      prisma.workVote.count({ where: { status: WorkVoteStatus.HIDDEN } }),
+      prisma.workVote.count({ where: { status: WorkVoteStatus.ACTIVE, type: WorkVoteType.WANT_BUY } }),
+      prisma.workVote.count({ where: { status: WorkVoteStatus.ACTIVE, type: WorkVoteType.CONFUSING } })
     ]),
     Promise.all([
       prisma.work.count({ where: { images: { none: {} } } }),
@@ -165,7 +168,7 @@ export default async function AdminPage() {
 
   const [todayUsers, todayWorks, todayPresaleIntents, todayProviderApplications, todayProviderProposals, todayProjects] = todayCounts;
   const [pendingWorks, pendingProviderApplications, pendingProviderProposals, pendingPresaleIntents, incompleteWorks, projectsWithoutCases] = pendingCounts;
-  const [pendingContributions, todayContributionVotes, wantBuyVotes, confusingVotes] = contributionCounts;
+  const [pendingContributions, todayNewContributions, todayContributionVotes, hiddenVotes, wantBuyVotes, confusingVotes] = contributionCounts;
 
   const highPotentialWorks = potentialWorks
     .map((work) => {
@@ -276,11 +279,13 @@ export default async function AdminPage() {
             查看用户贡献
           </Link>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
           {stat("待处理建议", pendingContributions, "需要运营筛选的孵化建议")}
-          {stat("今日新增投票", todayContributionVotes, "过去 24 小时用户判断")}
-          {stat("想买票数", wantBuyVotes, "累计表达购买兴趣")}
-          {stat("看不懂票数", confusingVotes, "需要优化表达的信号")}
+          {stat("今日新增建议", todayNewContributions, "过去 24 小时提交建议")}
+          {stat("今日有效投票", todayContributionVotes, "过去 24 小时有效判断")}
+          {stat("隐藏投票", hiddenVotes, "不参与统计的投票")}
+          {stat("想买判断", wantBuyVotes, "累计有效购买兴趣")}
+          {stat("看不懂判断", confusingVotes, "需要优化表达的信号")}
         </div>
       </section>
 

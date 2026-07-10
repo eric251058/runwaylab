@@ -6,6 +6,11 @@ export const WORK_VOTE_LABELS: Record<string, string> = {
   CONFUSING: "看不懂"
 };
 
+export const WORK_VOTE_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "有效",
+  HIDDEN: "已隐藏"
+};
+
 export const CONTRIBUTION_PERSONA_LABELS: Record<string, string> = {
   CONSUMER: "普通用户",
   STUDENT: "设计学生",
@@ -67,3 +72,18 @@ export const CONTRIBUTION_STATUS_OPTIONS = [
   { value: "PROCESSED", label: "已处理" },
   { value: "IGNORED", label: "已忽略" }
 ] as const;
+
+export const WORK_VOTE_STATUS_OPTIONS = [
+  { value: "ACTIVE", label: "有效" },
+  { value: "HIDDEN", label: "已隐藏" }
+] as const;
+
+export function cleanPlainText(value: unknown, maxLength = 1000) {
+  if (typeof value !== "string") return "";
+
+  return value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}

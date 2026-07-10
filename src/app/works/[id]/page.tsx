@@ -17,7 +17,7 @@ import { canViewWorkDetail } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { fabricCoverUrl, PROVIDER_PROPOSAL_STATUS_LABELS, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
 import { getWorkDetailById } from "@/lib/works/queries";
-import { PresaleCampaignStatus, UserPersona, WorkIncubationStatus } from "@prisma/client";
+import { PresaleCampaignStatus, UserPersona, WorkIncubationStatus, WorkVoteStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -246,7 +246,8 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
     }),
     prisma.workVote.count({
       where: {
-        workId: work.id
+        workId: work.id,
+        status: WorkVoteStatus.ACTIVE
       }
     }),
     prisma.workContribution.count({

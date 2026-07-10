@@ -29,9 +29,11 @@ export function WorkContributionPanel({ workId, hasContributionSignals }: WorkCo
   const [voteMessage, setVoteMessage] = useState("");
   const [voteError, setVoteError] = useState("");
   const [voteBusy, setVoteBusy] = useState("");
+  const [selectedVote, setSelectedVote] = useState("");
   const [contributionMessage, setContributionMessage] = useState("");
   const [contributionError, setContributionError] = useState("");
   const [contributionBusy, setContributionBusy] = useState(false);
+  const [contentLength, setContentLength] = useState(0);
 
   const submitVote = async (type: string) => {
     setVoteBusy(type);
@@ -40,6 +42,7 @@ export function WorkContributionPanel({ workId, hasContributionSignals }: WorkCo
 
     try {
       const data = await postJson(`/api/works/${workId}/vote`, { type });
+      setSelectedVote(type);
       setVoteMessage(data.message ?? "感谢你的判断，平台会结合更多用户反馈评估该作品的孵化方向。");
     } catch (error) {
       setVoteError(error instanceof Error ? error.message : "提交失败，请稍后再试。");
@@ -62,10 +65,12 @@ export function WorkContributionPanel({ workId, hasContributionSignals }: WorkCo
         type: formData.get("type"),
         name: formData.get("name"),
         contact: formData.get("contact"),
-        content: formData.get("content")
+        content: formData.get("content"),
+        website: formData.get("website")
       });
       setContributionMessage(data.message ?? "感谢你的建议。平台会根据有效反馈推进作品孵化。");
       form.reset();
+      setContentLength(0);
     } catch (error) {
       setContributionError(error instanceof Error ? error.message : "提交失败，请稍后再试。");
     } finally {
@@ -88,7 +93,11 @@ export function WorkContributionPanel({ workId, hasContributionSignals }: WorkCo
                 type="button"
                 disabled={Boolean(voteBusy)}
                 onClick={() => submitVote(option.value)}
-                className="min-h-11 rounded-full border border-black/10 bg-paper px-3 text-sm font-semibold text-ink transition hover:border-ink/35 hover:bg-white disabled:opacity-50"
+                className={`min-h-11 rounded-full border px-3 text-sm font-semibold transition disabled:opacity-50 ${
+                  selectedVote === option.value
+                    ? "border-ink bg-ink text-white"
+                    : "border-black/10 bg-paper text-ink hover:border-ink/35 hover:bg-white"
+                }`}
               >
                 {voteBusy === option.value ? "提交中..." : option.label}
               </button>
@@ -119,7 +128,19 @@ export function WorkContributionPanel({ workId, hasContributionSignals }: WorkCo
             <input name="name" maxLength={100} placeholder="姓名，可选" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
             <input name="contact" maxLength={100} placeholder="联系方式，可选" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
           </div>
-          <textarea name="content" required maxLength={1000} placeholder="写下你的建议" className="min-h-28 rounded-[6px] border border-black/10 px-3 py-3 text-sm leading-6" />
+          <input name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
+          <div>
+            <textarea
+              name="content"
+              required
+              minLength={8}
+              maxLength={1000}
+              onChange={(event) => setContentLength(event.currentTarget.value.length)}
+              placeholder="写下你的建议"
+              className="min-h-28 w-full rounded-[6px] border border-black/10 px-3 py-3 text-sm leading-6"
+            />
+            <p className="mt-1 text-right text-xs text-ink/40">{contentLength} / 1000</p>
+          </div>
           <button disabled={contributionBusy} className="h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50">
             {contributionBusy ? "提交中..." : "提交建议"}
           </button>

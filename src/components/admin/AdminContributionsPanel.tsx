@@ -14,6 +14,8 @@ export type AdminContributionItem = {
   contact: string | null;
   status: string;
   adminNote: string | null;
+  sourceLabel: string;
+  riskFlags: string[];
   createdAt: string;
 };
 
@@ -91,18 +93,25 @@ export function AdminContributionsPanel({ contributions }: AdminContributionsPan
               <p className="mt-3 text-xs leading-5 text-ink/45">
                 {[item.name && `姓名 ${item.name}`, item.contact && `联系方式 ${item.contact}`, `提交时间 ${formatDate(item.createdAt)}`].filter(Boolean).join(" / ")}
               </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/50">来源标识 {item.sourceLabel}</span>
+                {item.riskFlags.map((flag) => (
+                  <span key={flag} className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
+                    {flag}
+                  </span>
+                ))}
+              </div>
               {item.adminNote ? <p className="mt-2 rounded-[6px] bg-paper px-3 py-2 text-xs leading-5 text-ink/55">管理员备注：{item.adminNote}</p> : null}
             </div>
             <form onSubmit={(event) => updateContribution(event, item.id)} className="grid content-start gap-2">
-              <select name="status" defaultValue={item.status} className="h-10 rounded-[6px] border border-black/10 px-3 text-sm">
-                {CONTRIBUTION_STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
               <textarea name="adminNote" defaultValue={item.adminNote ?? ""} placeholder="管理员备注" className="min-h-20 rounded-[6px] border border-black/10 px-3 py-3 text-sm" />
-              <button disabled={busyId === item.id} className="h-10 rounded-full bg-ink px-4 text-sm font-semibold text-white disabled:opacity-50">
-                {busyId === item.id ? "保存中..." : "保存处理状态"}
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                {CONTRIBUTION_STATUS_OPTIONS.filter((option) => option.value !== "NEW").map((option) => (
+                  <button key={option.value} name="status" value={option.value} disabled={busyId === item.id} className="h-10 rounded-full border border-black/10 bg-white px-3 text-sm font-semibold text-ink disabled:opacity-50">
+                    {option.value === "VALUABLE" ? "标记有价值" : option.value === "REVIEWED" ? "标记已查看" : option.value === "PROCESSED" ? "标记已处理" : "忽略"}
+                  </button>
+                ))}
+              </div>
             </form>
           </div>
         </article>

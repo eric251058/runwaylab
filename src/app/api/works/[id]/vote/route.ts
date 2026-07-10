@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { WorkVoteType } from "@prisma/client";
+import { WorkVoteStatus, WorkVoteType } from "@prisma/client";
 import { z } from "zod";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getContributionActorKey } from "@/lib/contribution-actor";
 import { prisma } from "@/lib/prisma";
+import { cleanPlainText } from "@/lib/user-contributions";
 import { publicWorkWhere } from "@/lib/works/public";
 
 const voteSchema = z.object({
@@ -18,6 +21,7 @@ type RouteContext = {
 };
 
 export async function POST(request: Request, context: RouteContext) {
+  const user = await getCurrentUser();
   const { id } = await context.params;
   const parsed = voteSchema.safeParse(await request.json().catch(() => null));
 
@@ -39,17 +43,63 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ message: "作品不存在或暂不可参与判断。" }, { status: 404 });
   }
 
-  await prisma.workVote.create({
-    data: {
-      workId: id,
+  const actorKey = await getContributionActorKey(user);
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const existing = await prisma.workVote.findUnique({
+    where: {
+      workId_actorKey: {
+        workId: id,
+        actorKey
+      }
+    }
+  });
+
+  if (!existing) {
+    const recentWorkCount = await prisma.workVote.count({
+      where: {
+        actorKey,
+        createdAt: {
+          gte: since
+        }
+      }
+    });
+
+    if (recentWorkCount >= 30) {
+      return NextResponse.json({ message: "今天参与的作品较多，请稍后再试。" }, { status: 429 });
+    }
+  }
+
+  const data = {
+    workId: id,
+    actorKey,
+    type: parsed.data.type,
+    voterName: cleanPlainText(parsed.data.voterName, 100) || null,
+    voterContact: cleanPlainText(parsed.data.voterContact, 100) || null,
+    voterPersona: cleanPlainText(parsed.data.voterPersona, 100) || null,
+    status: WorkVoteStatus.ACTIVE,
+    adminNote: null
+  };
+
+  await prisma.workVote.upsert({
+    where: {
+      workId_actorKey: {
+        workId: id,
+        actorKey
+      }
+    },
+    create: data,
+    update: {
       type: parsed.data.type,
-      voterName: parsed.data.voterName || null,
-      voterContact: parsed.data.voterContact || null,
-      voterPersona: parsed.data.voterPersona || null
+      voterName: data.voterName,
+      voterContact: data.voterContact,
+      voterPersona: data.voterPersona,
+      status: WorkVoteStatus.ACTIVE,
+      adminNote: null
     }
   });
 
   return NextResponse.json({
-    message: "感谢你的判断，平台会结合更多用户反馈评估该作品的孵化方向。"
+    message: existing ? "你的判断已更新。" : "感谢你的判断。",
+    selectedType: parsed.data.type
   }, { status: 201 });
 }

@@ -282,6 +282,11 @@ enum WorkVoteType {
   CONFUSING
 }
 
+enum WorkVoteStatus {
+  ACTIVE
+  HIDDEN
+}
+
 enum ContributionPersona {
   CONSUMER
   STUDENT
@@ -622,23 +627,31 @@ model WorkImage {
 model WorkVote {
   id           String       @id @default(cuid())
   workId       String
+  actorKey     String
   type         WorkVoteType
   voterName    String?
   voterContact String?
   voterPersona String?
+  status       WorkVoteStatus @default(ACTIVE)
+  adminNote    String?
 
   work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@unique([workId, actorKey])
   @@index([workId])
   @@index([type])
   @@index([createdAt])
+  @@index([actorKey, createdAt])
+  @@index([workId, status, type])
 }
 
 model WorkContribution {
   id        String              @id @default(cuid())
   workId    String
+  actorKey  String
   persona   ContributionPersona
   type      ContributionType
   content   String
@@ -657,6 +670,8 @@ model WorkContribution {
   @@index([type])
   @@index([status])
   @@index([createdAt])
+  @@index([actorKey, createdAt])
+  @@index([workId, status, createdAt])
 }
 
 model Provider {

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { ContributionStatus } from "@prisma/client";
+import { WorkVoteStatus } from "@prisma/client";
 import { z } from "zod";
 import { requireAdminUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { cleanPlainText } from "@/lib/user-contributions";
 
-const updateContributionSchema = z.object({
-  status: z.nativeEnum(ContributionStatus),
-  adminNote: z.string().trim().max(500).optional().nullable()
+const updateVoteSchema = z.object({
+  status: z.nativeEnum(WorkVoteStatus),
+  adminNote: z.string().max(500).optional().nullable()
 });
 
 type RouteContext = {
@@ -24,13 +24,13 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ message: "Admin access required." }, { status: 403 });
   }
 
-  const parsed = updateContributionSchema.safeParse(await request.json().catch(() => null));
+  const parsed = updateVoteSchema.safeParse(await request.json().catch(() => null));
 
   if (!parsed.success) {
-    return NextResponse.json({ message: "用户贡献处理参数不正确。" }, { status: 400 });
+    return NextResponse.json({ message: "投票处理参数不正确。" }, { status: 400 });
   }
 
-  const contribution = await prisma.workContribution.update({
+  const vote = await prisma.workVote.update({
     where: {
       id
     },
@@ -40,9 +40,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
   }).catch(() => null);
 
-  if (!contribution) {
-    return NextResponse.json({ message: "用户贡献不存在或暂时无法更新。" }, { status: 404 });
+  if (!vote) {
+    return NextResponse.json({ message: "投票不存在或暂时无法更新。" }, { status: 404 });
   }
 
-  return NextResponse.json({ contribution });
+  return NextResponse.json({ vote });
 }
