@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { WorkAiDiagnosisPanel, type WorkAiDiagnosisView } from "@/components/ai/WorkAiDiagnosisPanel";
 import { DesignerIncubationPanel, type DesignerIncubationItem } from "@/components/incubation/DesignerIncubationPanel";
 import { OpportunityProfileForm } from "@/components/incubation/OpportunityProfileForm";
+import { canUseAiDiagnosis } from "@/lib/ai/work-diagnosis";
 import { getCurrentUser } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/incubation";
 import {
@@ -104,6 +106,10 @@ export default async function MeIncubationPage() {
         },
         orderBy: { updatedAt: "desc" }
       },
+      aiDiagnoses: {
+        orderBy: { createdAt: "desc" },
+        take: 3
+      },
       collaborationProjects: {
         select: { id: true },
         take: 1
@@ -157,6 +163,7 @@ export default async function MeIncubationPage() {
       workTitle: work.title
     }))
   );
+  const aiConfigured = canUseAiDiagnosis();
 
   const items: DesignerIncubationItem[] = works
     .flatMap((work) => [
@@ -332,6 +339,28 @@ export default async function MeIncubationPage() {
                 ["预售意向", signalState(false, presaleCount > 0)],
                 ["合作项目", signalState(hasProject)]
               ];
+              const aiDiagnosisViews: WorkAiDiagnosisView[] = work.aiDiagnoses.map((diagnosis) => ({
+                id: diagnosis.id,
+                status: diagnosis.status,
+                version: diagnosis.version,
+                reviewStatus: diagnosis.reviewStatus,
+                designSummary: diagnosis.designSummary,
+                designHighlights: diagnosis.designHighlights,
+                targetAudience: diagnosis.targetAudience,
+                suitableScenes: diagnosis.suitableScenes,
+                suggestedCategories: diagnosis.suggestedCategories,
+                suggestedMaterials: diagnosis.suggestedMaterials,
+                suggestedTechniques: diagnosis.suggestedTechniques,
+                productionRisks: diagnosis.productionRisks,
+                missingInformation: diagnosis.missingInformation,
+                nextStepSuggestions: diagnosis.nextStepSuggestions,
+                professionalAssessment: diagnosis.professionalAssessment,
+                productionAssessment: diagnosis.productionAssessment,
+                marketAssessment: diagnosis.marketAssessment,
+                confidence: diagnosis.confidence,
+                errorMessage: diagnosis.errorMessage,
+                createdAt: diagnosis.createdAt.toISOString()
+              }));
 
               return (
                 <article key={work.id} className="rounded-[8px] border border-black/8 bg-paper p-4">
@@ -358,6 +387,16 @@ export default async function MeIncubationPage() {
                     <span>生产 {maturity.productionScore}</span>
                     <span>市场 {maturity.marketScore}</span>
                     <span>服务商意向 {opportunityInterestCount}</span>
+                  </div>
+                  <div className="mt-4">
+                    <WorkAiDiagnosisPanel
+                      workId={work.id}
+                      diagnoses={aiDiagnosisViews}
+                      canRequest
+                      isConfigured={aiConfigured}
+                      showInternal
+                      compact
+                    />
                   </div>
                   <OpportunityProfileForm
                     workId={work.id}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Eye } from "lucide-react";
 import { ActionGuide } from "@/components/ActionGuide";
+import { WorkAiDiagnosisPanel, type WorkAiDiagnosisView } from "@/components/ai/WorkAiDiagnosisPanel";
 import { DataUnavailable } from "@/components/layout/DataUnavailable";
 import { IncubationProgress } from "@/components/incubation/IncubationProgress";
 import { PresaleCampaignPanel } from "@/components/presale/PresaleCampaignPanel";
@@ -11,6 +12,7 @@ import { WorkInteractionBar } from "@/components/works/WorkInteractionBar";
 import { WorkStatusBadge, getWorkBadges } from "@/components/works/WorkStatusBadge";
 import { initials } from "@/components/works/work-visuals";
 import { getCurrentUser } from "@/lib/auth/session";
+import { canUseAiDiagnosis } from "@/lib/ai/work-diagnosis";
 import { incubationStatusLabels } from "@/lib/incubation";
 import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
 import {
@@ -29,7 +31,7 @@ import { canViewWorkDetail } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { fabricCoverUrl, PROVIDER_PROPOSAL_STATUS_LABELS, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
 import { getWorkDetailById } from "@/lib/works/queries";
-import { PresaleCampaignStatus, UserPersona, WorkIncubationStatus, WorkVoteStatus, WorkVoteType } from "@prisma/client";
+import { AiDiagnosisReviewStatus, AiDiagnosisStatus, PresaleCampaignStatus, UserPersona, WorkIncubationStatus, WorkVoteStatus, WorkVoteType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -414,6 +416,40 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
     : [null, null, null];
   const isOwner = Boolean(currentUser && currentUser.id === work.userId);
   const isAdminUser = currentUser?.role === "ADMIN";
+  const canViewFullAiDiagnosis = isOwner || isAdminUser;
+  const aiDiagnoses = await prisma.workAiDiagnosis.findMany({
+    where: canViewFullAiDiagnosis
+      ? { workId: work.id }
+      : {
+          workId: work.id,
+          status: AiDiagnosisStatus.COMPLETED,
+          reviewStatus: AiDiagnosisReviewStatus.APPROVED
+        },
+    orderBy: { createdAt: "desc" },
+    take: canViewFullAiDiagnosis ? 3 : 1
+  });
+  const aiDiagnosisViews: WorkAiDiagnosisView[] = aiDiagnoses.map((diagnosis) => ({
+    id: diagnosis.id,
+    status: diagnosis.status,
+    version: diagnosis.version,
+    reviewStatus: diagnosis.reviewStatus,
+    designSummary: diagnosis.designSummary,
+    designHighlights: diagnosis.designHighlights,
+    targetAudience: diagnosis.targetAudience,
+    suitableScenes: diagnosis.suitableScenes,
+    suggestedCategories: diagnosis.suggestedCategories,
+    suggestedMaterials: diagnosis.suggestedMaterials,
+    suggestedTechniques: diagnosis.suggestedTechniques,
+    productionRisks: diagnosis.productionRisks,
+    missingInformation: diagnosis.missingInformation,
+    nextStepSuggestions: diagnosis.nextStepSuggestions,
+    professionalAssessment: diagnosis.professionalAssessment,
+    productionAssessment: diagnosis.productionAssessment,
+    marketAssessment: diagnosis.marketAssessment,
+    confidence: diagnosis.confidence,
+    errorMessage: diagnosis.errorMessage,
+    createdAt: diagnosis.createdAt.toISOString()
+  }));
   const actionCopy = nextActionCopy({
     isLoggedIn: Boolean(currentUser),
     isOwner,
@@ -508,6 +544,16 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
             note={"note" in actionCopy ? actionCopy.note : undefined}
             actions={actionCopy.actions}
           />
+
+          {(canViewFullAiDiagnosis || aiDiagnosisViews.length > 0) ? (
+            <WorkAiDiagnosisPanel
+              workId={work.id}
+              diagnoses={aiDiagnosisViews}
+              canRequest={canViewFullAiDiagnosis}
+              isConfigured={canUseAiDiagnosis()}
+              showInternal={canViewFullAiDiagnosis}
+            />
+          ) : null}
 
           {opportunityProfile && orderMaturity ? (
             <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">

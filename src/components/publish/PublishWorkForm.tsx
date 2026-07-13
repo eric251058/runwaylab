@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, ImagePlus, Trash2 } from "lucide-react";
+import { WorkAiDiagnosisRequestButton } from "@/components/ai/WorkAiDiagnosisPanel";
 import { normalizeImageUrl, visualFor } from "@/components/works/work-visuals";
 import {
   MAX_WORK_IMAGES,
@@ -368,6 +369,15 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
         <p className="mt-4 text-sm leading-6 text-ink/58">
           下一步可以查看作品详情，或进入我的孵化进度。
         </p>
+        {createdWorkId ? (
+          <div className="mt-5 rounded-[8px] border border-black/8 bg-white p-4 text-left shadow-[0_12px_34px_rgba(16,16,16,0.08)]">
+            <p className="text-sm font-semibold text-ink">让 AI 帮我检查作品资料</p>
+            <p className="mt-2 text-sm leading-6 text-ink/58">AI 诊断需要你主动触发，仅供参考，不会影响作品发布和审核状态。</p>
+            <div className="mt-3">
+              <WorkAiDiagnosisRequestButton workId={createdWorkId} label="生成 AI 诊断" />
+            </div>
+          </div>
+        ) : null}
         <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap sm:justify-center">
           {createdWorkId ? (
             <Link href={`/works/${createdWorkId}`} className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white sm:w-auto">

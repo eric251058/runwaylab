@@ -1,5 +1,7 @@
 import Link from "next/link";
 import {
+  AiDiagnosisReviewStatus,
+  AiDiagnosisStatus,
   CollaborationProjectStatus,
   ContributionStatus,
   IncubationBatchStatus,
@@ -26,6 +28,7 @@ const adminLinks = [
   ["/admin/incubation", "孵化管理", "查看孵化状态和产业信号"],
   ["/admin/batches", "批次管理", "聚合课程、挑战赛和小单试产机会"],
   ["/admin/opportunities", "机会管理", "审核订单成熟度和服务商机会池"],
+  ["/admin/ai-diagnoses", "AI 作品诊断", "审核 AI 诊断和低置信度内容"],
   ["/admin/recommendations", "老师推荐", "维护老师推荐作品"],
   ["/admin/work-fabric-recommendations", "面料推荐", "为作品匹配面料资源"],
   ["/admin/provider-applications", "服务商申请", "处理入驻申请"],
@@ -192,6 +195,14 @@ export default async function AdminPage() {
     prisma.incubationBatchProvider.count({ where: { status: "CONFIRMED" } }),
     prisma.incubationBatch.aggregate({ _sum: { targetProductionQuantity: true, confirmedProductionQuantity: true } })
   ]);
+  const aiDiagnosisOverview = await Promise.all([
+    prisma.workAiDiagnosis.count({ where: { status: AiDiagnosisStatus.PENDING } }),
+    prisma.workAiDiagnosis.count({ where: { status: AiDiagnosisStatus.PROCESSING } }),
+    prisma.workAiDiagnosis.count({ where: { status: AiDiagnosisStatus.FAILED } }),
+    prisma.workAiDiagnosis.count({ where: { reviewStatus: AiDiagnosisReviewStatus.UNREVIEWED } }),
+    prisma.workAiDiagnosis.count({ where: { reviewStatus: AiDiagnosisReviewStatus.APPROVED } }),
+    prisma.workAiDiagnosis.count({ where: { confidence: { lt: 50 } } })
+  ]);
 
   const highPotentialWorks = potentialWorks
     .map((work) => {
@@ -354,6 +365,27 @@ export default async function AdminPage() {
           {stat("确认服务商", batchOverview[5], "已确认参与")}
           {stat("目标聚合数量", batchOverview[6]._sum.targetProductionQuantity ?? 0, "预计数量，不是订单")}
           {stat("确认生产数量", batchOverview[6]._sum.confirmedProductionQuantity ?? 0, "管理员确认数量")}
+        </div>
+      </section>
+
+      <section className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 lg:mb-8">
+        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">AI Diagnosis</p>
+            <h2 className="mt-2 text-xl font-semibold text-ink">AI 作品诊断</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/55">AI 诊断只作为结构化建议，不自动审核作品、不自动推荐首页、不自动改变机会阶段。</p>
+          </div>
+          <Link href="/admin/ai-diagnoses" className="inline-flex h-10 w-full items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white sm:w-fit">
+            管理 AI 诊断
+          </Link>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          {stat("待处理诊断", aiDiagnosisOverview[0], "用户已申请，等待生成")}
+          {stat("生成中诊断", aiDiagnosisOverview[1], "服务端正在处理")}
+          {stat("生成失败诊断", aiDiagnosisOverview[2], "需要排查配置或返回格式")}
+          {stat("待审核诊断", aiDiagnosisOverview[3], "未通过前不公开完整诊断")}
+          {stat("已通过诊断", aiDiagnosisOverview[4], "可用于轻量公开整理")}
+          {stat("低置信度诊断", aiDiagnosisOverview[5], "建议人工复核")}
         </div>
       </section>
 
