@@ -27,6 +27,9 @@ function contactText(application: { phone?: string | null; email?: string | null
 
 export default async function AdminProviderApplicationsPage() {
   const applications = await prisma.providerApplication.findMany({
+    include: {
+      user: { select: { id: true, email: true, nickname: true } }
+    },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }]
   });
   const pendingCount = applications.filter((application) => application.status === ProviderApplicationStatus.PENDING).length;
@@ -37,7 +40,7 @@ export default async function AdminProviderApplicationsPage() {
       <header className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Admin</p>
         <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">入驻审核</h1>
-        <p className="mt-4 max-w-3xl text-sm leading-6 text-ink/58">这里用于筛选面料商、打样工作室、工厂和买手等服务商。优先处理资料完整、有明确服务能力的申请。</p>
+        <p className="mt-4 max-w-3xl text-sm leading-6 text-ink/58">这里用于筛选面料商、打样工作室、工厂和专业服务。审核通过后会生成服务商主页，并绑定到申请账号。</p>
       </header>
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -70,6 +73,7 @@ export default async function AdminProviderApplicationsPage() {
                 </div>
                 <h2 className="mt-3 text-lg font-semibold text-ink">{application.companyName}</h2>
                 <p className="mt-1 text-sm text-ink/52">申请人：{application.contactName} / {contactText(application)}</p>
+                <p className="mt-1 text-xs text-ink/40">绑定账号：{application.user?.email ?? application.email ?? "未记录"}</p>
                 <p className="mt-2 text-sm leading-6 text-ink/58">能力说明：{application.description ?? "简介待补充"}</p>
                 <p className="mt-1 text-xs text-ink/40">申请时间：{formatDate(application.createdAt)}</p>
               </div>

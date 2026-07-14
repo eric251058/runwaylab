@@ -28,6 +28,7 @@ export default async function FabricDetailPage({ params }: FabricDetailPageProps
   });
 
   if (!fabric) notFound();
+  const images = [fabric.imageUrl, ...fabric.imageUrls].filter(Boolean) as string[];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
@@ -49,6 +50,14 @@ export default async function FabricDetailPage({ params }: FabricDetailPageProps
           <p className="mt-5 rounded-[8px] bg-paper p-4 text-sm leading-6 text-ink/58">该页面用于作品孵化阶段的面料参考与推荐，不涉及在线询价、交易或订单。</p>
         </section>
       </div>
+
+      {images.length > 1 ? (
+        <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {images.slice(1, 8).map((image) => (
+            <img key={image} src={image} alt={fabric.name} className="aspect-square rounded-[8px] object-cover" />
+          ))}
+        </section>
+      ) : null}
 
       <section className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {field("面料编号", fabric.code)}

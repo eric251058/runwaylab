@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import {
   FabricStatus,
+  ProviderAvailabilityStatus,
   ProviderCapacityStatus,
   ProviderApplicationStatus,
   ProviderOrderPreference,
@@ -12,6 +13,7 @@ import {
   ProviderWorkProposalType,
   RecommendationStatus
 } from "@prisma/client";
+import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -38,17 +40,51 @@ function fabricCatalogStatus(value: FormDataEntryValue | null) {
   return status === FabricStatus.INACTIVE || status === FabricStatus.ARCHIVED ? status : FabricStatus.ACTIVE;
 }
 
+const supplyProviderTypeSchema = z.nativeEnum(ProviderType).refine((value) => value !== ProviderType.BUYER, {
+  message: "本轮仅支持面料商、打样工作室、服装工厂和专业服务"
+});
+
+const providerApplicationSchema = z.object({
+  providerType: supplyProviderTypeSchema.default(ProviderType.OTHER),
+  companyName: z.string().trim().min(1, "公司/工作室名称不能为空").max(100),
+  contactName: z.string().trim().min(1, "联系人不能为空").max(60),
+  phone: z.string().trim().max(80).optional().nullable(),
+  email: z.string().trim().max(120).optional().nullable(),
+  wechat: z.string().trim().max(80).optional().nullable(),
+  city: z.string().trim().max(60).optional().nullable(),
+  description: z.string().trim().max(500).optional().nullable()
+});
+
 export async function applyProvider(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("请先登录后再提交服务商入驻申请");
+
+  const parsed = providerApplicationSchema.safeParse({
+    providerType: optionalText(formData.get("providerType")) ?? ProviderType.OTHER,
+    companyName: formData.get("companyName"),
+    contactName: formData.get("contactName"),
+    phone: formData.get("phone"),
+    email: formData.get("email"),
+    wechat: formData.get("wechat"),
+    city: formData.get("city"),
+    description: formData.get("description")
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "请检查入驻申请信息");
+  }
+
   await prisma.providerApplication.create({
     data: {
-      providerType: (optionalText(formData.get("providerType")) ?? ProviderType.OTHER) as ProviderType,
-      companyName: requiredText(formData.get("companyName"), "公司/工作室名称"),
-      contactName: requiredText(formData.get("contactName"), "联系人"),
-      phone: optionalText(formData.get("phone")),
-      email: optionalText(formData.get("email")),
-      wechat: optionalText(formData.get("wechat")),
-      city: optionalText(formData.get("city")),
-      description: optionalText(formData.get("description"))
+      userId: user.id,
+      providerType: parsed.data.providerType,
+      companyName: parsed.data.companyName,
+      contactName: parsed.data.contactName,
+      phone: parsed.data.phone || null,
+      email: parsed.data.email || user.email,
+      wechat: parsed.data.wechat || null,
+      city: parsed.data.city || null,
+      description: parsed.data.description || null
     }
   });
 
@@ -64,6 +100,7 @@ export async function saveProvider(formData: FormData) {
     type: (optionalText(formData.get("type")) ?? ProviderType.OTHER) as ProviderType,
     logoUrl: optionalText(formData.get("logoUrl")),
     coverUrl: optionalText(formData.get("coverUrl")),
+    tagline: optionalText(formData.get("tagline")),
     city: optionalText(formData.get("city")),
     province: optionalText(formData.get("province")),
     country: optionalText(formData.get("country")) ?? "China",
@@ -72,24 +109,34 @@ export async function saveProvider(formData: FormData) {
     contactPhone: optionalText(formData.get("contactPhone")),
     contactEmail: optionalText(formData.get("contactEmail")),
     wechat: optionalText(formData.get("wechat")),
+    whatsapp: optionalText(formData.get("whatsapp")),
     website: optionalText(formData.get("website")),
     tags: splitTags(formData.get("tags")),
+    specialties: splitTags(formData.get("specialties")),
+    categories: splitTags(formData.get("categories")),
+    materials: splitTags(formData.get("materials")),
+    techniques: splitTags(formData.get("techniques")),
+    serviceRegions: splitTags(formData.get("serviceRegions")),
     isVerified: boolValue(formData, "isVerified"),
     isFeatured: boolValue(formData, "isFeatured"),
     status: (optionalText(formData.get("status")) ?? ProviderStatus.PENDING) as ProviderStatus,
     orderPreference: (optionalText(formData.get("orderPreference")) ?? ProviderOrderPreference.FLEXIBLE) as ProviderOrderPreference,
     minimumOrderQuantity: optionalInt(formData.get("minimumOrderQuantity")),
     maximumOrderQuantity: optionalInt(formData.get("maximumOrderQuantity")),
+    moqMin: optionalInt(formData.get("moqMin")),
     acceptsSampling: boolValue(formData, "acceptsSampling"),
     acceptsSmallBatch: boolValue(formData, "acceptsSmallBatch"),
     acceptsLargeOrder: boolValue(formData, "acceptsLargeOrder"),
     sampleLeadDays: optionalInt(formData.get("sampleLeadDays")),
     productionLeadDays: optionalInt(formData.get("productionLeadDays")),
+    capacityText: optionalText(formData.get("capacityText")),
     capacityStatus: (optionalText(formData.get("capacityStatus")) ?? ProviderCapacityStatus.UNKNOWN) as ProviderCapacityStatus,
+    availabilityStatus: (optionalText(formData.get("availabilityStatus")) ?? ProviderAvailabilityStatus.OPEN) as ProviderAvailabilityStatus,
     supportedCategories: optionalText(formData.get("supportedCategories")),
     preferredMaterials: optionalText(formData.get("preferredMaterials")),
     preferredRegions: optionalText(formData.get("preferredRegions")),
-    opportunityVisible: boolValue(formData, "opportunityVisible")
+    opportunityVisible: boolValue(formData, "opportunityVisible"),
+    publicContactEnabled: boolValue(formData, "publicContactEnabled")
   };
 
   if (id) await prisma.provider.update({ where: { id }, data });
@@ -123,6 +170,7 @@ export async function reviewProviderApplication(formData: FormData) {
       await prisma.provider.create({
         data: {
           name: application.companyName,
+          ownerId: application.userId,
           type: application.providerType,
           city: application.city,
           description: application.description,
@@ -132,7 +180,17 @@ export async function reviewProviderApplication(formData: FormData) {
           wechat: application.wechat,
           status: ProviderStatus.ACTIVE,
           isVerified: true,
+          opportunityVisible: true,
           tags: []
+        }
+      });
+    } else if (application.userId) {
+      await prisma.provider.update({
+        where: { id: exists.id },
+        data: {
+          ownerId: application.userId,
+          contactEmail: application.email ?? undefined,
+          status: ProviderStatus.ACTIVE
         }
       });
     }
@@ -151,6 +209,7 @@ export async function saveFabric(formData: FormData) {
     code: optionalText(formData.get("code")),
     providerId: optionalText(formData.get("providerId")),
     imageUrl: optionalText(formData.get("imageUrl")),
+    imageUrls: splitTags(formData.get("imageUrls")),
     composition: optionalText(formData.get("composition")),
     weight: optionalText(formData.get("weight")),
     width: optionalText(formData.get("width")),

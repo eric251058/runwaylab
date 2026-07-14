@@ -168,6 +168,34 @@ enum ProviderCapacityStatus {
   UNKNOWN
 }
 
+enum ProviderAvailabilityStatus {
+  OPEN
+  BUSY
+  PAUSED
+}
+
+enum ProviderShowcaseType {
+  SAMPLE_CASE
+  PRODUCTION_CASE
+  SERVICE
+}
+
+enum ProviderShowcaseStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+enum ProviderInquiryType {
+  GENERAL
+  FABRIC_SAMPLE
+  SAMPLE_DEVELOPMENT
+  SMALL_BATCH
+  MASS_PRODUCTION
+}
+
 enum ProviderOpportunityInterestType {
   INTERESTED
   NEED_MORE_INFO
@@ -482,6 +510,9 @@ model User {
   createdIncubationBatches    IncubationBatch[]       @relation("IncubationBatchCreatedBy")
   requestedAiDiagnoses        WorkAiDiagnosis[]      @relation("WorkAiDiagnosisRequestedBy")
   reviewedAiDiagnoses         WorkAiDiagnosis[]      @relation("WorkAiDiagnosisReviewedBy")
+  ownedProviders              Provider[]             @relation("ProviderOwner")
+  providerApplications        ProviderApplication[]   @relation("ProviderApplicationUser")
+  reviewedProviderShowcaseItems ProviderShowcaseItem[] @relation("ProviderShowcaseReviewedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -850,11 +881,13 @@ model WorkContribution {
 
 model Provider {
   id           String         @id @default(cuid())
+  ownerId      String?
   name         String
   slug         String?        @unique
   type         ProviderType
   logoUrl      String?
   coverUrl     String?
+  tagline      String?
   city         String?
   province     String?
   country      String         @default("China")
@@ -863,25 +896,36 @@ model Provider {
   contactPhone String?
   contactEmail String?
   wechat       String?
+  whatsapp     String?
   website      String?
   tags         String[]
+  specialties  String[]       @default([])
+  categories   String[]       @default([])
+  materials    String[]       @default([])
+  techniques   String[]       @default([])
+  serviceRegions String[]     @default([])
   isVerified   Boolean        @default(false)
   isFeatured   Boolean        @default(false)
   status       ProviderStatus @default(PENDING)
   orderPreference ProviderOrderPreference @default(FLEXIBLE)
   minimumOrderQuantity Int?
   maximumOrderQuantity Int?
+  moqMin Int?
   acceptsSampling Boolean @default(true)
   acceptsSmallBatch Boolean @default(false)
   acceptsLargeOrder Boolean @default(false)
   sampleLeadDays Int?
   productionLeadDays Int?
+  capacityText String?
   capacityStatus ProviderCapacityStatus @default(UNKNOWN)
+  availabilityStatus ProviderAvailabilityStatus @default(OPEN)
   supportedCategories String?
   preferredMaterials String?
   preferredRegions String?
   opportunityVisible Boolean @default(true)
+  publicContactEnabled Boolean @default(false)
 
+  owner                 User? @relation("ProviderOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   fabrics               Fabric[]
   fabricRecommendations WorkFabricRecommendation[]
   workProposals         ProviderWorkProposal[]
@@ -891,10 +935,13 @@ model Provider {
   projectOrders         ProjectOrder[]
   reviews               Review[]
   caseStudies           CaseStudy[]
+  showcaseItems         ProviderShowcaseItem[]
+  inquiries             CooperationRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([ownerId])
   @@index([type])
   @@index([status])
   @@index([isFeatured])
@@ -902,6 +949,7 @@ model Provider {
   @@index([opportunityVisible])
   @@index([orderPreference])
   @@index([capacityStatus])
+  @@index([availabilityStatus])
 }
 
 model WorkOpportunityProfile {
@@ -1072,6 +1120,7 @@ model IncubationBatchProvider {
 
 model ProviderApplication {
   id           String                    @id @default(cuid())
+  userId       String?
   providerType ProviderType
   companyName  String
   contactName  String
@@ -1083,9 +1132,12 @@ model ProviderApplication {
   status       ProviderApplicationStatus @default(PENDING)
   reviewNote   String?
 
+  user User? @relation("ProviderApplicationUser", fields: [userId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId])
   @@index([providerType])
   @@index([status])
 }
@@ -1097,6 +1149,7 @@ model Fabric {
   code        String?
   providerId  String?
   imageUrl    String?
+  imageUrls   String[]     @default([])
   composition String?
   weight      String?
   width       String?
@@ -1114,6 +1167,7 @@ model Fabric {
   provider              Provider?                  @relation(fields: [providerId], references: [id], onDelete: SetNull)
   recommendations       WorkFabricRecommendation[]
   collaborationProjects CollaborationProject[]
+  inquiries             CooperationRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1121,6 +1175,44 @@ model Fabric {
   @@index([providerId])
   @@index([status])
   @@index([isFeatured])
+}
+
+model ProviderShowcaseItem {
+  id             String                 @id @default(cuid())
+  providerId     String
+  type           ProviderShowcaseType
+  title          String
+  summary        String?
+  description    String?
+  coverImageUrl  String?
+  imageUrls      String[]               @default([])
+  category       String?
+  tags           String[]               @default([])
+  materials      String[]               @default([])
+  techniques     String[]               @default([])
+  quantityRange  String?
+  moqMin         Int?
+  leadTimeDays   Int?
+  capacityText   String?
+  status         ProviderShowcaseStatus @default(DRAFT)
+  reviewNote     String?
+  isFeatured     Boolean                @default(false)
+  publishedAt    DateTime?
+  reviewedAt     DateTime?
+  reviewedById   String?
+
+  provider     Provider             @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  reviewedBy   User?                @relation("ProviderShowcaseReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  inquiries    CooperationRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([providerId])
+  @@index([type])
+  @@index([status])
+  @@index([isFeatured])
+  @@index([publishedAt])
 }
 
 model WorkFabricRecommendation {
@@ -1784,28 +1876,46 @@ model SampleRequest {
 }
 
 model CooperationRequest {
-  id          String          @id @default(cuid())
-  userId      String
-  workId      String
-  type        CooperationType
-  contact     String
-  message     String?
-  budgetRange String?
-  status      RequestStatus   @default(PENDING)
-  adminNote   String?
-  handledAt   DateTime?
-  handledById String?
+  id              String              @id @default(cuid())
+  userId          String
+  workId          String?
+  providerId      String?
+  fabricId        String?
+  showcaseItemId  String?
+  type            CooperationType
+  requestType     ProviderInquiryType @default(GENERAL)
+  contact         String
+  contactPreference String?
+  quantity        Int?
+  expectedDate    DateTime?
+  message         String?
+  budgetRange     String?
+  providerResponse String?
+  status          RequestStatus       @default(PENDING)
+  adminNote       String?
+  viewedAt        DateTime?
+  respondedAt     DateTime?
+  handledAt       DateTime?
+  handledById     String?
 
-  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  work      Work  @relation(fields: [workId], references: [id], onDelete: Cascade)
-  handledBy User? @relation("CooperationRequestHandledBy", fields: [handledById], references: [id])
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work         Work?                 @relation(fields: [workId], references: [id], onDelete: SetNull)
+  provider     Provider?             @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  fabric       Fabric?               @relation(fields: [fabricId], references: [id], onDelete: SetNull)
+  showcaseItem ProviderShowcaseItem? @relation(fields: [showcaseItemId], references: [id], onDelete: SetNull)
+  handledBy    User?                 @relation("CooperationRequestHandledBy", fields: [handledById], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([workId])
+  @@index([providerId])
+  @@index([fabricId])
+  @@index([showcaseItemId])
+  @@index([requestType])
   @@index([status])
+  @@index([createdAt])
 }
 
 model Report {

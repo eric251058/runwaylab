@@ -29,6 +29,7 @@ export default async function AdminFabricsPage() {
         <select name="status" defaultValue={FabricStatus.ACTIVE} className="h-11 rounded-[6px] border border-black/10 px-3 text-sm">{fabricStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select>
         <input name="code" placeholder="编号" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
         <input name="imageUrl" placeholder="图片 URL" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
+        <input name="imageUrls" placeholder="更多图片 URL，逗号分隔" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm md:col-span-2" />
         <input name="composition" placeholder="成分" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
         <input name="weight" placeholder="克重" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
         <input name="width" placeholder="门幅" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
@@ -56,6 +57,7 @@ export default async function AdminFabricsPage() {
               <option value="">未关联供应商</option>
               {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
             </select>
+            <input name="imageUrls" defaultValue={fabric.imageUrls.join(", ")} placeholder="更多图片 URL" className="h-10 rounded-[6px] border border-black/10 px-3 text-sm md:col-span-2" />
             {["code", "imageUrl", "composition", "weight", "width", "color", "texture", "season", "usage", "priceNote", "moqNote"].map((key) => (
               <input key={key} name={key} defaultValue={(fabric as unknown as Record<string, string | null>)[key] ?? ""} placeholder={key} className="h-10 rounded-[6px] border border-black/10 px-3 text-sm" />
             ))}

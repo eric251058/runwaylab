@@ -1,101 +1,257 @@
 import Link from "next/link";
-import { ProviderType } from "@prisma/client";
+import { FabricStatus, Prisma, ProviderType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { PROVIDER_TYPE_LABELS, maskContact, providerCoverUrl, providerLogoUrl } from "@/lib/provider-market";
+import {
+  PROVIDER_AVAILABILITY_LABELS,
+  SUPPLY_PROVIDER_TYPES,
+  SUPPLY_PROVIDER_TYPE_LABELS,
+  getProviderTags,
+  providerCompleteness,
+  providerDisplayImage,
+  providerPublicUrl,
+  publicProviderWhere
+} from "@/lib/supply-network";
 
 export const dynamic = "force-dynamic";
 
-function Empty() {
-  return <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">平台正在补充首批认证服务商信息。</div>;
+type ProvidersPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const pageSize = 9;
+
+function valueOf(params: Record<string, string | string[] | undefined> | undefined, key: string) {
+  const value = params?.[key];
+  return Array.isArray(value) ? value[0] : value;
 }
 
-export default async function ProvidersPage() {
-  const providers = await prisma.provider.findMany({
-    where: {
-      status: "ACTIVE"
-    },
-    include: {
-      _count: {
-        select: {
-          fabrics: true,
-          workProposals: true
-        }
-      }
-    },
-    orderBy: [{ isFeatured: "desc" }, { isVerified: "desc" }, { createdAt: "desc" }]
-  });
+function selectedType(value?: string) {
+  return SUPPLY_PROVIDER_TYPES.includes(value as (typeof SUPPLY_PROVIDER_TYPES)[number]) ? (value as ProviderType) : null;
+}
 
-  const groups = Object.values(ProviderType).map((type) => ({
-    type,
-    label: PROVIDER_TYPE_LABELS[type],
-    providers: providers.filter((provider) => provider.type === type)
-  }));
+function queryHref(params: URLSearchParams, key: string, value?: string | null) {
+  const next = new URLSearchParams(params);
+  if (value) next.set(key, value);
+  else next.delete(key);
+  if (key !== "page") next.delete("page");
+  const text = next.toString();
+  return text ? `/providers?${text}` : "/providers";
+}
+
+function boolParam(value?: string) {
+  return value === "true" || value === "1" || value === "on";
+}
+
+function compactMeta(parts: Array<string | null | undefined>) {
+  return parts.filter(Boolean).join(" / ");
+}
+
+export default async function ProvidersPage({ searchParams }: ProvidersPageProps) {
+  const params = await searchParams;
+  const current = new URLSearchParams();
+  for (const [key, value] of Object.entries(params ?? {})) {
+    if (typeof value === "string" && value) current.set(key, value);
+  }
+
+  const q = valueOf(params, "q")?.trim();
+  const city = valueOf(params, "city")?.trim();
+  const category = valueOf(params, "category")?.trim();
+  const type = selectedType(valueOf(params, "type"));
+  const verified = boolParam(valueOf(params, "verified"));
+  const acceptsSample = boolParam(valueOf(params, "acceptsSample"));
+  const acceptsSmallBatch = boolParam(valueOf(params, "acceptsSmallBatch"));
+  const acceptsBulk = boolParam(valueOf(params, "acceptsBulk"));
+  const page = Math.max(1, Number.parseInt(valueOf(params, "page") ?? "1", 10) || 1);
+
+  const where: Prisma.ProviderWhereInput = {
+    ...publicProviderWhere(),
+    ...(type ? { type } : {}),
+    ...(verified ? { isVerified: true } : {}),
+    ...(acceptsSample ? { acceptsSampling: true } : {}),
+    ...(acceptsSmallBatch ? { acceptsSmallBatch: true } : {}),
+    ...(acceptsBulk ? { acceptsLargeOrder: true } : {}),
+    ...(city
+      ? {
+          OR: [
+            { city: { contains: city, mode: "insensitive" } },
+            { province: { contains: city, mode: "insensitive" } },
+            { serviceRegions: { has: city } }
+          ]
+        }
+      : {}),
+    ...(category
+      ? {
+          AND: [
+            {
+              OR: [
+                { categories: { has: category } },
+                { specialties: { has: category } },
+                { materials: { has: category } },
+                { techniques: { has: category } },
+                { supportedCategories: { contains: category, mode: "insensitive" } },
+                { preferredMaterials: { contains: category, mode: "insensitive" } }
+              ]
+            }
+          ]
+        }
+      : {}),
+    ...(q
+      ? {
+          AND: [
+            {
+              OR: [
+                { name: { contains: q, mode: "insensitive" } },
+                { tagline: { contains: q, mode: "insensitive" } },
+                { description: { contains: q, mode: "insensitive" } },
+                { city: { contains: q, mode: "insensitive" } },
+                { categories: { has: q } },
+                { specialties: { has: q } },
+                { materials: { has: q } },
+                { techniques: { has: q } }
+              ]
+            }
+          ]
+        }
+      : {})
+  };
+
+  const [providers, total] = await Promise.all([
+    prisma.provider.findMany({
+      where,
+      include: {
+        fabrics: {
+          where: { status: FabricStatus.ACTIVE },
+          orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+          take: 3
+        },
+        showcaseItems: {
+          where: { status: "PUBLISHED" },
+          orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
+          take: 3
+        },
+        _count: { select: { fabrics: true, showcaseItems: true, inquiries: true } }
+      },
+      orderBy: [{ isFeatured: "desc" }, { isVerified: "desc" }, { updatedAt: "desc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize
+    }),
+    prisma.provider.count({ where })
+  ]);
+
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
-      <header className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+      <header className="mb-7 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Provider Network</p>
-          <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">服务商市场</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">连接面料商、打样工作室、服装工厂和买手采购资源，为优秀设计作品提供可落地的服务商方案。</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">SUPPLY NETWORK</p>
+          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">寻找适合你的合作资源</h1>
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">浏览面料、打样和生产资源，为作品寻找下一步合作伙伴。</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/providers/opportunities" className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white sm:w-fit">查看合格机会</Link>
-          <Link href="/providers/batches" className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white sm:w-fit">查看批次机会</Link>
-          <Link href="/me/provider-profile" className="inline-flex h-11 w-full items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink sm:w-fit">完善服务能力</Link>
-          <Link href="/providers/apply" className="inline-flex h-11 w-full items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink sm:w-fit">服务商入驻</Link>
+          <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">供应商中心</Link>
+          <Link href="/providers/apply" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">申请入驻</Link>
         </div>
       </header>
 
-      <section className="mb-8 rounded-[8px] border border-black/8 bg-white p-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Opportunity Matching</p>
-        <h2 className="mt-2 text-2xl font-semibold text-ink">只关注适合你的成熟机会</h2>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/58">
-          RunwayLab 不会把所有早期作品直接推给工厂。平台会根据作品资料、样衣状态、目标数量、市场反馈和采购兴趣筛选项目，服务商只需要关注符合自身能力的机会。
-        </p>
-      </section>
-
-      {providers.length ? (
-        <div className="space-y-10">
-          {groups.map((group) => (
-            <section key={group.type}>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-2xl font-semibold text-ink">{group.label}</h2>
-                <span className="text-sm font-semibold text-ink/35">{group.providers.length} 家</span>
-              </div>
-              {group.providers.length ? (
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {group.providers.map((provider) => (
-                    <Link key={provider.id} href={`/providers/${provider.slug ?? provider.id}`} className="overflow-hidden rounded-[8px] bg-white shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
-                      <img src={providerCoverUrl(provider.coverUrl)} alt={provider.name} className="aspect-[16/9] w-full object-cover" />
-                      <div className="space-y-3 p-5">
-                        <div className="flex items-start gap-3">
-                          <img src={providerLogoUrl(provider.logoUrl)} alt={provider.name} className="size-12 rounded-[6px] object-cover" />
-                          <div className="min-w-0 flex-1">
-                            <h3 className="line-clamp-1 text-xl font-semibold text-ink">{provider.name}</h3>
-                            <p className="mt-1 text-sm text-ink/52">{[provider.province, provider.city].filter(Boolean).join(" / ") || "城市待补充"}</p>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {provider.isVerified ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">认证服务商</span> : null}
-                          {provider.isFeatured ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">平台协作服务商</span> : null}
-                          {provider.tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{tag}</span>)}
-                        </div>
-                        <p className="line-clamp-2 text-sm leading-6 text-ink/58">{provider.description ?? "可参与作品孵化方案，提供面料、打样、生产或买手反馈支持。"}</p>
-                        <p className="text-xs font-semibold text-ink/40">面料 {provider._count.fabrics} / 服务商方案 {provider._count.workProposals} / {maskContact(provider.contactPhone ?? provider.contactEmail ?? provider.wechat)}</p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <Empty />
-              )}
-            </section>
+      <section className="mb-6 rounded-[8px] border border-black/8 bg-white p-4">
+        <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+          <Link href={queryHref(current, "type", null)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${!type ? "bg-ink text-white" : "bg-paper text-ink/60"}`}>全部</Link>
+          {SUPPLY_PROVIDER_TYPES.map((item) => (
+            <Link key={item} href={queryHref(current, "type", item)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${type === item ? "bg-ink text-white" : "bg-paper text-ink/60"}`}>
+              {SUPPLY_PROVIDER_TYPE_LABELS[item]}
+            </Link>
           ))}
         </div>
+        <form className="grid gap-3 md:grid-cols-[1.2fr_0.8fr_0.8fr_auto]">
+          {type ? <input type="hidden" name="type" value={type} /> : null}
+          <input name="q" defaultValue={q ?? ""} placeholder="搜索名称、品类、材料或工艺" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
+          <input name="city" defaultValue={city ?? ""} placeholder="城市" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
+          <input name="category" defaultValue={category ?? ""} placeholder="擅长品类" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
+          <button className="h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white">筛选</button>
+          <div className="flex flex-wrap gap-4 text-sm text-ink/58 md:col-span-4">
+            <label className="flex items-center gap-2"><input type="checkbox" name="acceptsSample" value="true" defaultChecked={acceptsSample} />接打样</label>
+            <label className="flex items-center gap-2"><input type="checkbox" name="acceptsSmallBatch" value="true" defaultChecked={acceptsSmallBatch} />接小单</label>
+            <label className="flex items-center gap-2"><input type="checkbox" name="acceptsBulk" value="true" defaultChecked={acceptsBulk} />接大货</label>
+            <label className="flex items-center gap-2"><input type="checkbox" name="verified" value="true" defaultChecked={verified} />已认证</label>
+          </div>
+        </form>
+      </section>
+
+      <div className="mb-4 flex items-center justify-between text-sm text-ink/45">
+        <span>共 {total} 个资源</span>
+        <span>平台精选 → 已认证 → 最近更新</span>
+      </div>
+
+      {providers.length ? (
+        <section className="grid gap-5 lg:grid-cols-3">
+          {providers.map((provider) => {
+            const completeness = providerCompleteness(provider);
+            const heroImage = providerDisplayImage(provider);
+            const tags = getProviderTags(provider);
+            const thumbs = [
+              ...provider.fabrics.map((fabric) => ({ id: fabric.id, image: fabric.imageUrl, label: fabric.name })),
+              ...provider.showcaseItems.map((item) => ({ id: item.id, image: item.coverImageUrl, label: item.title }))
+            ].slice(0, 3);
+            return (
+              <article key={provider.id} className="overflow-hidden rounded-[8px] border border-black/8 bg-white">
+                {heroImage ? (
+                  <img src={heroImage} alt={provider.name} className="aspect-[16/8] w-full object-cover" />
+                ) : (
+                  <div className="flex aspect-[16/8] w-full items-center justify-center bg-paper text-3xl font-semibold text-ink/35">{provider.name.slice(0, 1)}</div>
+                )}
+                <div className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-[6px] bg-paper text-sm font-semibold text-ink/55">{provider.name.slice(0, 1)}</div>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="truncate text-lg font-semibold text-ink">{provider.name}</h2>
+                      <p className="mt-1 truncate text-sm text-ink/52">{compactMeta([SUPPLY_PROVIDER_TYPE_LABELS[provider.type], provider.city, PROVIDER_AVAILABILITY_LABELS[provider.availabilityStatus]])}</p>
+                    </div>
+                  </div>
+                  <p className="mt-4 line-clamp-2 text-sm leading-6 text-ink/58">{provider.tagline || provider.description || "可参与作品孵化，为设计作品提供材料、打样、生产或专业服务支持。"}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {provider.isVerified ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">已认证</span> : null}
+                    {provider.acceptsSampling ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">接打样</span> : null}
+                    {provider.acceptsSmallBatch ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">接小单</span> : null}
+                    {provider.acceptsLargeOrder ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">接大货</span> : null}
+                    {tags.map((tag) => <span key={tag} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{tag}</span>)}
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-ink/52">
+                    <span className="rounded-[6px] bg-paper p-2">MOQ {provider.moqMin ?? provider.minimumOrderQuantity ?? "待补"}</span>
+                    <span className="rounded-[6px] bg-paper p-2">打样 {provider.sampleLeadDays ? `${provider.sampleLeadDays}天` : "待补"}</span>
+                    <span className="rounded-[6px] bg-paper p-2">完整度 {completeness.percent}%</span>
+                  </div>
+                  {thumbs.length ? (
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      {thumbs.map((thumb) => thumb.image ? (
+                        <img key={thumb.id} src={thumb.image} alt={thumb.label} className="aspect-square rounded-[6px] object-cover" />
+                      ) : (
+                        <div key={thumb.id} className="flex aspect-square items-center justify-center rounded-[6px] bg-paper text-xs font-semibold text-ink/35">案例</div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                    <Link href={providerPublicUrl(provider)} className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">查看详情</Link>
+                    <Link href={`${providerPublicUrl(provider)}#inquiry`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">联系合作</Link>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </section>
       ) : (
-        <Empty />
+        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm leading-6 text-ink/58">
+          暂无符合条件的供应资源。可以减少筛选条件，或稍后查看平台新增的认证服务商。
+        </div>
       )}
+
+      {pageCount > 1 ? (
+        <nav className="mt-8 flex items-center justify-center gap-2">
+          {page > 1 ? <Link href={queryHref(current, "page", String(page - 1))} className="rounded-full border border-black/10 px-4 py-2 text-sm font-semibold text-ink">上一页</Link> : null}
+          <span className="px-3 text-sm text-ink/45">{page} / {pageCount}</span>
+          {page < pageCount ? <Link href={queryHref(current, "page", String(page + 1))} className="rounded-full border border-black/10 px-4 py-2 text-sm font-semibold text-ink">下一页</Link> : null}
+        </nav>
+      ) : null}
     </div>
   );
 }

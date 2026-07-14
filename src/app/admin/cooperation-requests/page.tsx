@@ -28,7 +28,7 @@ export default async function AdminCooperationRequestsPage() {
     status: request.status,
     adminNote: request.adminNote,
     createdAt: request.createdAt.toISOString(),
-    workTitle: request.work.title,
+    workTitle: request.work?.title ?? "未关联作品",
     userName: request.user.nickname,
     contact: request.contact,
     detail: request.budgetRange ? `预算：${request.budgetRange}` : null

@@ -7,8 +7,7 @@ const providerTypes = [
   ["FABRIC_SUPPLIER", "面料商"],
   ["SAMPLE_STUDIO", "制版打样工作室"],
   ["FACTORY", "服装工厂"],
-  ["BUYER", "买手 / 采购商"],
-  ["OTHER", "其他服务商"]
+  ["OTHER", "其他专业服务"]
 ] as const;
 
 export function SubmitProviderApplicationForm() {
@@ -40,7 +39,9 @@ export function SubmitProviderApplicationForm() {
       </select>
       <input name="companyName" required placeholder="公司/工作室名称" className="h-12 w-full rounded-[6px] border border-black/10 px-3 text-sm" />
       <input name="contactName" required placeholder="联系人" className="h-12 w-full rounded-[6px] border border-black/10 px-3 text-sm" />
-      <input name="phone" placeholder="联系方式（手机 / 微信 / 邮箱）" className="h-12 w-full rounded-[6px] border border-black/10 px-3 text-sm" />
+      <input name="phone" placeholder="手机号，可选" className="h-12 w-full rounded-[6px] border border-black/10 px-3 text-sm" />
+      <input name="email" placeholder="联系邮箱，默认使用登录邮箱" className="h-12 w-full rounded-[6px] border border-black/10 px-3 text-sm" />
+      <input name="wechat" placeholder="微信，可选" className="h-12 w-full rounded-[6px] border border-black/10 px-3 text-sm" />
       <input name="city" placeholder="城市" className="h-12 w-full rounded-[6px] border border-black/10 px-3 text-sm" />
       <textarea name="description" placeholder="简介：擅长品类、可提供的服务、参考周期。" className="min-h-32 w-full rounded-[6px] border border-black/10 px-3 py-3 text-sm md:col-span-2" />
       <button disabled={isPending} className="h-12 w-full rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50 md:col-span-2">
