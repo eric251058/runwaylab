@@ -16,7 +16,7 @@ import {
 export const dynamic = "force-dynamic";
 
 type ShowcaseDetailPageProps = {
-  params: Promise<{ providerId: string; itemId: string }>;
+  params: Promise<{ id: string; itemId: string }>;
 };
 
 function field(label: string, value?: string | number | null) {
@@ -30,14 +30,14 @@ function field(label: string, value?: string | number | null) {
 }
 
 export default async function ProviderShowcaseDetailPage({ params }: ShowcaseDetailPageProps) {
-  const { providerId, itemId } = await params;
+  const { id, itemId } = await params;
   const user = await getCurrentUser();
   const item = await prisma.providerShowcaseItem.findFirst({
     where: {
       id: itemId,
       status: ProviderShowcaseStatus.PUBLISHED,
       provider: {
-        OR: [{ id: providerId }, { slug: providerId }],
+        OR: [{ id }, { slug: id }],
         ...publicProviderWhere()
       }
     },
