@@ -41,6 +41,86 @@ function dateValue(formData: FormData, key: string) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+const providerFabricFormFields = [
+  "id",
+  "name",
+  "slug",
+  "code",
+  "imageUrl",
+  "imageUrls",
+  "imageUploadState",
+  "composition",
+  "weight",
+  "width",
+  "color",
+  "texture",
+  "season",
+  "usage",
+  "description",
+  "priceNote",
+  "moqNote",
+  "status",
+  "tags"
+] as const;
+
+type ProviderFabricFormField = (typeof providerFabricFormFields)[number] | "form";
+type ProviderFabricFormValues = Partial<Record<(typeof providerFabricFormFields)[number], string>>;
+
+export type ProviderFabricFormState = {
+  status: "idle" | "error";
+  message?: string;
+  fieldErrors?: Partial<Record<ProviderFabricFormField, string>>;
+  values?: ProviderFabricFormValues;
+};
+
+function providerFabricFormValues(formData: FormData): ProviderFabricFormValues {
+  const values: ProviderFabricFormValues = {};
+
+  for (const key of providerFabricFormFields) {
+    const value = formData.get(key);
+    if (typeof value === "string") values[key] = value;
+  }
+
+  return values;
+}
+
+function providerFabricFormError(
+  message: string,
+  formData: FormData,
+  fieldErrors: ProviderFabricFormState["fieldErrors"] = {}
+): ProviderFabricFormState {
+  return {
+    status: "error",
+    message,
+    fieldErrors,
+    values: providerFabricFormValues(formData)
+  };
+}
+
+function providerFabricZodErrors(error: z.ZodError): ProviderFabricFormState["fieldErrors"] {
+  const fieldErrors: ProviderFabricFormState["fieldErrors"] = {};
+
+  for (const issue of error.issues) {
+    const field = issue.path[0];
+    if (typeof field !== "string") continue;
+    const key = field as ProviderFabricFormField;
+    if (fieldErrors[key]) continue;
+    fieldErrors[key] = field === "status" ? "状态不合法，请重新选择。" : issue.message;
+  }
+
+  return fieldErrors;
+}
+
+function readableActionError(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function logProviderFabricSaveError(error: unknown) {
+  console.error("Provider fabric save failed", {
+    errorType: error instanceof Error ? error.name : typeof error
+  });
+}
+
 async function requireProviderForWrite() {
   const user = await getCurrentUser();
   if (!user) throw new Error("请先登录");
@@ -123,26 +203,40 @@ export async function saveProviderCenterProfile(formData: FormData) {
 }
 
 const fabricSchema = z.object({
-  name: z.string().trim().min(1, "面料名称不能为空").max(100),
-  slug: z.string().trim().max(120).optional().nullable(),
-  code: z.string().trim().max(80).optional().nullable(),
-  imageUrl: z.string().trim().max(500).optional().nullable(),
-  composition: z.string().trim().max(160).optional().nullable(),
-  weight: z.string().trim().max(80).optional().nullable(),
-  width: z.string().trim().max(80).optional().nullable(),
-  color: z.string().trim().max(120).optional().nullable(),
-  texture: z.string().trim().max(160).optional().nullable(),
-  season: z.string().trim().max(120).optional().nullable(),
-  usage: z.string().trim().max(160).optional().nullable(),
-  description: z.string().trim().max(5000).optional().nullable(),
-  priceNote: z.string().trim().max(200).optional().nullable(),
-  moqNote: z.string().trim().max(200).optional().nullable(),
+  name: z.string().trim().min(1, "请填写面料名称。").max(100, "面料名称最多 100 个字。"),
+  slug: z.string().trim().max(120, "slug 最多 120 个字符。").optional().nullable(),
+  code: z.string().trim().max(80, "产品编号最多 80 个字。").optional().nullable(),
+  imageUrl: z.string().trim().max(500, "图片路径过长，请重新上传。").refine((value) => !value || /^(https?:\/\/|\/)/i.test(value), "图片路径无效，请重新上传。").optional().nullable(),
+  composition: z.string().trim().max(160, "成分最多 160 个字。").optional().nullable(),
+  weight: z.string().trim().max(80, "克重最多 80 个字。").optional().nullable(),
+  width: z.string().trim().max(80, "幅宽最多 80 个字。").optional().nullable(),
+  color: z.string().trim().max(120, "颜色最多 120 个字。").optional().nullable(),
+  texture: z.string().trim().max(160, "材料 / 肌理 / 工艺最多 160 个字。").optional().nullable(),
+  season: z.string().trim().max(120, "适用季节最多 120 个字。").optional().nullable(),
+  usage: z.string().trim().max(160, "适用品类最多 160 个字。").optional().nullable(),
+  description: z.string().trim().max(5000, "产品说明最多 5000 个字。").optional().nullable(),
+  priceNote: z.string().trim().max(200, "价格 / 现货 / 交期说明最多 200 个字。").optional().nullable(),
+  moqNote: z.string().trim().max(200, "MOQ / 样布支持最多 200 个字。").optional().nullable(),
   status: z.nativeEnum(FabricStatus).optional()
 });
 
-export async function saveProviderCenterFabric(formData: FormData) {
-  const { provider } = await requireProviderForWrite();
-  if (provider.type !== ProviderType.FABRIC_SUPPLIER) throw new Error("只有面料商可以管理面料产品");
+export async function saveProviderCenterFabric(_state: ProviderFabricFormState, formData: FormData): Promise<ProviderFabricFormState> {
+  const providerContext = await requireProviderForWrite().catch((error) => {
+    return providerFabricFormError(readableActionError(error, "请先确认服务商身份后再保存。"), formData);
+  });
+
+  if ("status" in providerContext) return providerContext;
+
+  const { provider } = providerContext;
+  if (provider.type !== ProviderType.FABRIC_SUPPLIER) {
+    return providerFabricFormError("只有面料商可以管理面料产品。", formData);
+  }
+  if (textValue(formData, "imageUploadState") === "uploading") {
+    return providerFabricFormError("图片仍在上传，请等待上传完成后再保存。", formData, {
+      imageUrl: "请等待图片上传完成。"
+    });
+  }
+
   const id = textValue(formData, "id");
   const parsed = fabricSchema.safeParse({
     name: formData.get("name"),
@@ -161,22 +255,36 @@ export async function saveProviderCenterFabric(formData: FormData) {
     moqNote: formData.get("moqNote"),
     status: formData.get("status") || FabricStatus.ACTIVE
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "请检查面料信息");
+  if (!parsed.success) {
+    return providerFabricFormError("请检查以下信息。", formData, providerFabricZodErrors(parsed.error));
+  }
 
-  const data = {
-    ...parsed.data,
-    imageUrls: splitList(textValue(formData, "imageUrls"), 8),
-    tags: splitList(textValue(formData, "tags")),
-    providerId: provider.id,
-    status: parsed.data.status ?? FabricStatus.ACTIVE
-  };
+  try {
+    const existingFabric = id
+      ? await prisma.fabric.findUnique({ where: { id }, select: { providerId: true, imageUrls: true } })
+      : null;
 
-  if (id) {
-    const fabric = await prisma.fabric.findUnique({ where: { id }, select: { providerId: true } });
-    if (!fabric || fabric.providerId !== provider.id) throw new Error("没有权限编辑该面料");
-    await prisma.fabric.update({ where: { id }, data });
-  } else {
-    await prisma.fabric.create({ data: { ...data, isFeatured: false } });
+    if (id && (!existingFabric || existingFabric.providerId !== provider.id)) {
+      return providerFabricFormError("没有权限编辑该面料。", formData);
+    }
+
+    const data = {
+      ...parsed.data,
+      imageUrl: parsed.data.imageUrl || null,
+      imageUrls: formData.has("imageUrls") ? splitList(textValue(formData, "imageUrls"), 8) : existingFabric?.imageUrls ?? [],
+      tags: splitList(textValue(formData, "tags")),
+      providerId: provider.id,
+      status: parsed.data.status ?? FabricStatus.ACTIVE
+    };
+
+    if (id) {
+      await prisma.fabric.update({ where: { id }, data });
+    } else {
+      await prisma.fabric.create({ data: { ...data, isFeatured: false } });
+    }
+  } catch (error) {
+    logProviderFabricSaveError(error);
+    return providerFabricFormError("保存失败，请稍后重试。", formData);
   }
 
   revalidatePath("/provider-center/fabrics");

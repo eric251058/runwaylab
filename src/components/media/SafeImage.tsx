@@ -1,22 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type SafeImageProps = {
   src?: string | null;
   alt: string;
   className?: string;
-  placeholder?: string;
+  placeholder?: ReactNode;
 };
 
 function isVisibleImage(value?: string | null) {
   const text = value?.trim();
-  return text && /^(https?:\/\/|\/)/i.test(text) ? text : null;
+  return text && /^(https?:\/\/|\/|blob:)/i.test(text) ? text : null;
 }
 
 export function SafeImage({ src, alt, className, placeholder = "暂无产品图片" }: SafeImageProps) {
   const [failed, setFailed] = useState(false);
   const image = isVisibleImage(src);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
 
   if (!image || failed) {
     return (
