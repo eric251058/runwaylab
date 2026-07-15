@@ -1,8 +1,14 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { fabricCoverUrl, PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "面料库",
+  description: "查看 RunwayLab 可用于作品孵化和打样生产的专业面料信息。"
+};
 
 export default async function FabricsPage() {
   const fabrics = await prisma.fabric.findMany({

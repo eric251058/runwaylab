@@ -1,8 +1,14 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { teacherAvatarUrl } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "老师",
+  description: "查看 RunwayLab 上的指导老师、推荐作品、课程作品展和设计挑战赛。"
+};
 
 export default async function TeachersPage() {
   const teachers = await prisma.teacher.findMany({

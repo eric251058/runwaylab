@@ -1,8 +1,14 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { schoolCoverUrl } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "院校",
+  description: "浏览 RunwayLab 服装设计院校、课程作品展、挑战赛和学校推荐作品。"
+};
 
 export default async function SchoolsPage() {
   const schools = await prisma.school.findMany({

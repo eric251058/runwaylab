@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { DataUnavailable } from "@/components/layout/DataUnavailable";
 import { WorkMasonry } from "@/components/works/WorkMasonry";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -6,7 +7,12 @@ import { attachWorkCardInteractionState, getApprovedWorks, type WorkFilter, type
 
 export const dynamic = "force-dynamic";
 
-const filterControls: Array<
+export const metadata: Metadata = {
+  title: "作品库",
+  description: "浏览 RunwayLab 上的服装设计作品，查看热度、孵化状态、预售验证和供应链合作机会。"
+};
+
+const primaryControls: Array<
   | {
       label: string;
       href: string;
@@ -20,14 +26,21 @@ const filterControls: Array<
       sort?: never;
     }
 > = [
+  { label: "推荐", href: "/works?filter=editor", filter: "editor" },
   { label: "最新", href: "/works?sort=latest", sort: "latest" },
-  { label: "热门", href: "/works?sort=popular", sort: "popular" },
-  { label: "新人", href: "/works?filter=newcomer", filter: "newcomer" },
-  { label: "编辑推荐", href: "/works?filter=editor", filter: "editor" },
+  { label: "热门", href: "/works?sort=popular", sort: "popular" }
+];
+
+const secondaryControls: Array<{
+  label: string;
+  href: string;
+  filter: WorkFilter;
+}> = [
   { label: "可孵化", href: "/works?filter=incubatable", filter: "incubatable" },
   { label: "开放合作", href: "/works?filter=cooperation", filter: "cooperation" },
-  { label: "AI 辅助", href: "/works?filter=ai", filter: "ai" },
-  { label: "毕业设计", href: "/works?filter=graduation", filter: "graduation" }
+  { label: "毕业设计", href: "/works?filter=graduation", filter: "graduation" },
+  { label: "AI 参与", href: "/works?filter=ai", filter: "ai" },
+  { label: "新人作品", href: "/works?filter=newcomer", filter: "newcomer" }
 ];
 
 const filterValues = new Set<WorkFilter>(["newcomer", "editor", "incubatable", "cooperation", "ai", "graduation"]);
@@ -71,19 +84,21 @@ export default async function WorksPage({ searchParams }: WorksPageProps) {
             </p>
           </div>
           <div className="flex w-full rounded-full border border-black/10 bg-white/70 p-1 text-sm font-semibold sm:w-fit">
-            <Link href="/works?sort=latest" className={`flex-1 rounded-full px-4 py-2 text-center sm:flex-none ${!filter && sort === "latest" ? "bg-ink text-white" : "text-ink/55"}`}>
-              最新
-            </Link>
-            <Link href="/works?sort=popular" className={`flex-1 rounded-full px-4 py-2 text-center sm:flex-none ${!filter && sort === "popular" ? "bg-ink text-white" : "text-ink/55"}`}>
-              热门
-            </Link>
+            {primaryControls.map((control) => {
+              const active = control.filter ? filter === control.filter : !filter && sort === control.sort;
+              return (
+                <Link key={control.label} href={control.href} className={`flex-1 rounded-full px-4 py-2 text-center sm:flex-none ${active ? "bg-ink text-white" : "text-ink/55"}`}>
+                  {control.label}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </header>
 
       <div className="sticky top-0 z-20 -mx-3 mb-4 flex gap-2 overflow-x-auto bg-paper/95 px-3 py-2 backdrop-blur md:static md:mx-0 md:mb-7 md:bg-transparent md:px-0 md:pb-2">
-        {filterControls.map((control) => {
-          const active = control.filter ? filter === control.filter : !filter && sort === control.sort;
+        {secondaryControls.map((control) => {
+          const active = filter === control.filter;
 
           return (
             <Link

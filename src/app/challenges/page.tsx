@@ -1,9 +1,15 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { challengeCoverUrl, displayDateRange } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
 import { ChallengeStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "设计挑战赛",
+  description: "查看 RunwayLab 设计挑战赛、主题任务、院校活动和参与作品。"
+};
 
 export default async function ChallengesPage() {
   const challenges = await prisma.challenge.findMany({

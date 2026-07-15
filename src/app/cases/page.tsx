@@ -1,8 +1,14 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { CaseStudyStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "孵化案例",
+  description: "查看 RunwayLab 设计作品从展示、推荐、供应链匹配到孵化验证的案例。"
+};
 
 export default async function CasesPage() {
   const cases = await prisma.caseStudy.findMany({

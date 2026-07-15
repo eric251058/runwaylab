@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { IncubationBatchStatus, IncubationBatchType, type Prisma } from "@prisma/client";
 import {
   BATCH_WORK_STATUS_LABELS,
@@ -11,6 +12,11 @@ import {
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "孵化批次",
+  description: "查看 RunwayLab 院校课程、毕业设计和产业孵化批次中的作品机会。"
+};
 
 type BatchesPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;

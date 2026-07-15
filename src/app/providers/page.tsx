@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { FabricStatus, Prisma, ProviderType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
@@ -6,13 +7,17 @@ import {
   SUPPLY_PROVIDER_TYPES,
   SUPPLY_PROVIDER_TYPE_LABELS,
   getProviderTags,
-  providerCompleteness,
   providerDisplayImage,
   providerPublicUrl,
   publicProviderWhere
 } from "@/lib/supply-network";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "供应链网络",
+  description: "寻找 RunwayLab 认证面料商、打样工作室、服装工厂和专业服务资源。"
+};
 
 type ProvidersPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -44,6 +49,40 @@ function boolParam(value?: string) {
 
 function compactMeta(parts: Array<string | null | undefined>) {
   return parts.filter(Boolean).join(" / ");
+}
+
+function providerPublicFacts(provider: {
+  type: ProviderType;
+  materials: string[];
+  categories: string[];
+  specialties: string[];
+  techniques: string[];
+  acceptsSampling: boolean;
+  acceptsSmallBatch: boolean;
+  acceptsLargeOrder: boolean;
+  moqMin: number | null;
+  minimumOrderQuantity: number | null;
+  sampleLeadDays: number | null;
+  productionLeadDays: number | null;
+  capacityText: string | null;
+}) {
+  const moq = provider.moqMin ?? provider.minimumOrderQuantity;
+  const category = provider.categories[0] ?? provider.specialties[0];
+  const material = provider.materials[0];
+  const technique = provider.techniques[0];
+  const facts: Array<string | null> = [];
+
+  if (provider.type === ProviderType.FABRIC_SUPPLIER) {
+    facts.push(material ? `主营 ${material}` : null, provider.acceptsSampling ? "支持样布" : null, moq ? `MOQ ${moq}` : null);
+  } else if (provider.type === ProviderType.SAMPLE_STUDIO) {
+    facts.push(category ? `擅长 ${category}` : null, provider.sampleLeadDays ? `打样 ${provider.sampleLeadDays} 天` : null, technique ? `工艺 ${technique}` : null);
+  } else if (provider.type === ProviderType.FACTORY) {
+    facts.push(category ? `擅长 ${category}` : null, provider.acceptsSmallBatch ? "可接小单" : null, moq ? `MOQ ${moq}` : null, provider.productionLeadDays ? `生产 ${provider.productionLeadDays} 天` : null);
+  } else {
+    facts.push(category ? `服务 ${category}` : null, technique ? `擅长 ${technique}` : null, provider.sampleLeadDays ? `周期 ${provider.sampleLeadDays} 天` : null);
+  }
+
+  return facts.filter(Boolean).slice(0, 3) as string[];
 }
 
 export default async function ProvidersPage({ searchParams }: ProvidersPageProps) {
@@ -186,9 +225,9 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
       {providers.length ? (
         <section className="grid gap-5 lg:grid-cols-3">
           {providers.map((provider) => {
-            const completeness = providerCompleteness(provider);
             const heroImage = providerDisplayImage(provider);
             const tags = getProviderTags(provider);
+            const facts = providerPublicFacts(provider);
             const thumbs = [
               ...provider.fabrics.map((fabric) => ({ id: fabric.id, image: fabric.imageUrl, label: fabric.name })),
               ...provider.showcaseItems.map((item) => ({ id: item.id, image: item.coverImageUrl, label: item.title }))
@@ -216,11 +255,13 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
                     {provider.acceptsLargeOrder ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">接大货</span> : null}
                     {tags.map((tag) => <span key={tag} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{tag}</span>)}
                   </div>
-                  <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-ink/52">
-                    <span className="rounded-[6px] bg-paper p-2">MOQ {provider.moqMin ?? provider.minimumOrderQuantity ?? "待补"}</span>
-                    <span className="rounded-[6px] bg-paper p-2">打样 {provider.sampleLeadDays ? `${provider.sampleLeadDays}天` : "待补"}</span>
-                    <span className="rounded-[6px] bg-paper p-2">完整度 {completeness.percent}%</span>
-                  </div>
+                  {facts.length ? (
+                    <div className="mt-4 grid gap-2 text-xs text-ink/52 sm:grid-cols-3">
+                      {facts.map((fact) => (
+                        <span key={fact} className="rounded-[6px] bg-paper p-2">{fact}</span>
+                      ))}
+                    </div>
+                  ) : null}
                   {thumbs.length ? (
                     <div className="mt-4 grid grid-cols-3 gap-2">
                       {thumbs.map((thumb) => thumb.image ? (

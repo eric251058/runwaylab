@@ -2,11 +2,38 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthNav } from "@/components/layout/AuthNav";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
+import { SiteFooter } from "@/components/layout/SiteFooter";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site-config";
 
 export const metadata: Metadata = {
-  title: "设计上岸 RunwayLab",
-  description: "新人设计挑战社区 + 作品孵化池",
+  metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
+  title: {
+    default: "RunwayLab｜AI 时尚设计孵化平台",
+    template: "%s｜RunwayLab"
+  },
+  description: SITE_DESCRIPTION,
   manifest: "/manifest.json",
+  openGraph: {
+    type: "website",
+    locale: "zh_CN",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: "RunwayLab｜AI 时尚设计孵化平台",
+    description: SITE_DESCRIPTION
+  },
+  twitter: {
+    card: "summary",
+    title: "RunwayLab｜AI 时尚设计孵化平台",
+    description: SITE_DESCRIPTION
+  },
+  robots: {
+    index: true,
+    follow: true
+  },
+  alternates: {
+    canonical: SITE_URL
+  },
   appleWebApp: {
     capable: true,
     title: "RunwayLab",
@@ -31,6 +58,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <AuthNav />
         <main className="min-h-dvh pb-20 md:pb-0">{children}</main>
+        <SiteFooter />
         <BottomTabBar />
       </body>
     </html>

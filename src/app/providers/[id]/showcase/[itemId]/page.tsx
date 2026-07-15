@@ -72,7 +72,7 @@ export default async function ProviderShowcaseDetailPage({ params }: ShowcaseDet
         <section>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">PRODUCTS & CASES</p>
           <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">{item.title}</h1>
-          <p className="mt-3 text-sm text-ink/52">{PROVIDER_SHOWCASE_TYPE_LABELS[item.type]} / {item.category || "品类待补充"}</p>
+          <p className="mt-3 text-sm text-ink/52">{[PROVIDER_SHOWCASE_TYPE_LABELS[item.type], item.category].filter(Boolean).join(" / ")}</p>
           <p className="mt-4 text-sm leading-6 text-ink/58">{item.summary || item.description || "该案例用于展示服务商的打样、生产或专业服务能力。"}</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Link href={providerUrl} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">{item.provider.name}</Link>

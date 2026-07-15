@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 type Mode = "login" | "register";
 
@@ -46,8 +47,8 @@ export function LoginForm() {
       return;
     }
 
-    const next = searchParams.get("next");
     const fallback = data?.user?.role === "ADMIN" ? "/admin/works" : "/publish";
+    const next = safeRedirectPath(searchParams.get("next"), fallback);
     router.push(next || fallback);
     router.refresh();
   };
