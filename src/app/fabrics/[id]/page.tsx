@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { SafeImage } from "@/components/media/SafeImage";
 import { prisma } from "@/lib/prisma";
-import { fabricCoverUrl, PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
+import { PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function FabricDetailPage({ params }: FabricDetailPageProps
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
       <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
-        <img src={fabricCoverUrl(fabric.imageUrl)} alt={fabric.name} className="aspect-[4/3] w-full rounded-[8px] object-cover shadow-[0_16px_48px_rgba(16,16,16,0.08)]" />
+        <SafeImage src={fabric.imageUrl} alt={fabric.name} className="aspect-[4/3] w-full rounded-[8px] object-cover" />
         <section>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Fabric</p>
           <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">{fabric.name}</h1>
@@ -54,7 +55,7 @@ export default async function FabricDetailPage({ params }: FabricDetailPageProps
       {images.length > 1 ? (
         <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {images.slice(1, 8).map((image) => (
-            <img key={image} src={image} alt={fabric.name} className="aspect-square rounded-[8px] object-cover" />
+            <SafeImage key={image} src={image} alt={fabric.name} className="aspect-square w-full rounded-[8px] object-cover" />
           ))}
         </section>
       ) : null}
