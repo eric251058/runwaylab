@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   FabricStatus,
+  Prisma,
   ProviderAvailabilityStatus,
   ProviderShowcaseStatus,
   ProviderShowcaseType,
@@ -119,6 +120,55 @@ function logProviderFabricSaveError(error: unknown) {
   console.error("Provider fabric save failed", {
     errorType: error instanceof Error ? error.name : typeof error
   });
+}
+
+function shortRandomSuffix() {
+  return globalThis.crypto?.randomUUID?.().replace(/-/g, "").slice(0, 8) ?? Math.random().toString(36).slice(2, 10);
+}
+
+function createSlugBase(name: string) {
+  const slug = name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-")
+    .slice(0, 80)
+    .replace(/-+$/g, "");
+
+  return slug || `fabric-${shortRandomSuffix()}`;
+}
+
+function withSlugSuffix(base: string, suffix: string) {
+  return `${base.slice(0, Math.max(1, 110 - suffix.length))}${suffix}`;
+}
+
+export async function findAvailableFabricSlug(base: string, excludeId?: string) {
+  const normalizedBase = createSlugBase(base);
+  const maxAttempts = 12;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const candidate = attempt === 0 ? normalizedBase : withSlugSuffix(normalizedBase, `-${attempt + 1}`);
+    const existing = await prisma.fabric.findFirst({
+      where: excludeId ? { slug: candidate, id: { not: excludeId } } : { slug: candidate },
+      select: { id: true }
+    });
+
+    if (!existing) return candidate;
+  }
+
+  return withSlugSuffix(normalizedBase, `-${shortRandomSuffix()}`);
+}
+
+function isFabricSlugConflict(error: unknown) {
+  const target = error instanceof Prisma.PrismaClientKnownRequestError ? error.meta?.target : null;
+
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002" &&
+    (Array.isArray(target) ? target.includes("slug") : target === "slug")
+  );
 }
 
 async function requireProviderForWrite() {
@@ -261,15 +311,23 @@ export async function saveProviderCenterFabric(_state: ProviderFabricFormState, 
 
   try {
     const existingFabric = id
-      ? await prisma.fabric.findUnique({ where: { id }, select: { providerId: true, imageUrls: true } })
+      ? await prisma.fabric.findUnique({ where: { id }, select: { providerId: true, imageUrls: true, slug: true } })
       : null;
 
     if (id && (!existingFabric || existingFabric.providerId !== provider.id)) {
       return providerFabricFormError("没有权限编辑该面料。", formData);
     }
 
+    const submittedSlug = textValue(formData, "slug");
+    const nextSlug = id
+      ? submittedSlug && submittedSlug !== existingFabric?.slug
+        ? await findAvailableFabricSlug(submittedSlug, id)
+        : existingFabric?.slug ?? (await findAvailableFabricSlug(parsed.data.name, id))
+      : await findAvailableFabricSlug(submittedSlug ?? parsed.data.name);
+
     const data = {
       ...parsed.data,
+      slug: nextSlug,
       imageUrl: parsed.data.imageUrl || null,
       imageUrls: formData.has("imageUrls") ? splitList(textValue(formData, "imageUrls"), 8) : existingFabric?.imageUrls ?? [],
       tags: splitList(textValue(formData, "tags")),
@@ -278,12 +336,30 @@ export async function saveProviderCenterFabric(_state: ProviderFabricFormState, 
     };
 
     if (id) {
-      await prisma.fabric.update({ where: { id }, data });
+      await prisma.fabric.update({ where: { id }, data }).catch(async (error) => {
+        if (!isFabricSlugConflict(error)) throw error;
+        await prisma.fabric.update({
+          where: { id },
+          data: { ...data, slug: await findAvailableFabricSlug(`${parsed.data.name}-${shortRandomSuffix()}`, id) }
+        });
+      });
     } else {
-      await prisma.fabric.create({ data: { ...data, isFeatured: false } });
+      await prisma.fabric.create({ data: { ...data, isFeatured: false } }).catch(async (error) => {
+        if (!isFabricSlugConflict(error)) throw error;
+        await prisma.fabric.create({
+          data: {
+            ...data,
+            slug: await findAvailableFabricSlug(`${parsed.data.name}-${shortRandomSuffix()}`),
+            isFeatured: false
+          }
+        });
+      });
     }
   } catch (error) {
     logProviderFabricSaveError(error);
+    if (isFabricSlugConflict(error)) {
+      return providerFabricFormError("产品链接生成失败，请重新保存。", formData);
+    }
     return providerFabricFormError("保存失败，请稍后重试。", formData);
   }
 

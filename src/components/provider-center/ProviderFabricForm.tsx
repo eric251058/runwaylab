@@ -183,9 +183,6 @@ export function ProviderFabricForm({ fabric }: ProviderFabricFormProps) {
         <details className="mt-4 rounded-[10px] bg-paper p-3">
           <summary className="cursor-pointer text-sm font-semibold text-ink">更多产品信息</summary>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <Field label="slug" error={fieldErrors.slug}>
-              <input name="slug" maxLength={120} defaultValue={fieldValue("slug", fabric?.slug ?? "")} placeholder="可选" className={inputClass(fieldErrors.slug)} />
-            </Field>
             <Field label="适用季节" error={fieldErrors.season}>
               <input name="season" maxLength={120} defaultValue={fieldValue("season", fabric?.season ?? "")} placeholder="例如：春夏" className={inputClass(fieldErrors.season)} />
             </Field>
