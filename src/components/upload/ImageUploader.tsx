@@ -50,10 +50,11 @@ export function ImageUploader({
 }: ImageUploaderProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
+  const lastUploadedUrlRef = useRef<string | null>(null);
   const [imageUrl, setImageUrl] = useState(value ?? "");
   const [previewUrl, setPreviewUrl] = useState(value ?? "");
   const [message, setMessage] = useState("");
-  const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error" | "preview-error">("idle");
   const [uploading, setUploading] = useState(false);
   const rule = uploadRules[uploadType];
   const accept = rule.allowedMimeTypes.join(",");
@@ -68,10 +69,10 @@ export function ImageUploader({
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  function revokeObjectUrl() {
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
+  function revokeObjectUrl(url = objectUrlRef.current) {
+    if (url) {
+      URL.revokeObjectURL(url);
+      if (url === objectUrlRef.current) objectUrlRef.current = null;
     }
   }
 
@@ -101,6 +102,7 @@ export function ImageUploader({
     revokeObjectUrl();
     const localPreviewUrl = URL.createObjectURL(file);
     objectUrlRef.current = localPreviewUrl;
+    lastUploadedUrlRef.current = null;
     setPreviewUrl(localPreviewUrl);
     setMessage("正在上传图片…");
     setStatus("uploading");
@@ -128,9 +130,10 @@ export function ImageUploader({
 
       update(uploadedUrl);
       setPreviewUrl(uploadedUrl);
+      lastUploadedUrlRef.current = uploadedUrl;
       setMessage("上传成功");
       setStatus("success");
-      revokeObjectUrl();
+      window.setTimeout(() => revokeObjectUrl(localPreviewUrl), 0);
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? readableError(error.message) : "上传失败，请重新上传");
@@ -152,12 +155,38 @@ export function ImageUploader({
 
   function removeImage() {
     revokeObjectUrl();
+    lastUploadedUrlRef.current = null;
     update("");
     setPreviewUrl("");
-    setMessage("已移除当前图片。");
+    setMessage("");
     setStatus("idle");
     clearFileInput();
   }
+
+  function handlePreviewLoad(src: string) {
+    if (src === lastUploadedUrlRef.current && status !== "uploading") {
+      setStatus("success");
+      setMessage("上传成功");
+    } else if (status === "preview-error") {
+      setStatus("idle");
+      setMessage("");
+    }
+  }
+
+  function handlePreviewError(src: string) {
+    if (src === lastUploadedUrlRef.current && status === "success") {
+      setStatus("preview-error");
+      setMessage("图片已上传，但预览暂时不可用");
+      return;
+    }
+
+    if (!src.startsWith("blob:") && status !== "uploading") {
+      setStatus("preview-error");
+      setMessage("图片暂时无法显示，请重新选择图片");
+    }
+  }
+
+  const isUploadedPreview = Boolean(previewUrl && previewUrl === lastUploadedUrlRef.current);
 
   return (
     <div className="w-full max-w-[640px]">
@@ -190,12 +219,17 @@ export function ImageUploader({
       >
         {previewUrl ? (
           <SafeImage
+            key={previewUrl}
             src={previewUrl}
             alt={label}
             className="h-full w-full object-cover"
+            onLoad={() => handlePreviewLoad(previewUrl)}
+            onError={() => handlePreviewError(previewUrl)}
             placeholder={
               <span className="px-5 text-center">
-                <span className="block text-sm font-semibold text-ink/55">图片暂时无法显示</span>
+                <span className="block text-sm font-semibold text-ink/55">
+                  {isUploadedPreview ? "图片已上传，但预览暂时不可用" : "图片暂时无法显示"}
+                </span>
                 <span className="mt-2 block text-xs text-ink/38">重新选择图片</span>
               </span>
             }

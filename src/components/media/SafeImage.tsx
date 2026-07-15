@@ -7,6 +7,8 @@ type SafeImageProps = {
   alt: string;
   className?: string;
   placeholder?: ReactNode;
+  onLoad?: () => void;
+  onError?: () => void;
 };
 
 function isVisibleImage(value?: string | null) {
@@ -14,7 +16,14 @@ function isVisibleImage(value?: string | null) {
   return text && /^(https?:\/\/|\/|blob:)/i.test(text) ? text : null;
 }
 
-export function SafeImage({ src, alt, className, placeholder = "暂无产品图片" }: SafeImageProps) {
+export function SafeImage({
+  src,
+  alt,
+  className,
+  placeholder = "暂无产品图片",
+  onLoad,
+  onError
+}: SafeImageProps) {
   const [failed, setFailed] = useState(false);
   const image = isVisibleImage(src);
 
@@ -35,7 +44,14 @@ export function SafeImage({ src, alt, className, placeholder = "暂无产品图�
       src={image}
       alt={alt}
       className={className}
-      onError={() => setFailed(true)}
+      onLoad={() => {
+        setFailed(false);
+        onLoad?.();
+      }}
+      onError={() => {
+        setFailed(true);
+        onError?.();
+      }}
       loading="lazy"
     />
   );
