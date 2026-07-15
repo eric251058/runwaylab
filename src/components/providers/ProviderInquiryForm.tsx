@@ -64,7 +64,7 @@ export function ProviderInquiryForm({ providerId, workOptions, loginHref, isLogg
         setMessage(result?.message || "提交失败，请稍后重试");
         return;
       }
-      setSuccess("询盘已提交，服务商可在供应商中心查看并处理。");
+      setSuccess("合作需求已发送给服务商。服务商将在供应商中心收到通知，建议在 48 小时内处理。你可以在“我的合作需求”查看进度。");
     });
   }
 
@@ -87,13 +87,16 @@ export function ProviderInquiryForm({ providerId, workOptions, loginHref, isLogg
           <option key={value} value={value}>{label}</option>
         ))}
       </select>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <input name="quantity" inputMode="numeric" placeholder="预计数量，可选" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" />
-        <input name="budgetRange" placeholder="预算范围，可选" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" />
-        <input name="expectedDate" type="date" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" />
-        <input name="contactPreference" placeholder="希望的联系方式" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" />
-      </div>
+      <input name="quantity" inputMode="numeric" placeholder="预计数量，可选" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" />
       <textarea name="message" required maxLength={2000} placeholder="详细说明需求、作品阶段、预期周期和希望服务商回复的问题。" className="min-h-32 rounded-[6px] border border-black/10 px-3 py-3 text-sm" />
+      <details className="rounded-[8px] bg-paper p-3">
+        <summary className="cursor-pointer text-sm font-semibold text-ink">补充更多信息（可选）</summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <input name="budgetRange" placeholder="预算范围，可选" className="h-12 rounded-[6px] border border-black/10 bg-white px-3 text-sm" />
+          <input name="expectedDate" type="date" className="h-12 rounded-[6px] border border-black/10 bg-white px-3 text-sm" />
+          <input name="contactPreference" placeholder="联系方式偏好，可选" className="h-12 rounded-[6px] border border-black/10 bg-white px-3 text-sm sm:col-span-2" />
+        </div>
+      </details>
       <button disabled={isPending} className="h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50">
         {isPending ? "提交中..." : "提交合作询盘"}
       </button>

@@ -13,7 +13,6 @@ import {
   getProviderTags,
   listText,
   providerBelongsToUser,
-  providerCompleteness,
   providerDisplayImage,
   providerPublicUrl,
   publicProviderWhere,
@@ -34,6 +33,11 @@ function infoItem(label: string, value?: string | number | null) {
       <p className="mt-2 text-sm font-semibold text-ink">{value}</p>
     </div>
   );
+}
+
+function heroFact(label: string, value?: string | number | null) {
+  if (value === null || value === undefined || value === "") return null;
+  return label ? `${label} ${value}` : String(value);
 }
 
 export default async function ProviderDetailPage({ params }: ProviderDetailPageProps) {
@@ -66,7 +70,13 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
   const heroImage = providerDisplayImage(provider);
   const tags = getProviderTags(provider, 8);
   const fitTags = getProviderFitTags(provider);
-  const completeness = providerCompleteness(provider);
+  const heroFacts = [
+    heroFact("MOQ", provider.moqMin ?? provider.minimumOrderQuantity),
+    heroFact("打样", provider.sampleLeadDays ? `${provider.sampleLeadDays} 天` : null),
+    heroFact("生产", provider.productionLeadDays ? `${provider.productionLeadDays} 天` : null),
+    provider.acceptsSmallBatch ? heroFact("", "可接小单") : null,
+    provider.acceptsLargeOrder ? heroFact("", "可接大货") : null
+  ].filter((fact): fact is string => Boolean(fact));
   const workOptions = user
     ? await prisma.work.findMany({
         where: { userId: user.id },
@@ -97,11 +107,13 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
             {provider.isVerified ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">认证服务商</span> : null}
             {tags.map((tag) => <span key={tag} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{tag}</span>)}
           </div>
-          <div className="mt-5 grid gap-2 text-sm font-semibold sm:grid-cols-3">
-            <span className="rounded-[6px] bg-paper p-3">MOQ {provider.moqMin ?? provider.minimumOrderQuantity ?? "待补"}</span>
-            <span className="rounded-[6px] bg-paper p-3">打样 {provider.sampleLeadDays ? `${provider.sampleLeadDays}天` : "待补"}</span>
-            <span className="rounded-[6px] bg-paper p-3">资料 {completeness.percent}%</span>
-          </div>
+          {heroFacts.length ? (
+            <div className="mt-5 grid gap-2 text-sm font-semibold sm:grid-cols-3">
+              {heroFacts.map((fact) => (
+                <span key={fact} className="rounded-[6px] bg-paper p-3">{fact}</span>
+              ))}
+            </div>
+          ) : null}
           <div className="mt-5 flex flex-wrap gap-2">
             <a href="#inquiry" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">发起合作</a>
             <a href="#products" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看产品与案例</a>
@@ -141,7 +153,9 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
               <Link key={fabric.id} href={`/fabrics/${fabric.slug ?? fabric.id}`} className="rounded-[8px] border border-black/8 bg-white p-3">
                 <img src={fabricCoverUrl(fabric.imageUrl)} alt={fabric.name} className="aspect-[4/3] w-full rounded-[6px] object-cover" />
                 <h3 className="mt-3 truncate font-semibold text-ink">{fabric.name}</h3>
-                <p className="mt-1 truncate text-sm text-ink/52">{[fabric.composition, fabric.weight, fabric.width].filter(Boolean).join(" / ") || "面料参数待补充"}</p>
+                {[fabric.composition, fabric.weight, fabric.width].filter(Boolean).length ? (
+                  <p className="mt-1 truncate text-sm text-ink/52">{[fabric.composition, fabric.weight, fabric.width].filter(Boolean).join(" / ")}</p>
+                ) : null}
               </Link>
             ))}
             {provider.showcaseItems.map((item) => {
@@ -155,7 +169,7 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
                   )}
                   <p className="mt-3 text-xs font-semibold text-ink/35">{PROVIDER_SHOWCASE_TYPE_LABELS[item.type]}</p>
                   <h3 className="mt-1 truncate font-semibold text-ink">{item.title}</h3>
-                  <p className="mt-1 line-clamp-2 text-sm text-ink/52">{item.summary || item.category || "服务案例说明待补充"}</p>
+                  {item.summary || item.category ? <p className="mt-1 line-clamp-2 text-sm text-ink/52">{item.summary || item.category}</p> : null}
                 </Link>
               );
             })}

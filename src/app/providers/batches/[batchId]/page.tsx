@@ -129,7 +129,7 @@ export default async function ProviderBatchDetailPage({ params }: ProviderBatchD
               <div key={item.id} className="rounded-[8px] bg-paper p-4">
                 <p className="font-semibold text-ink">{BATCH_PROVIDER_ROLE_LABELS[item.role]}</p>
                 <p className="mt-1 text-sm text-ink/52">{BATCH_PROVIDER_STATUS_LABELS[item.status]}</p>
-                <p className="mt-2 text-sm leading-6 text-ink/58">{item.note ?? "说明待补充"}</p>
+                {item.note ? <p className="mt-2 text-sm leading-6 text-ink/58">{item.note}</p> : null}
               </div>
             ))}
           </div>

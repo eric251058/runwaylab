@@ -14,7 +14,15 @@ type AuthUser = {
   personaCompleted?: boolean;
 };
 
-const coveredRoutes = ["/", "/works", "/publish", "/me", "/incubation", "/presale", "/projects", "/cases", "/verify", "/legal", "/challenges", "/designers", "/schools", "/teachers", "/exhibitions", "/providers", "/fabrics"];
+const coveredRoutes = ["/", "/works", "/publish", "/me", "/provider-center", "/incubation", "/presale", "/projects", "/cases", "/verify", "/legal", "/challenges", "/designers", "/schools", "/teachers", "/exhibitions", "/providers", "/fabrics", "/batches"];
+
+const desktopNavItems = [
+  { label: "作品", href: "/works" },
+  { label: "供应链", href: "/providers" },
+  { label: "孵化", href: "/incubation" },
+  { label: "学校与挑战", href: "/schools" },
+  { label: "发布作品", href: "/publish", primary: true }
+];
 
 const personaLabels: Record<string, string> = {
   DESIGNER: "设计师",
@@ -76,32 +84,49 @@ export function AuthNav() {
   }
 
   return (
-    <nav className="fixed right-3 top-3 z-40 flex items-center gap-1 rounded-full border border-black/10 bg-white/90 p-1 text-xs font-semibold text-ink shadow-[0_12px_34px_rgba(16,16,16,0.10)] backdrop-blur md:right-6 md:top-5 md:text-sm">
-      {user ? (
-        <>
-          <Link href="/me/onboarding" className="hidden rounded-full bg-paper px-3 py-2 text-ink/60 transition hover:text-ink sm:inline-flex md:px-4">
-            {user.personaCompleted ? `身份：${personaLabels[user.persona ?? ""] ?? "未选择"}` : "选择身份"}
-          </Link>
-          <Link href="/me" className="rounded-full px-3 py-2 transition hover:bg-paper md:px-4">
-            我的
-          </Link>
-          <Link href="/publish" className="rounded-full px-3 py-2 transition hover:bg-paper md:px-4">
-            投稿
-          </Link>
-          <button
-            type="button"
-            onClick={logout}
-            disabled={loggingOut}
-            className="rounded-full px-3 py-2 text-ink/55 transition hover:bg-paper hover:text-ink disabled:cursor-not-allowed disabled:opacity-50 md:px-4"
-          >
-            退出
-          </button>
-        </>
-      ) : (
-        <Link href="/login" className="rounded-full px-3 py-2 transition hover:bg-paper md:px-4">
-          登录 / 注册
-        </Link>
-      )}
-    </nav>
+    <>
+      <nav className="sticky top-0 z-40 hidden border-b border-black/8 bg-white/92 px-6 py-3 text-sm font-semibold text-ink shadow-[0_12px_34px_rgba(16,16,16,0.04)] backdrop-blur md:block">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-5">
+          <Link href="/" className="text-base font-semibold">RunwayLab</Link>
+          <div className="flex items-center gap-1">
+            {desktopNavItems.map((item) => {
+              const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${item.primary ? "bg-ink text-white" : active ? "bg-paper text-ink" : "text-ink/55 hover:bg-paper hover:text-ink"} rounded-full px-4 py-2 transition`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-1">
+            {user ? (
+              <>
+                {user.personaCompleted ? <span className="rounded-full bg-paper px-3 py-2 text-xs text-ink/55">身份：{personaLabels[user.persona ?? ""] ?? "未选择"}</span> : null}
+                <Link href="/provider-center" className="rounded-full px-3 py-2 text-ink/55 transition hover:bg-paper hover:text-ink">供应商中心</Link>
+                {user.role === "ADMIN" ? <Link href="/admin" className="rounded-full px-3 py-2 text-ink/55 transition hover:bg-paper hover:text-ink">管理后台</Link> : null}
+                <Link href="/me" className="rounded-full px-3 py-2 transition hover:bg-paper">我的</Link>
+                <button type="button" onClick={logout} disabled={loggingOut} className="rounded-full px-3 py-2 text-ink/50 transition hover:bg-paper hover:text-ink disabled:opacity-50">退出</button>
+              </>
+            ) : (
+              <Link href="/login" className="rounded-full bg-ink px-4 py-2 text-white">登录</Link>
+            )}
+          </div>
+        </div>
+      </nav>
+      <nav className="fixed right-3 top-3 z-40 flex items-center gap-1 rounded-full border border-black/10 bg-white/90 p-1 text-xs font-semibold text-ink shadow-[0_12px_34px_rgba(16,16,16,0.10)] backdrop-blur md:hidden">
+        {user ? (
+          <>
+            <Link href="/me" className="rounded-full px-3 py-2 transition hover:bg-paper">我的</Link>
+            <button type="button" onClick={logout} disabled={loggingOut} className="rounded-full px-3 py-2 text-ink/55 transition hover:bg-paper hover:text-ink disabled:opacity-50">退出</button>
+          </>
+        ) : (
+          <Link href="/login" className="rounded-full px-3 py-2 transition hover:bg-paper">登录</Link>
+        )}
+      </nav>
+    </>
   );
 }

@@ -28,7 +28,17 @@ function stat(label: string, value: number | string, note: string) {
   );
 }
 
-export default async function ProviderCenterPage() {
+type ProviderCenterPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function searchValue(params: Record<string, string | string[] | undefined> | undefined, key: string) {
+  const value = params?.[key];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function ProviderCenterPage({ searchParams }: ProviderCenterPageProps) {
+  const params = await searchParams;
   const { provider, application } = await getProviderCenterContext("/provider-center");
 
   if (!provider) {
@@ -74,6 +84,7 @@ export default async function ProviderCenterPage() {
   const newInquiries = fullProvider.inquiries.filter((item) => item.status === RequestStatus.PENDING).length;
   const handledInquiries = fullProvider.inquiries.filter((item) => item.status !== RequestStatus.PENDING).length;
   const suspended = fullProvider.status === ProviderStatus.SUSPENDED;
+  const profileUpdated = searchValue(params, "profile") === "updated";
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
@@ -92,6 +103,12 @@ export default async function ProviderCenterPage() {
       {suspended ? (
         <div className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 text-sm leading-6 text-ink/58">
           当前服务商账号已暂停，暂不允许新增公开内容。你仍可以查看历史资料和询盘。
+        </div>
+      ) : null}
+
+      {profileUpdated ? (
+        <div className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 text-sm leading-6 text-ink/65">
+          主页资料已保存。下一步可以上传第一款面料、发布第一个案例，或开启询盘处理。
         </div>
       ) : null}
 

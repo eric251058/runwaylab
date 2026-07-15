@@ -1,4 +1,4 @@
-import { Home, Images, PlusCircle, Sparkles, User, type LucideIcon } from "lucide-react";
+import { Home, Images, PlusCircle, Store, User, type LucideIcon } from "lucide-react";
 
 export type NavItem = {
   label: string;
@@ -9,7 +9,7 @@ export type NavItem = {
 export const mobileNavItems: NavItem[] = [
   { label: "首页", href: "/", icon: Home },
   { label: "作品", href: "/works", icon: Images },
-  { label: "投稿", href: "/publish", icon: PlusCircle },
-  { label: "孵化", href: "/incubation", icon: Sparkles },
+  { label: "发布", href: "/publish", icon: PlusCircle },
+  { label: "资源", href: "/providers", icon: Store },
   { label: "我的", href: "/me", icon: User }
 ];

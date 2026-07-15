@@ -119,7 +119,7 @@ export async function saveProviderCenterProfile(formData: FormData) {
   revalidatePath("/provider-center/profile");
   revalidatePath(`/providers/${provider.slug ?? provider.id}`);
   revalidatePath("/providers");
-  redirect("/provider-center");
+  redirect("/provider-center?profile=updated");
 }
 
 const fabricSchema = z.object({

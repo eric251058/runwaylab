@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 export type WorkAiDiagnosisView = {
   id: string;
@@ -57,6 +58,10 @@ const reviewLabels: Record<string, string> = {
 
 function toList(value?: string | null) {
   return value?.split("\n").map((item) => item.trim()).filter(Boolean) ?? [];
+}
+
+function firstItem(value?: string | null) {
+  return toList(value)[0] ?? value ?? "";
 }
 
 function formatDate(value: string) {
@@ -135,9 +140,13 @@ export function WorkAiDiagnosisRequestButton({ workId, label = "生成 AI 诊断
 export function WorkAiDiagnosisPanel({ workId, diagnoses, canRequest, isConfigured, showInternal = false, compact = false }: WorkAiDiagnosisPanelProps) {
   const [items, setItems] = useState(diagnoses);
   const latest = items[0];
-  const publicHighlights = latest
-    ? [toList(latest.designHighlights).slice(0, 2).join("、"), toList(latest.nextStepSuggestions).slice(0, 1).join("、")].filter(Boolean).join(" / ")
-    : "";
+  const publicSummary = latest
+    ? [
+        { title: "作品最大亮点", value: firstItem(latest.designHighlights) || latest.designSummary },
+        { title: "最需要解决的问题", value: firstItem(latest.missingInformation) || firstItem(latest.productionRisks) },
+        { title: "推荐的下一步", value: firstItem(latest.nextStepSuggestions) }
+      ].filter((item) => item.value)
+    : [];
 
   return (
     <section className={`rounded-[8px] border border-black/8 bg-white ${compact ? "p-4" : "p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]"}`}>
@@ -193,9 +202,33 @@ export function WorkAiDiagnosisPanel({ workId, diagnoses, canRequest, isConfigur
               <TextBlock title="市场判断" value={latest.marketAssessment} />
             </div>
           ) : latest.reviewStatus === "APPROVED" && latest.status === "COMPLETED" ? (
-            <div className="rounded-[8px] bg-paper p-4">
-              <p className="text-sm font-semibold text-ink">AI 辅助整理</p>
-              <p className="mt-2 text-sm leading-6 text-ink/60">{publicHighlights || latest.designSummary}</p>
+            <div className="space-y-3">
+              <div className="grid gap-3 md:grid-cols-3">
+                {publicSummary.map((item) => (
+                  <div key={item.title} className="rounded-[8px] bg-paper p-4">
+                    <p className="text-sm font-semibold text-ink">{item.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-ink/60">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Link href="/me" className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">补充作品资料</Link>
+                <Link href="/fabrics" className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">寻找适合的面料</Link>
+                <Link href="/providers?type=SAMPLE_STUDIO" className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">寻找打样工作室</Link>
+              </div>
+              <details className="rounded-[8px] bg-paper p-4">
+                <summary className="cursor-pointer text-sm font-semibold text-ink">查看完整诊断</summary>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <TextBlock title="设计概述" value={latest.designSummary} />
+                  <FieldList title="设计亮点" value={latest.designHighlights} />
+                  <FieldList title="目标人群" value={latest.targetAudience} />
+                  <FieldList title="适合场景" value={latest.suitableScenes} />
+                  <FieldList title="建议面料" value={latest.suggestedMaterials} />
+                  <FieldList title="建议工艺" value={latest.suggestedTechniques} />
+                  <FieldList title="生产风险" value={latest.productionRisks} />
+                  <FieldList title="下一步建议" value={latest.nextStepSuggestions} />
+                </div>
+              </details>
             </div>
           ) : null}
         </div>
