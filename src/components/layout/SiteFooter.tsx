@@ -3,9 +3,9 @@ import { ICP_NUMBER, ICP_URL, SITE_NAME } from "@/lib/site-config";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-black/8 bg-white px-4 pb-24 pt-6 text-xs text-ink/40 md:px-8 md:pb-6">
+    <footer className="border-t border-black/8 bg-white px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-4 text-xs text-ink/40 md:px-8 md:pb-6 md:pt-6">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
+        <div className="hidden md:block">
           <p className="font-semibold text-ink/55">{SITE_NAME}</p>
           <p className="mt-1 max-w-xl leading-5">连接设计作品、AI 诊断与供应链协作，帮助服装设计从创意走向打样与生产。</p>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 font-semibold">

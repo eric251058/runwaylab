@@ -10,11 +10,11 @@ const config: Config = {
     extend: {
       colors: {
         ink: "#101010",
-        paper: "#f7f4ef",
+        paper: "#f6f6f6",
         accent: "#b7ff2a"
       },
       fontFamily: {
-        sans: ["Inter", "Arial", "Helvetica", "sans-serif"]
+        sans: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "PingFang SC", "Microsoft YaHei", "sans-serif"]
       }
     }
   },

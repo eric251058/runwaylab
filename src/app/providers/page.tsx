@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { FabricStatus, Prisma, ProviderType } from "@prisma/client";
+import { FabricStatus, Prisma, ProviderApplicationStatus, ProviderType } from "@prisma/client";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getAnyProviderForUser, getProviderApplicationForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
 import {
   PROVIDER_AVAILABILITY_LABELS,
@@ -154,7 +156,8 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
       : {})
   };
 
-  const [providers, total] = await Promise.all([
+  const currentUser = await getCurrentUser();
+  const [providers, total, currentProvider, currentApplication] = await Promise.all([
     prisma.provider.findMany({
       where,
       include: {
@@ -174,7 +177,9 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
       skip: (page - 1) * pageSize,
       take: pageSize
     }),
-    prisma.provider.count({ where })
+    prisma.provider.count({ where }),
+    getAnyProviderForUser(currentUser),
+    getProviderApplicationForUser(currentUser)
   ]);
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
@@ -188,8 +193,15 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
           <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">浏览面料、打样和生产资源，为作品寻找下一步合作伙伴。</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">供应商中心</Link>
-          <Link href="/providers/apply" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">申请入驻</Link>
+          {currentProvider ? (
+            <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">供应商中心</Link>
+          ) : currentApplication?.status === ProviderApplicationStatus.PENDING ? (
+            <span className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink/55">申请审核中</span>
+          ) : currentApplication?.status === ProviderApplicationStatus.REJECTED ? (
+            <Link href="/providers/apply" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">重新完善申请</Link>
+          ) : (
+            <Link href="/providers/apply" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">申请入驻</Link>
+          )}
         </div>
       </header>
 

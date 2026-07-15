@@ -52,7 +52,7 @@ const personaGuides: Record<UserPersona, { task: string; actions: Array<{ label:
   FABRIC_SUPPLIER: {
     task: "完善服务商资料，参与作品面料匹配。",
     actions: [
-      { label: "申请服务商入驻", href: "/providers/apply", primary: true },
+      { label: "进入供应商中心", href: "/provider-center", primary: true },
       { label: "查看作品池", href: "/incubation" },
       { label: "查看面料库", href: "/fabrics" }
     ]
@@ -60,7 +60,7 @@ const personaGuides: Record<UserPersona, { task: string; actions: Array<{ label:
   SAMPLE_STUDIO: {
     task: "发现适合打样的作品，提交打样方案。",
     actions: [
-      { label: "申请服务商入驻", href: "/providers/apply", primary: true },
+      { label: "进入供应商中心", href: "/provider-center", primary: true },
       { label: "查看孵化作品", href: "/incubation" },
       { label: "查看服务商市场", href: "/providers" }
     ]
@@ -68,7 +68,7 @@ const personaGuides: Record<UserPersona, { task: string; actions: Array<{ label:
   FACTORY: {
     task: "发现具备生产潜力的作品，提交生产方案。",
     actions: [
-      { label: "申请服务商入驻", href: "/providers/apply", primary: true },
+      { label: "进入供应商中心", href: "/provider-center", primary: true },
       { label: "查看预售验证", href: "/presale" },
       { label: "查看合作项目", href: "/projects" }
     ]
@@ -240,26 +240,30 @@ export default async function MeDashboardPage() {
       <>
         <Section title={copy.title}>
           <div className="grid gap-3 md:grid-cols-3">
-            <StatCard label="匹配服务商身份" value={matchedProviders.length} />
+            <StatCard label="已绑定服务商" value={providerMatches.length} />
             <StatCard label={kind === "fabric" ? "面料数量" : "方案数量"} value={matchedProviders.reduce((sum, provider) => sum + (kind === "fabric" ? provider._count.fabrics : provider._count.workProposals), 0)} />
             <StatCard label="可参与孵化作品" value={hotWorks.length} />
           </div>
         </Section>
-        {matchedProviders.length ? (
+        {providerMatches.length ? (
           <Section title={copy.providerTitle}>
             <div className="grid gap-3 md:grid-cols-2">
-              {matchedProviders.map((provider) => (
+              {(matchedProviders.length ? matchedProviders : providerMatches).map((provider) => (
                 <ActionCard key={provider.id} title={provider.name} description={`面料 ${provider._count.fabrics} / 方案 ${provider._count.workProposals}`} href={`/providers/${provider.slug ?? provider.id}`} />
               ))}
             </div>
           </Section>
         ) : (
-          <EmptyNote>当前账号还没有绑定服务商资料。你可以先提交服务商入驻申请，后台审核后进入服务商市场。</EmptyNote>
+          <EmptyNote>当前账号还没有绑定服务商资料。提交入驻申请并通过审核后，可以进入服务商市场。</EmptyNote>
         )}
         <div className="grid gap-3 md:grid-cols-3">
           <ActionCard title={copy.libraryTitle} description="查看服务商市场和面料库公开资料。" href={kind === "fabric" ? "/fabrics" : "/providers"} />
           <ActionCard title={copy.planTitle} description="围绕作品提交轻量方案，本批不涉及交易和订单。" href="/incubation" />
-          <ActionCard title="服务商入驻入口" description="提交公司、联系方式和服务说明，由平台后续审核。" href="/providers/apply" />
+          {providerMatches.length ? (
+            <ActionCard title="供应商中心" description="维护主页、面料、案例和合作询盘。" href="/provider-center" />
+          ) : (
+            <ActionCard title="服务商入驻" description="提交公司、联系方式和服务说明，由平台后续审核。" href="/providers/apply" />
+          )}
         </div>
       </>
     );
@@ -388,14 +392,11 @@ export default async function MeDashboardPage() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">My Dashboard</p>
           <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">我的工作台</h1>
-          <p className="mt-3 text-sm leading-6 text-ink/58 md:mt-4">当前身份：{USER_PERSONA_LABELS[currentUser.persona]}</p>
+          <p className="mt-3 text-sm leading-6 text-ink/58 md:mt-4">{USER_PERSONA_LABELS[currentUser.persona]}工作台</p>
         </div>
         <div className="grid gap-2 sm:flex sm:flex-wrap">
-          <Link href="/me/onboarding" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
-            切换身份
-          </Link>
           <Link href="/me" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
-            返回我的页面
+            我的页面
           </Link>
         </div>
       </header>
@@ -403,7 +404,7 @@ export default async function MeDashboardPage() {
       <div className="space-y-5">
         <ActionGuide
           eyebrow="Next Action"
-          title={`当前身份：${USER_PERSONA_LABELS[currentUser.persona]}`}
+          title={`${USER_PERSONA_LABELS[currentUser.persona]}工作台`}
           description={`当前最重要任务：${personaGuides[currentUser.persona].task}`}
           actions={personaGuides[currentUser.persona].actions}
         />

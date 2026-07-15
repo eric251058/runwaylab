@@ -1,4 +1,4 @@
-export type UploadKind = "work" | "avatar" | "challenge-cover" | "designer-cover";
+export type UploadKind = "work" | "avatar" | "challenge-cover" | "designer-cover" | "fabrics";
 
 export type UploadValidation = {
   maxBytes: number;
@@ -29,6 +29,10 @@ export const uploadRules: Record<UploadKind, UploadValidation> = {
     allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"]
   },
   "designer-cover": {
+    maxBytes: 10 * 1024 * 1024,
+    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"]
+  },
+  fabrics: {
     maxBytes: 10 * 1024 * 1024,
     allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"]
   }

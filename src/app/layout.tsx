@@ -57,7 +57,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="zh-CN">
       <body>
         <AuthNav />
-        <main className="min-h-dvh pb-20 md:pb-0">{children}</main>
+        <main className="min-h-dvh pb-[calc(5rem+env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+3rem)] md:pb-0 md:pt-0">{children}</main>
         <SiteFooter />
         <BottomTabBar />
       </body>

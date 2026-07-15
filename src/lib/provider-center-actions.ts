@@ -136,7 +136,8 @@ const fabricSchema = z.object({
   usage: z.string().trim().max(160).optional().nullable(),
   description: z.string().trim().max(5000).optional().nullable(),
   priceNote: z.string().trim().max(200).optional().nullable(),
-  moqNote: z.string().trim().max(200).optional().nullable()
+  moqNote: z.string().trim().max(200).optional().nullable(),
+  status: z.nativeEnum(FabricStatus).optional()
 });
 
 export async function saveProviderCenterFabric(formData: FormData) {
@@ -157,7 +158,8 @@ export async function saveProviderCenterFabric(formData: FormData) {
     usage: formData.get("usage"),
     description: formData.get("description"),
     priceNote: formData.get("priceNote"),
-    moqNote: formData.get("moqNote")
+    moqNote: formData.get("moqNote"),
+    status: formData.get("status") || FabricStatus.ACTIVE
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "请检查面料信息");
 
@@ -166,7 +168,7 @@ export async function saveProviderCenterFabric(formData: FormData) {
     imageUrls: splitList(textValue(formData, "imageUrls"), 8),
     tags: splitList(textValue(formData, "tags")),
     providerId: provider.id,
-    status: FabricStatus.ACTIVE
+    status: parsed.data.status ?? FabricStatus.ACTIVE
   };
 
   if (id) {
@@ -180,7 +182,7 @@ export async function saveProviderCenterFabric(formData: FormData) {
   revalidatePath("/provider-center/fabrics");
   revalidatePath("/fabrics");
   revalidatePath(`/providers/${provider.slug ?? provider.id}`);
-  redirect("/provider-center/fabrics");
+  redirect("/provider-center/fabrics?saved=1");
 }
 
 const showcaseSchema = z.object({
