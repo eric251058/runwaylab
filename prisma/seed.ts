@@ -123,7 +123,7 @@ async function main() {
               school: schools[index],
               city: cities[index],
               designDirection: takeTags(index).join(" / "),
-              bio: "关注年轻日常、舞台表达与可持续材料之间的关系。",
+        bio: "平台示例：关注年轻日常、舞台表达与可持续材料之间的关系。",
               cooperationStatus: index % 3 === 0 ? "接受品牌合作" : "接受打样孵化",
               portfolioCoverUrl: `/uploads/seed/designer-cover-${index + 1}.webp`
             }
@@ -139,7 +139,7 @@ async function main() {
       title: "第一届「设计上岸」新人设计挑战",
       theme: "让你的设计从作业变成机会",
       coverUrl: "/uploads/seed/challenge-cover.webp",
-      description: "面向服装设计学生、新人设计师和独立创作者的新人设计挑战赛。",
+      description: "平台示例：面向服装设计学生、新人设计师和独立创作者的新人设计挑战赛。",
       requirements: "上传 3-9 张作品图，填写 100-300 字设计理念，并确认原创或已获授权。",
       rewards: "Top 1 获得打样孵化支持名额；Top 3 获得面料样卡包；Top 10 获得首页推荐与电子证书。",
       startAt: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7),
@@ -188,7 +188,7 @@ async function main() {
       data: {
         userId: author.id,
         title: workTitle(index),
-        description: "这组作品从真实穿着场景出发，尝试用廓形、材料肌理和局部结构表达新人设计师的个人语言。",
+        description: "平台示例作品：这组作品从真实穿着场景出发，尝试用廓形、材料肌理和局部结构表达新人设计师的个人语言。",
         category: categories[index % categories.length],
         workType: workTypes[index % workTypes.length],
         styleTags: takeTags(index),
@@ -286,7 +286,7 @@ async function main() {
           workId: work.id,
           source: index < 2 ? IncubationSource.EDITOR_PICK : IncubationSource.ADMIN,
           status: index === 0 ? IncubationApplicationStatus.REVIEWING : IncubationApplicationStatus.CANDIDATE,
-          adminNote: "种子数据：适合进入孵化候选池。"
+          adminNote: "平台示例：适合进入孵化候选池。"
         }
       })
     )
@@ -299,7 +299,7 @@ async function main() {
           workId: work.id,
           designerId: work.userId,
           status: index === 0 ? IncubationStatus.FABRIC_MATCHING : IncubationStatus.CANDIDATE,
-          platformComment: index % 2 === 0 ? "廓形完整，适合进行面料与版型评估。" : "色彩方向明确，适合开发春夏系列。",
+          platformComment: index % 2 === 0 ? "平台示例：廓形完整，适合进行面料与版型评估。" : "平台示例：色彩方向明确，适合开发春夏系列。",
           nextAction: index === 0 ? "进行面料方向初筛" : "等待编辑评估"
         }
       })
@@ -406,9 +406,8 @@ async function main() {
     }
   });
 
-  console.log("Seed completed");
-  console.log("Admin: admin@runwaylab.test / RunwayLab123!");
-  console.log("Designers: designer1@runwaylab.test ... designer10@runwaylab.test / RunwayLab123!");
+  console.log("Seed completed with platform sample data.");
+  console.log("Demo accounts were created for local development. Do not expose seed credentials in public screens or logs.");
 }
 
 main()

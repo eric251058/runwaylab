@@ -5,6 +5,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { providerCanSeeStage } from "@/lib/order-maturity";
 import { getProviderForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
+import { tooManyRequests } from "@/lib/security/api-response";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 const interestSchema = z.object({
   interestType: z.nativeEnum(ProviderOpportunityInterestType),
@@ -29,6 +31,9 @@ export async function POST(request: Request, context: RouteContext) {
   if (!user || !provider) {
     return NextResponse.json({ message: "请先完成服务商入驻和资料审核。" }, { status: 403 });
   }
+
+  const limit = checkRateLimit(`provider-opportunity-interest:${user.id}:1h`, { windowMs: 60 * 60 * 1000, limit: 10 });
+  if (limit.limited) return tooManyRequests("提交较频繁，请稍后再试。", limit.retryAfter);
 
   const parsed = interestSchema.safeParse(await request.json().catch(() => null));
 

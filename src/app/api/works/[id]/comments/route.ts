@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimits } from "@/lib/security/rate-limit";
+import { tooManyRequests } from "@/lib/security/api-response";
 import { publicWorkWhere } from "@/lib/works/public";
 
 const commentSchema = z.object({
@@ -21,6 +23,15 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (!user) {
     return NextResponse.json({ message: "请先登录后再评论。" }, { status: 401 });
+  }
+
+  const limit = checkRateLimits([`comment:user:${user.id}`], [
+    { windowMs: 60 * 1000, limit: 5 },
+    { windowMs: 60 * 60 * 1000, limit: 30 }
+  ]);
+
+  if (limit.limited) {
+    return tooManyRequests("评论过于频繁，请稍后再试。", limit.retryAfter);
   }
 
   const parsed = commentSchema.safeParse(await request.json().catch(() => null));

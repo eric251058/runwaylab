@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { tooManyRequests } from "@/lib/security/api-response";
+import { checkRateLimit, getClientIp } from "@/lib/security/rate-limit";
 import { approvedVisibleWorkWhere } from "@/lib/works/rules";
 
 type SubmissionKind = "presale" | "fabric" | "sample" | "factory" | "buyer";
@@ -20,6 +22,9 @@ function required(value: unknown, label: string) {
 
 export async function POST(request: Request) {
   try {
+    const limit = checkRateLimit(`incubation-submit:ip:${getClientIp(request)}:1h`, { windowMs: 60 * 60 * 1000, limit: 10 });
+    if (limit.limited) return tooManyRequests("提交较频繁，请稍后再试。", limit.retryAfter);
+
     const body = await request.json();
     const kind = text(body.kind) as SubmissionKind;
     const workId = required(body.workId, "作品");

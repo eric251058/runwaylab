@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { tooManyRequests } from "@/lib/security/api-response";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import { publicWorkWhere } from "@/lib/works/public";
 
 type RouteContext = {
@@ -16,6 +18,9 @@ export async function POST(_request: Request, context: RouteContext) {
   if (!user) {
     return NextResponse.json({ message: "请先登录后再点赞。" }, { status: 401 });
   }
+
+  const limit = checkRateLimit(`interaction:like:${user.id}:1m`, { windowMs: 60 * 1000, limit: 30 });
+  if (limit.limited) return tooManyRequests("操作过于频繁，请稍后再试。", limit.retryAfter);
 
   const work = await prisma.work.findFirst({
     where: {

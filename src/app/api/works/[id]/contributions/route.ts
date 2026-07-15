@@ -4,6 +4,8 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getContributionActorKey } from "@/lib/contribution-actor";
 import { prisma } from "@/lib/prisma";
+import { tooManyRequests } from "@/lib/security/api-response";
+import { checkRateLimit, getClientIp } from "@/lib/security/rate-limit";
 import { cleanPlainText } from "@/lib/user-contributions";
 import { publicWorkWhere } from "@/lib/works/public";
 
@@ -25,6 +27,13 @@ type RouteContext = {
 export async function POST(request: Request, context: RouteContext) {
   const user = await getCurrentUser();
   const { id } = await context.params;
+  const limitKey = user?.id ? `contribution:user:${user.id}:1m` : `contribution:ip:${getClientIp(request)}:1m`;
+  const limit = checkRateLimit(limitKey, { windowMs: 60 * 1000, limit: 5 });
+
+  if (limit.limited) {
+    return tooManyRequests("提交较频繁，请稍后再试。", limit.retryAfter);
+  }
+
   const parsed = contributionSchema.safeParse(await request.json().catch(() => null));
 
   if (!parsed.success) {

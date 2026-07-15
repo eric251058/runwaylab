@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
+import { UserStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE = "runwaylab_session";
@@ -47,6 +48,12 @@ export async function clearSession() {
   cookieStore.delete(SESSION_COOKIE);
 }
 
+export async function deleteUserSessions(userId: string) {
+  await prisma.authSession.deleteMany({
+    where: { userId }
+  });
+}
+
 export async function getCurrentUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
@@ -65,6 +72,18 @@ export async function getCurrentUser() {
   });
 
   if (!session || session.expiresAt < new Date()) {
+    if (session) {
+      await prisma.authSession.deleteMany({
+        where: { id: session.id }
+      });
+    }
+    return null;
+  }
+
+  if (!session.user || session.user.status !== UserStatus.ACTIVE) {
+    await prisma.authSession.deleteMany({
+      where: { id: session.id }
+    });
     return null;
   }
 

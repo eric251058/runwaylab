@@ -4,6 +4,8 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { getRequestableWork } from "@/lib/requests/work-access";
+import { tooManyRequests } from "@/lib/security/api-response";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 const fabricRequestSchema = z.object({
   workId: z.string().optional().nullable(),
@@ -21,6 +23,9 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ message: "请先登录后再提交找面料申请。" }, { status: 401 });
   }
+
+  const limit = checkRateLimit(`fabric-request:${user.id}:1h`, { windowMs: 60 * 60 * 1000, limit: 10 });
+  if (limit.limited) return tooManyRequests("提交较频繁，请稍后再试。", limit.retryAfter);
 
   const parsed = fabricRequestSchema.safeParse(await request.json().catch(() => null));
 

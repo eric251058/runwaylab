@@ -4,6 +4,8 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getContributionActorKey } from "@/lib/contribution-actor";
 import { prisma } from "@/lib/prisma";
+import { tooManyRequests } from "@/lib/security/api-response";
+import { checkRateLimit, getClientIp } from "@/lib/security/rate-limit";
 import { cleanPlainText } from "@/lib/user-contributions";
 import { publicWorkWhere } from "@/lib/works/public";
 
@@ -23,6 +25,13 @@ type RouteContext = {
 export async function POST(request: Request, context: RouteContext) {
   const user = await getCurrentUser();
   const { id } = await context.params;
+  const limitKey = user?.id ? `interaction:vote:user:${user.id}:1m` : `interaction:vote:ip:${getClientIp(request)}:1m`;
+  const minuteLimit = checkRateLimit(limitKey, { windowMs: 60 * 1000, limit: 30 });
+
+  if (minuteLimit.limited) {
+    return tooManyRequests("操作过于频繁，请稍后再试。", minuteLimit.retryAfter);
+  }
+
   const parsed = voteSchema.safeParse(await request.json().catch(() => null));
 
   if (!parsed.success) {

@@ -2,7 +2,7 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { StorageService, UploadKind } from "@/lib/storage";
-import { validateUpload } from "@/lib/storage";
+import { inspectUploadImage } from "@/lib/security/upload-inspection";
 
 const uploadDir = process.env.LOCAL_UPLOAD_DIR ?? "public/uploads";
 const publicBaseUrl = process.env.PUBLIC_UPLOAD_BASE_URL ?? "/uploads";
@@ -44,10 +44,9 @@ function getUploadPath(key: string) {
 
 export class LocalStorageService implements StorageService {
   async put(file: File, kind: UploadKind) {
-    validateUpload(file, kind);
+    const inspection = await inspectUploadImage(file, kind);
 
-    const extension = file.name.split(".").pop()?.toLowerCase() ?? "webp";
-    const key = `${kind}/${randomUUID()}.${extension}`;
+    const key = `${kind}/${randomUUID()}.${inspection.extension}`;
     const absolutePath = getUploadPath(key);
 
     await mkdir(path.dirname(absolutePath), { recursive: true });

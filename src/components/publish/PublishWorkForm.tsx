@@ -288,16 +288,6 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
     const image = images[index];
     revokePreviewUrl(image.previewUrl);
     setImages((current) => current.filter((_, itemIndex) => itemIndex !== index));
-
-    if (image.key || image.imageUrl) {
-      await fetch("/api/upload", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ key: image.key, imageUrl: image.imageUrl })
-      }).catch(() => undefined);
-    }
   };
 
   const moveImage = (index: number, direction: -1 | 1) => {
