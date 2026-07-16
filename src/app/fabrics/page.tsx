@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { SafeImage } from "@/components/media/SafeImage";
+import { EmptyState } from "@/components/ui/minimal";
 import { prisma } from "@/lib/prisma";
 import { PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
 
@@ -92,10 +93,7 @@ export default async function FabricsPage() {
           })}
         </div>
       ) : (
-        <div className="rounded-[14px] border border-black/10 bg-white p-6 text-sm leading-6 text-ink/55">
-          <p className="font-semibold text-ink">暂无符合条件的面料</p>
-          <p className="mt-2">调整筛选条件后再试。</p>
-        </div>
+        <EmptyState title="暂无符合条件的面料" description="调整筛选条件后再试。" />
       )}
     </div>
   );

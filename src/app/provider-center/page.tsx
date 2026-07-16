@@ -21,7 +21,7 @@ const processingInquiryStatuses: RequestStatus[] = [RequestStatus.CONTACTED, Req
 
 function stat(label: string, value: number | string) {
   return (
-    <div className="rounded-[14px] bg-white p-4">
+    <div className="rounded-[8px] bg-white p-4">
       <p className="text-3xl font-semibold text-ink">{value}</p>
       <p className="mt-2 text-sm text-ink/45">{label}</p>
     </div>
@@ -30,7 +30,7 @@ function stat(label: string, value: number | string) {
 
 function actionCard(title: string, description: string, href: string) {
   return (
-    <Link href={href} className="rounded-[14px] bg-white p-5 transition hover:bg-white/80">
+    <Link href={href} className="rounded-[8px] bg-white p-5 transition hover:border-ink/30">
       <p className="font-semibold text-ink">{title}</p>
       <p className="mt-2 text-sm leading-6 text-ink/52">{description}</p>
     </Link>
@@ -53,14 +53,14 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
   if (!provider) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-6 md:px-8 md:py-12">
-        <div className="rounded-[14px] bg-white p-6">
-          <h1 className="text-3xl font-semibold text-ink">供应商中心</h1>
+        <div className="rounded-[8px] bg-white p-6">
+          <h1 className="text-3xl font-semibold text-ink">服务商工作台</h1>
           {application ? (
             <div className="mt-5 rounded-[12px] bg-paper p-4">
               <p className="text-sm font-semibold text-ink">服务商申请{applicationLabels[application.status]}</p>
               <p className="mt-2 text-sm leading-6 text-ink/58">
                 {application.status === ProviderApplicationStatus.PENDING
-                  ? "审核通过后可创建供应商主页和发布产品。"
+                  ? "审核通过后可创建服务商主页和发布产品。"
                   : application.reviewNote || "可以根据反馈重新完善申请资料。"}
               </p>
               {application.status === ProviderApplicationStatus.REJECTED ? <Link href="/providers/apply" className="mt-4 inline-flex rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white">重新提交申请</Link> : null}
@@ -108,14 +108,14 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-12">
-      <header className="mb-6 rounded-[16px] bg-white p-5 md:p-7">
+      <header className="mb-6 rounded-[8px] bg-white p-5 md:p-7">
         <div>
           <h1 className="text-3xl font-semibold text-ink md:text-5xl">{fullProvider.name}</h1>
           <p className="mt-3 text-sm text-ink/52">{SUPPLY_PROVIDER_TYPE_LABELS[fullProvider.type]} / {fullProvider.city || "城市未填写"} / {PROVIDER_AVAILABILITY_LABELS[fullProvider.availabilityStatus]}</p>
-          <p className="mt-3 text-sm text-ink/45">主页完成度 {completeness.percent}%</p>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-ink/55">管理产品，回应真实合作需求。</p>
           <div className="mt-5 flex flex-wrap gap-2">
-            <Link href="/provider-center/profile" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">完善主页</Link>
-            <Link href={providerPublicUrl(fullProvider)} className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看公开主页</Link>
+            <Link href={fullProvider.type === "FABRIC_SUPPLIER" ? "/provider-center/fabrics" : "/provider-center/showcase"} className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">管理产品</Link>
+            <Link href={providerPublicUrl(fullProvider)} className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看主页</Link>
           </div>
         </div>
       </header>
@@ -132,7 +132,7 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
         </div>
       ) : null}
 
-      <section className="mb-6 rounded-[16px] bg-ink p-5 text-white md:p-7">
+      <section className="mb-6 rounded-[8px] bg-ink p-5 text-white md:p-7">
         <p className="text-sm font-semibold text-white/55">下一步</p>
         <h2 className="mt-2 text-2xl font-semibold">{nextTask.title}</h2>
         <p className="mt-2 text-sm leading-6 text-white/65">{nextTask.description}</p>
@@ -147,10 +147,10 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
       </section>
 
       <section className="grid gap-3 md:grid-cols-4">
-        {actionCard("管理面料", "上传图片和参数，维护面料库。", "/provider-center/fabrics")}
-        {actionCard("管理案例", "展示打样、生产或服务案例。", "/provider-center/showcase")}
-        {actionCard("处理询盘", "查看并处理合作需求。", "/provider-center/inquiries")}
-        {actionCard("编辑主页", "更新品牌形象和联系方式。", "/provider-center/profile")}
+        {actionCard("我的产品", "维护可公开展示的面料或服务内容。", "/provider-center/fabrics")}
+        {actionCard("收到的合作需求", "查看并回应设计师发来的需求。", "/provider-center/inquiries")}
+        {actionCard("服务商资料", "更新品牌形象和联系方式。", "/provider-center/profile")}
+        {actionCard("案例展示", "展示打样、生产或服务案例。", "/provider-center/showcase")}
       </section>
     </div>
   );

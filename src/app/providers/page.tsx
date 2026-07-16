@@ -17,7 +17,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "供应链网络",
+  title: "服务商",
   description: "寻找 RunwayLab 认证面料商、打样工作室、服装工厂和专业服务资源。"
 };
 
@@ -188,13 +188,12 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
       <header className="mb-7 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">SUPPLY NETWORK</p>
-          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">寻找适合你的合作资源</h1>
+          <h1 className="text-3xl font-semibold text-ink md:text-5xl">寻找适合你的服务商</h1>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">浏览面料、打样和生产资源，为作品寻找下一步合作伙伴。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {currentProvider ? (
-            <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">供应商中心</Link>
+            <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">服务商工作台</Link>
           ) : currentApplication?.status === ProviderApplicationStatus.PENDING ? (
             <span className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink/55">申请审核中</span>
           ) : currentApplication?.status === ProviderApplicationStatus.REJECTED ? (
@@ -230,8 +229,8 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
       </section>
 
       <div className="mb-4 flex items-center justify-between text-sm text-ink/45">
-        <span>共 {total} 个资源</span>
-        <span>平台精选 → 已认证 → 最近更新</span>
+        <span>共 {total} 个服务商</span>
+        <span>优先展示平台推荐与近期更新</span>
       </div>
 
       {providers.length ? (
@@ -294,7 +293,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
         </section>
       ) : (
         <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm leading-6 text-ink/58">
-          暂无符合条件的供应资源。可以减少筛选条件，或稍后查看平台新增的认证服务商。
+          暂无符合条件的服务商。可以减少筛选条件，或稍后查看平台新增资源。
         </div>
       )}
 

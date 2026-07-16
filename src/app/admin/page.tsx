@@ -49,6 +49,49 @@ const operationActions = [
   ["/admin/projects", "创建合作项目", "把成熟作品推进到合作项目展示。"]
 ] as const;
 
+const adminGroups = [
+  {
+    title: "待处理",
+    links: [
+      ["/admin/works", "作品审核"],
+      ["/admin/provider-applications", "服务商申请"],
+      ["/admin/presale-intents", "预售意向"]
+    ]
+  },
+  {
+    title: "内容",
+    links: [
+      ["/admin/editorial", "编辑推荐"],
+      ["/admin/recommendations", "老师推荐"],
+      ["/admin/cases", "成功案例"]
+    ]
+  },
+  {
+    title: "用户",
+    links: [
+      ["/admin/users", "用户管理"],
+      ["/admin/contributions", "用户贡献"],
+      ["/admin/ai-diagnoses", "AI 建议"]
+    ]
+  },
+  {
+    title: "服务商",
+    links: [
+      ["/admin/providers", "服务商资料"],
+      ["/admin/provider-proposals", "服务商方案"],
+      ["/admin/work-fabric-recommendations", "面料推荐"]
+    ]
+  },
+  {
+    title: "运营",
+    links: [
+      ["/admin/incubation", "孵化管理"],
+      ["/admin/opportunities", "机会管理"],
+      ["/admin/projects", "合作项目"]
+    ]
+  }
+] as const;
+
 const providerApplicationStatusLabels: Record<string, string> = {
   PENDING: "待审核",
   APPROVED: "已通过",
@@ -250,9 +293,8 @@ export default async function AdminPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-5 md:px-8 md:py-12">
       <header className="mb-6 md:mb-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Admin</p>
-        <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">运营控制台</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4">快速判断值得推荐、需要补齐、适合孵化和需要跟进的作品与合作资源。</p>
+        <h1 className="text-3xl font-semibold text-ink md:text-5xl">运营后台</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4">先处理待办，再维护内容、用户、服务商和运营项目。</p>
       </header>
 
       <section className="mb-8">
@@ -266,6 +308,21 @@ export default async function AdminPage() {
             { label: "处理服务商方案", href: "/admin/provider-proposals" }
           ]}
         />
+      </section>
+
+      <section className="mb-6 grid gap-3 md:grid-cols-5 lg:mb-8">
+        {adminGroups.map((group) => (
+          <div key={group.title} className="rounded-[8px] border border-black/8 bg-white p-4">
+            <h2 className="font-semibold text-ink">{group.title}</h2>
+            <div className="mt-3 grid gap-2">
+              {group.links.map(([href, label]) => (
+                <Link key={href} href={href} className="rounded-[6px] bg-paper px-3 py-2 text-sm font-semibold text-ink/62 hover:text-ink">
+                  {label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </section>
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:mb-8 lg:grid-cols-3 xl:grid-cols-6">

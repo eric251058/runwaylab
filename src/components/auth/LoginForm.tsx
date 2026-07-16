@@ -55,24 +55,21 @@ export function LoginForm() {
 
   return (
     <main className="min-h-[calc(100dvh-72px)] bg-paper px-4 py-6 text-ink md:px-8 md:py-10">
-      <div className="mx-auto grid max-w-6xl items-center gap-8 md:grid-cols-[0.95fr_1.05fr]">
-        <section className="rounded-[8px] border border-black/8 bg-ink p-6 text-white md:p-9">
+      <div className="mx-auto grid max-w-4xl items-center gap-6 md:grid-cols-[0.85fr_1.15fr]">
+        <section className="hidden rounded-[8px] border border-black/8 bg-ink p-6 text-white md:block md:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/45">RUNWAYLAB ACCOUNT</p>
-          <h1 className="mt-5 max-w-xl text-4xl font-semibold leading-[1.04] md:text-6xl">
-            登录后发布你的服装设计作品。
-          </h1>
-          <p className="mt-5 max-w-lg text-sm leading-7 text-white/68">
-            登录后可以发布作品、查看审核状态、参与新人设计挑战，并申请面料匹配与打样评估。
-          </p>
-          <p className="mt-6 rounded-[6px] border border-white/12 bg-white/[0.06] px-4 py-3 text-sm leading-6 text-white/68">
-            内测用户请使用自己的邮箱登录。如需测试账号，请联系平台管理员。
-          </p>
+          <h1 className="mt-5 max-w-xl text-4xl font-semibold leading-tight">登录后发布作品。</h1>
+          <p className="mt-5 max-w-lg text-sm leading-7 text-white/68">用自己的邮箱登录，继续发布、收藏和跟进作品进展。</p>
         </section>
 
         <form
           onSubmit={submit}
           className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_22px_80px_rgba(20,20,20,0.09)] md:p-7"
         >
+          <div className="mb-5 md:hidden">
+            <h1 className="text-3xl font-semibold text-ink">登录 RunwayLab</h1>
+            <p className="mt-2 text-sm leading-6 text-ink/52">发布作品，查看进展。</p>
+          </div>
           <div className="mb-7 flex rounded-full border border-black/10 bg-paper p-1 text-sm font-semibold">
             <button
               type="button"

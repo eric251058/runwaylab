@@ -64,7 +64,7 @@ export function ProviderInquiryForm({ providerId, workOptions, loginHref, isLogg
         setMessage(result?.message || "提交失败，请稍后重试");
         return;
       }
-      setSuccess("合作需求已发送给服务商。服务商将在供应商中心收到通知，建议在 48 小时内处理。你可以在“我的合作需求”查看进度。");
+      setSuccess("合作需求已发送给服务商。服务商会在工作台收到通知，建议在 48 小时内处理。你可以在“我的合作需求”查看进度。");
     });
   }
 

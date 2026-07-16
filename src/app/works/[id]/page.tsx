@@ -503,7 +503,7 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
         <section className="space-y-4 md:space-y-6">
           <div>
             <div className="mb-3 flex flex-wrap gap-2 md:mb-4">
-              {badges.map((badge) => (
+              {badges.slice(0, 2).map((badge) => (
                 <WorkStatusBadge key={badge.label} kind={badge.kind}>
                   {badge.label}
                 </WorkStatusBadge>
@@ -546,21 +546,25 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
           />
 
           {(canViewFullAiDiagnosis || aiDiagnosisViews.length > 0) ? (
-            <WorkAiDiagnosisPanel
-              workId={work.id}
-              diagnoses={aiDiagnosisViews}
-              canRequest={canViewFullAiDiagnosis}
-              isConfigured={canUseAiDiagnosis()}
-              showInternal={canViewFullAiDiagnosis}
-            />
+            <details className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">AI 建议</summary>
+              <div className="mt-4">
+                <WorkAiDiagnosisPanel
+                  workId={work.id}
+                  diagnoses={aiDiagnosisViews}
+                  canRequest={canViewFullAiDiagnosis}
+                  isConfigured={canUseAiDiagnosis()}
+                  showInternal={canViewFullAiDiagnosis}
+                />
+              </div>
+            </details>
           ) : null}
 
           {opportunityProfile && orderMaturity ? (
             <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Order Maturity</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-ink">项目推进状态</h2>
+                  <h2 className="text-2xl font-semibold text-ink">项目推进状态</h2>
                   <p className="mt-2 text-sm leading-6 text-ink/58">当前阶段：{OPPORTUNITY_STAGE_LABELS[opportunityProfile.stage]}</p>
                 </div>
                 {opportunityProfile.adminApproved ? (
@@ -720,19 +724,15 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
           <section id="provider-market" className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Provider Market</p>
-                <h2 className="mt-2 text-2xl font-semibold text-ink">服务商方案</h2>
+                <h2 className="text-2xl font-semibold text-ink">合作资源</h2>
               </div>
               <div className="grid gap-2 sm:flex sm:flex-wrap">
-                <Link href="/providers/apply" className="inline-flex h-10 w-full items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white sm:w-auto">
-                  我是服务商，想提交方案
-                </Link>
-                <Link href="/providers" className="inline-flex h-10 w-full items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink sm:w-auto">
-                  查看服务商
+                <Link href="/providers" className="inline-flex h-10 w-full items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white sm:w-auto">
+                  联系合作
                 </Link>
               </div>
             </div>
-            <p className="mt-3 text-sm leading-6 text-ink/58">入驻后，平台会协助服务商参与作品孵化方案提交；本阶段不涉及真实交易、订单或支付。</p>
+            <p className="mt-3 text-sm leading-6 text-ink/58">可查看适合的面料、打样、生产和采购资源。本阶段不涉及真实交易、订单或支付。</p>
 
             <div className="mt-5 space-y-6">
               <div>
@@ -804,15 +804,18 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
             />
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 md:gap-3">
-            {field("品类", work.category)}
-            {field("作品类型", work.workType)}
-            {field("AI 辅助", work.isAiAssisted)}
-            {field("开放合作", work.isOpenCoop)}
-            {field("参赛状态", activeChallenge ? `参赛中：${activeChallenge.title}` : "未参赛")}
-            {field("旧版孵化状态", legacyIncubationLabel(incubationProject?.status ?? work.incubationStatus))}
-            {field("浏览量", work.viewCount)}
-          </div>
+          <details className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
+            <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">更多作品信息</summary>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 md:grid-cols-3 md:gap-3">
+              {field("品类", work.category)}
+              {field("作品类型", work.workType)}
+              {field("AI 辅助", work.isAiAssisted)}
+              {field("开放合作", work.isOpenCoop)}
+              {field("参赛状态", activeChallenge ? `参赛中：${activeChallenge.title}` : "未参赛")}
+              {field("孵化状态", legacyIncubationLabel(incubationProject?.status ?? work.incubationStatus))}
+              {field("浏览量", work.viewCount)}
+            </div>
+          </details>
 
           <div className="rounded-[6px] bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
             <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-ink">

@@ -36,17 +36,21 @@ export default async function FabricDetailPage({ params }: FabricDetailPageProps
       <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
         <SafeImage src={fabric.imageUrl} alt={fabric.name} className="aspect-[4/3] w-full rounded-[8px] object-cover" />
         <section>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Fabric</p>
-          <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">{fabric.name}</h1>
+          <h1 className="text-4xl font-semibold text-ink md:text-6xl">{fabric.name}</h1>
           <p className="mt-4 text-sm leading-6 text-ink/58">{fabric.description ?? "该面料可作为作品孵化阶段的材料参考，适合结合设计方向进一步确认手感、克重与落地工艺。"}</p>
           <div className="mt-5 flex flex-wrap gap-2">
             {fabric.isFeatured ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">推荐面料</span> : null}
             {fabric.tags.map((tag) => <span key={tag} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{tag}</span>)}
           </div>
           {fabric.provider ? (
-            <Link href={`/providers/${fabric.provider.slug ?? fabric.provider.id}`} className="mt-5 inline-flex rounded-full border border-black/10 px-4 py-2 text-sm font-semibold text-ink">
-              供应商：{fabric.provider.name} / {PROVIDER_TYPE_LABELS[fabric.provider.type]}
-            </Link>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Link href={`/providers/${fabric.provider.slug ?? fabric.provider.id}`} className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">
+                {fabric.provider.name} · {PROVIDER_TYPE_LABELS[fabric.provider.type]}
+              </Link>
+              <Link href={`/providers/${fabric.provider.slug ?? fabric.provider.id}#inquiry`} className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
+                咨询这款面料
+              </Link>
+            </div>
           ) : null}
           <p className="mt-5 rounded-[8px] bg-paper p-4 text-sm leading-6 text-ink/58">该页面用于作品孵化阶段的面料参考与推荐，不涉及在线询价、交易或订单。</p>
         </section>

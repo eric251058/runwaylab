@@ -18,11 +18,13 @@ const coveredRoutes = ["/", "/works", "/publish", "/me", "/provider-center", "/i
 
 const desktopNavItems = [
   { label: "作品", href: "/works" },
-  { label: "供应链", href: "/providers" },
-  { label: "孵化", href: "/incubation" },
-  { label: "学校与挑战", href: "/schools" },
+  { label: "面料", href: "/fabrics" },
+  { label: "服务商", href: "/providers" },
+  { label: "机会", href: "/providers/opportunities" },
   { label: "发布作品", href: "/publish", primary: true }
 ];
+
+const providerPersonas = new Set(["FABRIC_SUPPLIER", "SAMPLE_STUDIO", "FACTORY", "BUYER"]);
 
 function isCoveredRoute(pathname: string) {
   return coveredRoutes.some((route) => (route === "/" ? pathname === "/" : pathname === route || pathname.startsWith(`${route}/`)));
@@ -71,6 +73,8 @@ export function AuthNav() {
     router.refresh();
   }
 
+  const showProviderCenter = Boolean(user && (providerPersonas.has(user.persona ?? "") || user.role === "ADMIN"));
+
   return (
     <>
       <nav className="sticky top-0 z-40 hidden border-b border-black/8 bg-white/92 px-6 py-3 text-sm font-semibold text-ink shadow-[0_12px_34px_rgba(16,16,16,0.04)] backdrop-blur md:block">
@@ -93,11 +97,14 @@ export function AuthNav() {
           <div className="flex items-center gap-1">
             {user ? (
               <>
-                <Link href="/provider-center" className="rounded-full px-3 py-2 text-ink/55 transition hover:bg-paper hover:text-ink">供应商中心</Link>
+                <Link href="/me" className="rounded-full px-3 py-2 text-ink/55 transition hover:bg-paper hover:text-ink">我的</Link>
+                {showProviderCenter ? (
+                  <Link href="/provider-center" className="rounded-full px-3 py-2 text-ink/55 transition hover:bg-paper hover:text-ink">服务商工作台</Link>
+                ) : null}
                 <details className="group relative">
-                  <summary className="list-none rounded-full px-3 py-2 transition hover:bg-paper [&::-webkit-details-marker]:hidden">我的账号</summary>
+                  <summary className="list-none rounded-full px-3 py-2 transition hover:bg-paper [&::-webkit-details-marker]:hidden">账号</summary>
                   <div className="absolute right-0 mt-2 grid min-w-36 gap-1 rounded-[12px] border border-black/8 bg-white p-2 shadow-[0_18px_50px_rgba(16,16,16,0.10)]">
-                    <Link href="/me" className="rounded-[8px] px-3 py-2 text-ink/65 hover:bg-paper hover:text-ink">我的页面</Link>
+                    <Link href="/me/dashboard" className="rounded-[8px] px-3 py-2 text-ink/65 hover:bg-paper hover:text-ink">个人工作台</Link>
                     <Link href="/me/profile" className="rounded-[8px] px-3 py-2 text-ink/65 hover:bg-paper hover:text-ink">账号设置</Link>
                     {user.role === "ADMIN" ? <Link href="/admin" className="rounded-[8px] px-3 py-2 text-ink/65 hover:bg-paper hover:text-ink">管理后台</Link> : null}
                     <button type="button" onClick={logout} disabled={loggingOut} className="rounded-[8px] px-3 py-2 text-left text-ink/50 hover:bg-paper hover:text-ink disabled:opacity-50">退出登录</button>

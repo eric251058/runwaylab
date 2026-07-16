@@ -8,10 +8,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/incubation";
 import {
   calculateOrderMaturity,
-  OPPORTUNITY_FABRIC_STATUS_LABELS,
   OPPORTUNITY_STAGE_LABELS,
   PROVIDER_INTEREST_TYPE_LABELS,
-  SAMPLE_STATUS_LABELS
 } from "@/lib/order-maturity";
 import {
   BATCH_WORK_STATUS_LABELS,
@@ -282,10 +280,9 @@ export default async function MeIncubationPage() {
     <div className="mx-auto max-w-6xl px-4 py-5 md:px-8 md:py-12">
       <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">My Incubation</p>
-          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">孵化管理</h1>
+          <h1 className="text-3xl font-semibold text-ink md:text-5xl">我的进展</h1>
           <p className="mt-3 line-clamp-3 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4 md:line-clamp-none">
-            孵化进度不是订单状态，而是作品从展示到打样、预售和合作的验证过程。
+            看每件作品走到哪一步，以及下一步该补什么。
           </p>
         </div>
         <Link href="/me" className="inline-flex h-11 w-full items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink sm:w-fit">
@@ -295,8 +292,7 @@ export default async function MeIncubationPage() {
 
       <section className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
         <div className="mb-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Signals</p>
-          <h2 className="mt-2 text-2xl font-semibold text-ink">作品孵化信号</h2>
+          <h2 className="text-2xl font-semibold text-ink">作品进展</h2>
         </div>
         {works.length ? (
           <div className="grid gap-4">
@@ -335,10 +331,18 @@ export default async function MeIncubationPage() {
                 ["老师推荐", signalState(hasTeacherRecommendation)],
                 ["面料推荐", signalState(false, fabricCount > 0)],
                 ["服务商方案", signalState(false, providerProposalCount > 0)],
-                ["机会意向", signalState(false, opportunityInterestCount > 0)],
                 ["预售意向", signalState(false, presaleCount > 0)],
                 ["合作项目", signalState(hasProject)]
               ];
+              const currentProgress = hasProject
+                ? "进入合作"
+                : providerProposalCount > 0
+                  ? "准备打样"
+                  : fabricCount > 0 || opportunityInterestCount > 0
+                    ? "正在匹配资源"
+                    : hasTeacherRecommendation || presaleCount > 0
+                      ? "正在评估"
+                      : "已提交";
               const aiDiagnosisViews: WorkAiDiagnosisView[] = work.aiDiagnoses.map((diagnosis) => ({
                 id: diagnosis.id,
                 status: diagnosis.status,
@@ -367,6 +371,7 @@ export default async function MeIncubationPage() {
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
                       <h3 className="font-semibold text-ink">{work.title}</h3>
+                      <p className="mt-2 text-sm font-semibold text-ink/65">当前进度：{currentProgress}</p>
                       <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
                         {signals.map(([label, value]) => (
                           <span key={label} className="rounded-full bg-white px-3 py-1 text-ink/55">{label}：{value}</span>
@@ -379,39 +384,38 @@ export default async function MeIncubationPage() {
                     </Link>
                   </div>
                   <div className="mt-4 grid gap-2 rounded-[8px] bg-white p-3 text-xs text-ink/55 sm:grid-cols-2 lg:grid-cols-4">
-                    <span>机会阶段：{profile ? OPPORTUNITY_STAGE_LABELS[profile.stage] : "未维护"}</span>
-                    <span>推荐阶段：{OPPORTUNITY_STAGE_LABELS[maturity.recommendedStage]}</span>
-                    <span>样衣：{profile ? SAMPLE_STATUS_LABELS[profile.sampleStatus] : "未维护"}</span>
-                    <span>面料：{profile ? OPPORTUNITY_FABRIC_STATUS_LABELS[profile.fabricStatus] ?? "未维护" : "未维护"}</span>
-                    <span>专业 {maturity.professionalScore}</span>
-                    <span>生产 {maturity.productionScore}</span>
-                    <span>市场 {maturity.marketScore}</span>
-                    <span>服务商意向 {opportunityInterestCount}</span>
+                    <span>阶段：{profile ? OPPORTUNITY_STAGE_LABELS[profile.stage] : currentProgress}</span>
+                    <span>推荐方向：{OPPORTUNITY_STAGE_LABELS[maturity.recommendedStage]}</span>
+                    <span>服务商意向：{opportunityInterestCount}</span>
+                    <span>综合判断：专业 {maturity.professionalScore} / 生产 {maturity.productionScore} / 市场 {maturity.marketScore}</span>
                   </div>
-                  <div className="mt-4">
-                    <WorkAiDiagnosisPanel
-                      workId={work.id}
-                      diagnoses={aiDiagnosisViews}
-                      canRequest
-                      isConfigured={aiConfigured}
-                      showInternal
-                      compact
-                    />
-                  </div>
-                  <OpportunityProfileForm
-                    workId={work.id}
-                    initialProfile={profile ? {
-                      stage: profile.stage,
-                      targetQuantity: profile.targetQuantity,
-                      targetRetailPrice: decimalText(profile.targetRetailPrice),
-                      sampleBudget: decimalText(profile.sampleBudget),
-                      sampleStatus: profile.sampleStatus,
-                      fabricStatus: profile.fabricStatus,
-                      targetLaunchDate: profile.targetLaunchDate ? profile.targetLaunchDate.toISOString().slice(0, 10) : null,
-                      expectedReorder: profile.expectedReorder,
-                      designerNote: profile.designerNote
-                    } : null}
-                  />
+                  <details className="mt-4 rounded-[8px] bg-white p-3">
+                    <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">补充资料与 AI 建议</summary>
+                    <div className="mt-4 space-y-4">
+                      <WorkAiDiagnosisPanel
+                        workId={work.id}
+                        diagnoses={aiDiagnosisViews}
+                        canRequest
+                        isConfigured={aiConfigured}
+                        showInternal
+                        compact
+                      />
+                      <OpportunityProfileForm
+                        workId={work.id}
+                        initialProfile={profile ? {
+                          stage: profile.stage,
+                          targetQuantity: profile.targetQuantity,
+                          targetRetailPrice: decimalText(profile.targetRetailPrice),
+                          sampleBudget: decimalText(profile.sampleBudget),
+                          sampleStatus: profile.sampleStatus,
+                          fabricStatus: profile.fabricStatus,
+                          targetLaunchDate: profile.targetLaunchDate ? profile.targetLaunchDate.toISOString().slice(0, 10) : null,
+                          expectedReorder: profile.expectedReorder,
+                          designerNote: profile.designerNote
+                        } : null}
+                      />
+                    </div>
+                  </details>
                 </article>
               );
             })}

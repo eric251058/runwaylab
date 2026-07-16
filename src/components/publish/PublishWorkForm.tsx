@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, ImagePlus, Trash2 } from "lucide-react";
+import { Check, ImagePlus, Trash2 } from "lucide-react";
 import { WorkAiDiagnosisRequestButton } from "@/components/ai/WorkAiDiagnosisPanel";
 import { normalizeImageUrl, visualFor } from "@/components/works/work-visuals";
 import {
@@ -74,9 +74,9 @@ const initialForm: WorkForm = {
   description: "",
   category: categoryOptions[0],
   workType: workTypeOptions[0],
-  styleTags: [],
+  styleTags: [styleTagOptions[0]],
   isAiAssisted: false,
-  isOriginal: false,
+  isOriginal: true,
   opportunities: initialOpportunities
 };
 
@@ -383,67 +383,51 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-3 py-5 pb-28 md:px-8 md:py-12">
+    <div className="mx-auto max-w-4xl px-4 py-5 pb-28 md:px-8 md:py-12">
       <header className="mb-5 md:mb-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">Publish</p>
-        <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">{initialWork ? "编辑作品" : "发布你的设计作品"}</h1>
-        <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-6 text-ink/58 md:mt-4 md:line-clamp-none">
-          上传作品后，平台可以帮助你获得老师推荐、面料匹配、打样方案和预售验证机会。
+        <h1 className="text-3xl font-semibold text-ink md:text-5xl">{initialWork ? "编辑作品" : "发布作品"}</h1>
+        <p className="mt-3 max-w-xl text-sm leading-6 text-ink/58">
+          上传图片，写清楚标题和设计说明，就可以先发布。
         </p>
       </header>
 
-      <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-1 md:mx-0 md:mb-6 md:grid md:grid-cols-3 md:px-0">
-        {["作品图片", "作品信息", "设计说明"].map((label, index) => (
-          <div key={label} className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold md:rounded-[6px] ${step === index + 1 ? "bg-ink text-white" : "bg-white text-ink/45"}`}>
-            {index + 1}. {label}
-          </div>
-        ))}
-      </div>
-
-      <section className="rounded-[6px] bg-white p-4 shadow-[0_18px_60px_rgba(16,16,16,0.08)] md:p-7">
-        {step === 1 ? (
-          <div>
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <h2 className="text-2xl font-semibold text-ink">作品图片</h2>
-                <p className="mt-2 text-sm text-ink/55">
-                  上传 {MIN_WORK_IMAGES}-{MAX_WORK_IMAGES} 张，支持 jpg、jpeg、png、webp，单张最大 10MB。
-                </p>
-              </div>
-              <label className="inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-white md:w-auto">
-                <ImagePlus size={16} />
-                {uploading ? "上传中..." : "选择图片"}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  className="hidden"
-                  onChange={(event) => {
-                    void uploadFiles(event.target.files);
-                    event.target.value = "";
-                  }}
-                />
-              </label>
+      <section className="space-y-5 rounded-[8px] bg-white p-4 shadow-[0_16px_48px_rgba(16,16,16,0.08)] md:p-6">
+        <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-ink">作品图片</h2>
+              <p className="mt-2 text-sm text-ink/55">
+                上传 {MIN_WORK_IMAGES}-{MAX_WORK_IMAGES} 张，支持 jpg、jpeg、png、webp，单张最大 10MB。
+              </p>
             </div>
+            <label className="inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-white sm:w-auto">
+              <ImagePlus size={16} />
+              {uploading ? "上传中..." : "选择图片"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+                onChange={(event) => {
+                  void uploadFiles(event.target.files);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+          </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 md:mt-6 md:gap-4 lg:grid-cols-3">
+          {images.length ? (
+            <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3">
               {images.map((image, index) => (
-                <div key={image.clientId ?? `${image.imageUrl}-${index}`} className="overflow-hidden rounded-[6px] border border-black/10 bg-paper">
-                  <div className="aspect-[3/4] overflow-hidden bg-zinc-200 md:aspect-[4/5]">
+                <div key={image.clientId ?? `${image.imageUrl}-${index}`} className="overflow-hidden rounded-[8px] border border-black/10 bg-paper">
+                  <div className="aspect-[3/4] overflow-hidden bg-zinc-200">
                     <img src={image.previewUrl ?? visualFor(index, image.imageUrl)} alt="" className="h-full w-full object-cover object-center" />
                   </div>
-                  <div className="flex flex-col gap-2 p-2 md:flex-row md:items-center md:justify-between md:p-3">
-                    <span className="text-xs font-semibold text-ink/45">
-                      #{index + 1}
-                      {image.isUploading ? " 上传中" : ""}
-                    </span>
-                    <div className="flex gap-1 md:gap-2">
-                      <button type="button" onClick={() => moveImage(index, -1)} className="rounded-full border border-black/10 px-3 py-1 text-xs font-semibold">
-                        上移
-                      </button>
-                      <button type="button" onClick={() => moveImage(index, 1)} className="rounded-full border border-black/10 px-3 py-1 text-xs font-semibold">
-                        下移
-                      </button>
+                  <div className="flex items-center justify-between gap-2 p-2">
+                    <span className="text-xs font-semibold text-ink/45">#{index + 1}{image.isUploading ? " 上传中" : ""}</span>
+                    <div className="flex gap-1">
+                      <button type="button" onClick={() => moveImage(index, -1)} className="rounded-full border border-black/10 px-2 py-1 text-xs font-semibold">上移</button>
+                      <button type="button" onClick={() => moveImage(index, 1)} className="rounded-full border border-black/10 px-2 py-1 text-xs font-semibold">下移</button>
                       <button type="button" onClick={() => void removeImage(index)} className="rounded-full border border-black/10 px-2 py-1 text-xs text-red-600">
                         <Trash2 size={14} />
                       </button>
@@ -452,34 +436,46 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
                 </div>
               ))}
             </div>
-          </div>
-        ) : null}
+          ) : (
+            <div className="mt-5 flex min-h-48 flex-col items-center justify-center rounded-[8px] border border-dashed border-black/15 bg-paper p-6 text-center text-sm text-ink/50">
+              <ImagePlus size={24} />
+              <p className="mt-3 font-semibold text-ink/60">先上传作品图片</p>
+              <p className="mt-1">手机端可以直接从相册选择。</p>
+            </div>
+          )}
+        </div>
 
-        {step === 2 ? (
-          <div className="space-y-5">
-            <h2 className="text-2xl font-semibold text-ink">作品信息</h2>
-            <label className="block">
-              <span className="text-xs font-semibold text-ink/45">作品标题</span>
-              <input
-                value={form.title}
-                onChange={(event) => setForm({ ...form, title: event.target.value })}
-                placeholder="例如：城市通勤女装系列"
-                className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 outline-none focus:border-ink"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-semibold text-ink/45">设计说明</span>
-              <textarea
-                value={form.description}
-                onChange={(event) => setForm({ ...form, description: event.target.value })}
-                placeholder="写清楚灵感、适合人群、面料想法即可。"
-                className="mt-2 min-h-36 w-full rounded-[6px] border border-black/10 bg-paper p-4 outline-none focus:border-ink"
-              />
-            </label>
+        <div className="grid gap-4">
+          <label className="block">
+            <span className="text-xs font-semibold text-ink/45">作品标题</span>
+            <input
+              value={form.title}
+              onChange={(event) => setForm({ ...form, title: event.target.value })}
+              placeholder="例如：城市通勤女装系列"
+              className="mt-2 h-12 w-full rounded-[8px] border border-black/10 bg-paper px-4 outline-none focus:border-ink"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-semibold text-ink/45">设计说明</span>
+            <textarea
+              value={form.description}
+              onChange={(event) => setForm({ ...form, description: event.target.value })}
+              placeholder="写清楚灵感、适合人群、面料想法即可。"
+              className="mt-2 min-h-36 w-full rounded-[8px] border border-black/10 bg-paper p-4 outline-none focus:border-ink"
+            />
+          </label>
+        </div>
+
+        <details className="rounded-[8px] border border-black/8 bg-paper p-4">
+          <summary className="cursor-pointer list-none text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
+            补充更多信息
+            <span className="mt-1 block text-xs font-medium text-ink/45">品类、风格标签和合作方向可以先用默认值，之后再编辑。</span>
+          </summary>
+          <div className="mt-4 space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
                 <span className="text-xs font-semibold text-ink/45">服装品类</span>
-                <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 outline-none">
+                <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="mt-2 h-12 w-full rounded-[8px] border border-black/10 bg-white px-4 outline-none">
                   {categoryOptions.map((option) => (
                     <option key={option}>{option}</option>
                   ))}
@@ -487,7 +483,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
               </label>
               <label className="block">
                 <span className="text-xs font-semibold text-ink/45">作品类型</span>
-                <select value={form.workType} onChange={(event) => setForm({ ...form, workType: event.target.value })} className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 outline-none">
+                <select value={form.workType} onChange={(event) => setForm({ ...form, workType: event.target.value })} className="mt-2 h-12 w-full rounded-[8px] border border-black/10 bg-white px-4 outline-none">
                   {workTypeOptions.map((option) => (
                     <option key={option}>{option}</option>
                   ))}
@@ -502,33 +498,16 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
                     key={tag}
                     type="button"
                     onClick={() => toggleTag(tag)}
-                    className={`rounded-full border px-3 py-2 text-xs font-semibold ${form.styleTags.includes(tag) ? "border-ink bg-ink text-white" : "border-black/10 bg-paper text-ink/55"}`}
+                    className={`rounded-full border px-3 py-2 text-xs font-semibold ${form.styleTags.includes(tag) ? "border-ink bg-ink text-white" : "border-black/10 bg-white text-ink/55"}`}
                   >
                     {tag}
                   </button>
                 ))}
               </div>
             </div>
-            <label className="flex items-center gap-3 rounded-[6px] bg-paper p-4 text-sm font-semibold">
-              <input type="checkbox" checked={form.isAiAssisted} onChange={(event) => setForm({ ...form, isAiAssisted: event.target.checked })} />
-              是否 AI 辅助
-            </label>
-            <label className="flex items-center gap-3 rounded-[6px] bg-paper p-4 text-sm font-semibold">
-              <input type="checkbox" checked={form.isOriginal} onChange={(event) => setForm({ ...form, isOriginal: event.target.checked })} />
-              我确认该作品为本人原创或已获得授权。
-            </label>
-          </div>
-        ) : null}
-
-        {step === 3 ? (
-          <div>
-            <h2 className="text-2xl font-semibold text-ink">适合方向</h2>
-            <p className="mt-2 text-sm text-ink/55">
-              选择你希望作品获得的机会。不确定也可以先提交。
-            </p>
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               {opportunityOptions.map((option) => (
-                <label key={option.key} className="flex items-center gap-3 rounded-[6px] border border-black/8 bg-paper p-4 text-sm font-semibold">
+                <label key={option.key} className="flex items-center gap-3 rounded-[8px] border border-black/8 bg-white p-3 text-sm font-semibold">
                   <input
                     type="checkbox"
                     checked={form.opportunities[option.key]}
@@ -546,48 +525,30 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
                 </label>
               ))}
             </div>
+            <label className="flex items-center gap-3 rounded-[8px] bg-white p-3 text-sm font-semibold">
+              <input type="checkbox" checked={form.isAiAssisted} onChange={(event) => setForm({ ...form, isAiAssisted: event.target.checked })} />
+              这件作品使用了 AI 辅助
+            </label>
+            <label className="flex items-center gap-3 rounded-[8px] bg-white p-3 text-sm font-semibold">
+              <input type="checkbox" checked={form.isOriginal} onChange={(event) => setForm({ ...form, isOriginal: event.target.checked })} />
+              我确认该作品为本人原创或已获得授权
+            </label>
+          </div>
+        </details>
+
+        {validationReasons.length > 0 ? (
+          <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {validationReasons[0]}
           </div>
         ) : null}
 
-        {step === 3 && validationReasons.length > 0 ? (
-          <div className="mt-5 rounded-[6px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <p className="font-semibold">还不能提交，请先完成：</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
-              {validationReasons.map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+        {message ? <p className="rounded-[8px] bg-red-50 px-4 py-3 text-sm text-red-700">{message}</p> : null}
 
-        {message ? <p className="mt-5 rounded-[6px] bg-red-50 px-4 py-3 text-sm text-red-700">{message}</p> : null}
-
-        <div className="sticky bottom-20 z-30 -mx-4 mt-6 grid grid-cols-2 gap-3 border-t border-black/8 bg-white/95 px-4 py-3 shadow-[0_-12px_36px_rgba(16,16,16,0.08)] backdrop-blur md:static md:mx-0 md:mt-7 md:flex md:flex-wrap md:bg-transparent md:px-0 md:pt-5 md:shadow-none">
-          <button type="button" disabled={step === 1} onClick={() => setStep((current) => Math.max(1, current - 1))} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-4 text-sm font-semibold disabled:opacity-30 md:px-5">
-            <ArrowLeft size={15} />
-            上一步
+        <div className="sticky bottom-20 z-30 -mx-4 border-t border-black/8 bg-white/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-t-0 md:bg-transparent md:px-0 md:py-0">
+          <button type="button" disabled={submitting || !canSubmit} onClick={() => void submit()} className="inline-flex h-12 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-40 md:w-auto">
+            {submitting ? "提交中..." : initialWork ? "保存作品" : "发布作品"}
           </button>
-          {step < 3 ? (
-            <button
-              type="button"
-              onClick={() => {
-                if (step === 1 && images.length < MIN_WORK_IMAGES) {
-                  setMessage(`请至少上传 ${MIN_WORK_IMAGES} 张作品图片。`);
-                  return;
-                }
-                setMessage("");
-                setStep((current) => current + 1);
-              }}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-ink px-4 text-sm font-semibold text-white md:px-5"
-            >
-              下一步
-              <ArrowRight size={15} />
-            </button>
-          ) : (
-            <button type="button" disabled={submitting || !canSubmit} onClick={() => void submit()} className="col-span-2 inline-flex h-11 items-center justify-center rounded-full bg-accent px-4 text-sm font-semibold text-ink disabled:opacity-40 md:col-span-1 md:px-6">
-              {submitting ? "提交中..." : "发布作品，进入孵化机会池"}
-            </button>
-          )}
+          <p className="mt-2 text-xs leading-5 text-ink/42">点击发布即确认你有权展示该作品。</p>
         </div>
       </section>
     </div>

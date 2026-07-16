@@ -97,8 +97,7 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
           <div className="flex aspect-[16/10] w-full items-center justify-center rounded-[8px] bg-paper text-5xl font-semibold text-ink/30">{provider.name.slice(0, 1)}</div>
         )}
         <div className="flex flex-col justify-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">PROVIDER PROFILE</p>
-          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">{provider.name}</h1>
+          <h1 className="text-3xl font-semibold text-ink md:text-5xl">{provider.name}</h1>
           <p className="mt-3 text-sm text-ink/52">
             {[SUPPLY_PROVIDER_TYPE_LABELS[provider.type], provider.city, provider.isVerified ? "已认证" : null, PROVIDER_AVAILABILITY_LABELS[provider.availabilityStatus]].filter(Boolean).join(" / ")}
           </p>
@@ -117,7 +116,7 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
           <div className="mt-5 flex flex-wrap gap-2">
             <a href="#inquiry" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">发起合作</a>
             <a href="#products" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看产品与案例</a>
-            {isOwner ? <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">管理我的主页</Link> : null}
+            {isOwner ? <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">管理主页</Link> : null}
           </div>
         </div>
       </header>
@@ -145,7 +144,7 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
       <section id="products" className="mt-10">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-semibold text-ink">产品与案例</h2>
-          <span className="text-sm text-ink/40">面料 {provider._count.fabrics} / 案例 {provider._count.showcaseItems}</span>
+          <span className="text-sm text-ink/40">面料 {provider._count.fabrics} · 案例 {provider._count.showcaseItems}</span>
         </div>
         {provider.fabrics.length || provider.showcaseItems.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -182,7 +181,7 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
       <section id="inquiry" className="mt-10 grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
         <div className="rounded-[8px] border border-black/8 bg-white p-5">
           <h2 className="text-2xl font-semibold text-ink">联系与合作</h2>
-          <p className="mt-3 text-sm leading-6 text-ink/58">优先使用站内结构化询盘，便于服务商判断需求、作品阶段和回复动作。</p>
+          <p className="mt-3 text-sm leading-6 text-ink/58">提交合作需求后，服务商会根据作品和需求判断是否适合继续沟通。</p>
           {contactVisible ? (
             <div className="mt-4 space-y-2 text-sm text-ink/60">
               {provider.contactEmail ? <p>邮箱：{provider.contactEmail}</p> : null}
@@ -192,7 +191,7 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
               {provider.website ? <p>网站：<a className="underline" href={provider.website}>{provider.website}</a></p> : null}
             </div>
           ) : (
-            <p className="mt-4 rounded-[6px] bg-paper p-3 text-sm leading-6 text-ink/55">私人联系方式未公开。登录后可提交站内询盘，服务商会在供应商中心处理。</p>
+            <p className="mt-4 rounded-[6px] bg-paper p-3 text-sm leading-6 text-ink/55">私人联系方式未公开。登录后可提交站内询盘，服务商会在工作台处理。</p>
           )}
         </div>
         <ProviderInquiryForm providerId={provider.id} workOptions={workOptions} loginHref={loginHref} isLoggedIn={Boolean(user)} />

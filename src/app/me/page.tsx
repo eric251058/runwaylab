@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProviderApplicationStatus } from "@prisma/client";
-import { MyActivityLists, type MyActivityTab, type MyFavoriteItem, type MyRequestItem } from "@/components/me/MyActivityLists";
+import { MyActivityLists, type MyFavoriteItem, type MyRequestItem } from "@/components/me/MyActivityLists";
 import { MyWorksList, type MyWorkItem } from "@/components/me/MyWorksList";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAnyProviderForUser, getProviderApplicationForUser } from "@/lib/provider-access";
@@ -10,7 +10,7 @@ import { SUPPLY_PROVIDER_TYPE_LABELS, providerCompleteness, providerPublicUrl } 
 
 export const dynamic = "force-dynamic";
 
-type MeTab = "works" | "entries" | MyActivityTab;
+type MeTab = "works" | "progress" | "favorites" | "profile";
 
 type MePageProps = {
   searchParams?: Promise<{
@@ -20,11 +20,9 @@ type MePageProps = {
 
 const tabs: Array<{ key: MeTab; label: string; href: string }> = [
   { key: "works", label: "我的作品", href: "/me?tab=works" },
-  { key: "entries", label: "我的参赛", href: "/me?tab=entries" },
+  { key: "progress", label: "我的进展", href: "/me?tab=progress" },
   { key: "favorites", label: "我的收藏", href: "/me?tab=favorites" },
-  { key: "fabric", label: "面料需求", href: "/me?tab=fabric" },
-  { key: "sample", label: "打样需求", href: "/me?tab=sample" },
-  { key: "incubation", label: "孵化申请", href: "/me?tab=incubation" }
+  { key: "profile", label: "账号与资料", href: "/me?tab=profile" }
 ];
 
 const tabKeys = new Set<MeTab>(tabs.map((tab) => tab.key));
@@ -225,12 +223,12 @@ export default async function MePage({ searchParams }: MePageProps) {
     <div className="mx-auto max-w-5xl px-3 py-5 md:px-8 md:py-12">
       <header className="mb-5 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-ink md:text-6xl">我的页面</h1>
-          <p className="mt-3 text-sm text-ink/58 md:mt-4">查看作品、合作需求和账号信息。</p>
+          <h1 className="text-3xl font-semibold text-ink md:text-5xl">我的</h1>
+          <p className="mt-3 text-sm text-ink/58 md:mt-4">管理作品、进展、收藏和个人资料。</p>
         </div>
         <div className="grid gap-2 sm:flex sm:flex-wrap">
           <Link href="/me/profile" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink sm:px-5">
-            账号设置
+            账号与资料
           </Link>
           {!provider ? (
             <Link href="/publish" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white sm:px-5">
@@ -244,12 +242,10 @@ export default async function MePage({ searchParams }: MePageProps) {
         <section className="mb-5 rounded-[16px] bg-white p-5 md:p-7">
           <p className="text-sm text-ink/45">{SUPPLY_PROVIDER_TYPE_LABELS[provider.type]}</p>
           <h2 className="mt-2 text-2xl font-semibold text-ink md:text-4xl">{provider.name}</h2>
-          <p className="mt-3 text-sm text-ink/52">主页完成度 {providerCompleteness(provider).percent}%</p>
+          <p className="mt-3 text-sm text-ink/52">服务商资料完成度 {providerCompleteness(provider).percent}%</p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-            <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">进入供应商中心</Link>
+            <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">进入服务商工作台</Link>
             <Link href={providerPublicUrl(provider)} className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看公开主页</Link>
-            <Link href="/me?tab=works" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">我的作品</Link>
-            <Link href="/me/projects" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">我的合作需求</Link>
           </div>
         </section>
       ) : providerApplication ? (
@@ -274,31 +270,18 @@ export default async function MePage({ searchParams }: MePageProps) {
         </section>
       ) : null}
 
-      {!provider ? <section className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-5">
+      {!provider ? <section className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-4">
         {[
           ["我的作品", works.length],
           ["总点赞", totalLikes],
           ["总收藏", totalFavorites],
-          ["总评论", totalComments],
-          ["孵化中作品", incubatingWorkCount],
-          ["预售意向", receivedPresaleCount],
-          ["面料推荐", receivedFabricProposalCount],
-          ["打样方案", receivedSampleProposalCount],
-          ["工厂方案", receivedFactoryProposalCount],
-          ["采购意向", receivedBuyerIntentCount]
+          ["进行中", incubatingWorkCount + receivedPresaleCount + receivedFabricProposalCount + receivedSampleProposalCount + receivedFactoryProposalCount + receivedBuyerIntentCount]
         ].map(([label, value], index) => (
-          <div key={label} className={`rounded-[8px] border border-black/8 bg-white p-3 ${index >= 6 ? "hidden md:block" : ""}`}>
+          <div key={label} className="rounded-[8px] border border-black/8 bg-white p-3">
             <p className="text-2xl font-semibold text-ink">{value}</p>
             <p className="mt-1 text-xs font-semibold text-ink/45">{label}</p>
           </div>
         ))}
-      </section> : null}
-
-      {!provider ? <section className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <Link href="/me/incubation" className="rounded-[8px] border border-black/8 bg-white p-4 text-sm font-semibold text-ink">我的孵化项目</Link>
-        <Link href="/me/incubation" className="rounded-[8px] border border-black/8 bg-white p-4 text-sm font-semibold text-ink">我的预售意向</Link>
-        <Link href="/me/incubation" className="rounded-[8px] border border-black/8 bg-white p-4 text-sm font-semibold text-ink">收到的产业方案</Link>
-        <Link href="/rankings" className="rounded-[8px] border border-black/8 bg-white p-4 text-sm font-semibold text-ink">我的热门作品</Link>
       </section> : null}
 
       <div className="-mx-3 mb-4 flex gap-2 overflow-x-auto px-3 pb-2 md:mx-0 md:mb-6 md:px-0">
@@ -316,17 +299,47 @@ export default async function MePage({ searchParams }: MePageProps) {
       </div>
 
       {activeTab === "works" ? <MyWorksList works={workItems} /> : null}
-      {activeTab === "entries" ? (
-        <MyWorksList works={entryItems} emptyText="你还没有参加挑战" emptyActionHref="/challenges" emptyActionLabel="查看挑战" />
+      {activeTab === "progress" ? (
+        <section className="grid gap-3 md:grid-cols-2">
+          {[
+            ["孵化进度", `${incubatingWorkCount} 件作品正在推进`, "/me/incubation"],
+            ["参赛作品", `${entryItems.length} 件作品参加挑战`, "/challenges"],
+            ["面料需求", `${fabricItems.length} 条记录`, "/me/incubation"],
+            ["打样需求", `${sampleItems.length} 条记录`, "/me/incubation"],
+            ["预售意向", `${receivedPresaleCount} 条收到的意向`, "/me/incubation"],
+            ["合作方案", `${receivedSampleProposalCount + receivedFactoryProposalCount + receivedBuyerIntentCount} 条待查看`, "/me/incubation"]
+          ].map(([title, description, href]) => (
+            <Link key={title} href={href} className="rounded-[8px] border border-black/8 bg-white p-4 transition hover:border-ink/35">
+              <h2 className="font-semibold text-ink">{title}</h2>
+              <p className="mt-2 text-sm text-ink/52">{description}</p>
+            </Link>
+          ))}
+        </section>
       ) : null}
-      {activeTab !== "works" && activeTab !== "entries" ? (
+      {activeTab === "favorites" ? (
         <MyActivityLists
-          activeTab={activeTab}
+          activeTab="favorites"
           favorites={favoriteItems}
           fabricRequests={fabricItems}
           sampleRequests={sampleItems}
           incubationApplications={incubationItems}
         />
+      ) : null}
+      {activeTab === "profile" ? (
+        <section className="grid gap-3 md:grid-cols-2">
+          <Link href="/me/profile" className="rounded-[8px] border border-black/8 bg-white p-4">
+            <h2 className="font-semibold text-ink">编辑个人资料</h2>
+            <p className="mt-2 text-sm text-ink/52">更新昵称、学校、城市和个人介绍。</p>
+          </Link>
+          <Link href="/me/onboarding" className="rounded-[8px] border border-black/8 bg-white p-4">
+            <h2 className="font-semibold text-ink">切换身份</h2>
+            <p className="mt-2 text-sm text-ink/52">调整你在 RunwayLab 的个人工作台。</p>
+          </Link>
+          <Link href="/me/dashboard" className="rounded-[8px] border border-black/8 bg-white p-4">
+            <h2 className="font-semibold text-ink">个人工作台</h2>
+            <p className="mt-2 text-sm text-ink/52">查看与你身份相关的任务入口。</p>
+          </Link>
+        </section>
       ) : null}
     </div>
   );

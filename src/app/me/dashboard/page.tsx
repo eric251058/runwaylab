@@ -52,7 +52,7 @@ const personaGuides: Record<UserPersona, { task: string; actions: Array<{ label:
   FABRIC_SUPPLIER: {
     task: "完善服务商资料，参与作品面料匹配。",
     actions: [
-      { label: "进入供应商中心", href: "/provider-center", primary: true },
+      { label: "进入服务商工作台", href: "/provider-center", primary: true },
       { label: "查看作品池", href: "/incubation" },
       { label: "查看面料库", href: "/fabrics" }
     ]
@@ -60,7 +60,7 @@ const personaGuides: Record<UserPersona, { task: string; actions: Array<{ label:
   SAMPLE_STUDIO: {
     task: "发现适合打样的作品，提交打样方案。",
     actions: [
-      { label: "进入供应商中心", href: "/provider-center", primary: true },
+      { label: "进入服务商工作台", href: "/provider-center", primary: true },
       { label: "查看孵化作品", href: "/incubation" },
       { label: "查看服务商市场", href: "/providers" }
     ]
@@ -68,7 +68,7 @@ const personaGuides: Record<UserPersona, { task: string; actions: Array<{ label:
   FACTORY: {
     task: "发现具备生产潜力的作品，提交生产方案。",
     actions: [
-      { label: "进入供应商中心", href: "/provider-center", primary: true },
+      { label: "进入服务商工作台", href: "/provider-center", primary: true },
       { label: "查看预售验证", href: "/presale" },
       { label: "查看合作项目", href: "/projects" }
     ]
@@ -260,7 +260,7 @@ export default async function MeDashboardPage() {
           <ActionCard title={copy.libraryTitle} description="查看服务商市场和面料库公开资料。" href={kind === "fabric" ? "/fabrics" : "/providers"} />
           <ActionCard title={copy.planTitle} description="围绕作品提交轻量方案，本批不涉及交易和订单。" href="/incubation" />
           {providerMatches.length ? (
-            <ActionCard title="供应商中心" description="维护主页、面料、案例和合作询盘。" href="/provider-center" />
+            <ActionCard title="服务商工作台" description="维护主页、产品、案例和合作需求。" href="/provider-center" />
           ) : (
             <ActionCard title="服务商入驻" description="提交公司、联系方式和服务说明，由平台后续审核。" href="/providers/apply" />
           )}
@@ -390,8 +390,7 @@ export default async function MeDashboardPage() {
     <div className="mx-auto max-w-6xl px-4 py-5 md:px-8 md:py-12">
       <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">My Dashboard</p>
-          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-6xl">我的工作台</h1>
+          <h1 className="text-3xl font-semibold text-ink md:text-5xl">个人工作台</h1>
           <p className="mt-3 text-sm leading-6 text-ink/58 md:mt-4">{USER_PERSONA_LABELS[currentUser.persona]}工作台</p>
         </div>
         <div className="grid gap-2 sm:flex sm:flex-wrap">
