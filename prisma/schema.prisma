@@ -271,6 +271,9 @@ enum RecommendationStatus {
   PENDING
   ACCEPTED
   REJECTED
+  INTERESTED
+  NOT_SUITABLE
+  WITHDRAWN
 }
 
 enum ProviderWorkProposalType {
@@ -488,6 +491,7 @@ model User {
   cooperationRequests       CooperationRequest[]
   reports                   Report[]                   @relation("Reporter")
   notifications             Notification[]
+  createdFabricRecommendations WorkFabricRecommendation[] @relation("WorkFabricRecommendationCreatedBy")
 
   handledWorks               Work[]                  @relation("WorkHandledBy")
   handledComments            Comment[]               @relation("CommentHandledBy")
@@ -1220,13 +1224,18 @@ model WorkFabricRecommendation {
   workId        String
   fabricId      String
   providerId    String?
+  createdByUserId String?
   reason        String?
   recommendedBy String?
+  sampleAvailability String?
+  moqText       String?
+  responseTime  String?
   status        RecommendationStatus @default(PENDING)
 
   work     Work      @relation(fields: [workId], references: [id], onDelete: Cascade)
   fabric   Fabric    @relation(fields: [fabricId], references: [id], onDelete: Cascade)
   provider Provider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  createdBy User?    @relation("WorkFabricRecommendationCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1235,6 +1244,7 @@ model WorkFabricRecommendation {
   @@index([workId])
   @@index([fabricId])
   @@index([providerId])
+  @@index([createdByUserId])
   @@index([status])
 }
 

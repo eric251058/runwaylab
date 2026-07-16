@@ -146,8 +146,9 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
         {stat("处理中询盘", processingInquiries)}
       </section>
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-5">
         {actionCard("我的产品", "维护可公开展示的面料或服务内容。", "/provider-center/fabrics")}
+        {actionCard("我的推荐", "查看推荐给设计师的产品和反馈。", "/provider-center/recommendations")}
         {actionCard("收到的合作需求", "查看并回应设计师发来的需求。", "/provider-center/inquiries")}
         {actionCard("服务商资料", "更新品牌形象和联系方式。", "/provider-center/profile")}
         {actionCard("案例展示", "展示打样、生产或服务案例。", "/provider-center/showcase")}

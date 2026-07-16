@@ -28,6 +28,8 @@ const statusLabels: Record<string, string> = {
   REVIEWED: "已查看",
   ACCEPTED: "已采纳",
   REJECTED: "暂不合适",
+  NOT_SUITABLE: "暂不合适",
+  WITHDRAWN: "已撤回",
   DECLINED: "暂不推进",
   CLOSED: "已关闭",
   INVALID: "违规/无效"
@@ -44,7 +46,8 @@ const editableKinds = new Set(["presale", "fabric", "sample", "factory", "buyer"
 function statusClass(status: string) {
   if (status === "ACCEPTED") return "bg-ink text-white";
   if (status === "INTERESTED" || status === "SHORTLISTED") return "bg-amber-100 text-amber-800";
-  if (status === "REJECTED") return "bg-zinc-100 text-ink/55";
+  if (status === "REJECTED" || status === "NOT_SUITABLE") return "bg-zinc-100 text-ink/55";
+  if (status === "WITHDRAWN") return "bg-paper text-ink/40";
   if (status === "INVALID") return "bg-red-100 text-red-700";
   return "bg-paper text-ink/58";
 }

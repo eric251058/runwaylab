@@ -5,14 +5,18 @@ import { ActionGuide } from "@/components/ActionGuide";
 import { WorkAiDiagnosisPanel, type WorkAiDiagnosisView } from "@/components/ai/WorkAiDiagnosisPanel";
 import { DataUnavailable } from "@/components/layout/DataUnavailable";
 import { IncubationProgress } from "@/components/incubation/IncubationProgress";
+import { SafeImage } from "@/components/media/SafeImage";
 import { PresaleCampaignPanel } from "@/components/presale/PresaleCampaignPanel";
+import { FabricRecommendationDialog, type FabricRecommendationProduct } from "@/components/works/FabricRecommendationDialog";
 import { WorkImageCarousel } from "@/components/works/WorkImageCarousel";
 import { WorkContributionPanel } from "@/components/works/WorkContributionPanel";
+import { WorkFabricRecommendationPanel, type WorkFabricRecommendationView } from "@/components/works/WorkFabricRecommendationPanel";
 import { WorkInteractionBar } from "@/components/works/WorkInteractionBar";
 import { WorkStatusBadge, getWorkBadges } from "@/components/works/WorkStatusBadge";
 import { initials } from "@/components/works/work-visuals";
 import { getCurrentUser } from "@/lib/auth/session";
 import { canUseAiDiagnosis } from "@/lib/ai/work-diagnosis";
+import { generateFabricRecommendationReason } from "@/lib/fabric-recommendations";
 import { incubationStatusLabels } from "@/lib/incubation";
 import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
 import {
@@ -28,10 +32,23 @@ import {
   publicBatchWhere
 } from "@/lib/incubation-batches";
 import { canViewWorkDetail } from "@/lib/permissions";
+import { getProviderForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
-import { fabricCoverUrl, PROVIDER_PROPOSAL_STATUS_LABELS, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
+import { PROVIDER_PROPOSAL_STATUS_LABELS, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
 import { getWorkDetailById } from "@/lib/works/queries";
-import { AiDiagnosisReviewStatus, AiDiagnosisStatus, PresaleCampaignStatus, UserPersona, WorkIncubationStatus, WorkVoteStatus, WorkVoteType } from "@prisma/client";
+import {
+  AiDiagnosisReviewStatus,
+  AiDiagnosisStatus,
+  FabricStatus,
+  PresaleCampaignStatus,
+  ProviderAvailabilityStatus,
+  ProviderType,
+  RecommendationStatus,
+  UserPersona,
+  WorkIncubationStatus,
+  WorkVoteStatus,
+  WorkVoteType
+} from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -337,17 +354,29 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
     },
     select: {
       fabricRecommendations: {
+        where: {
+          status: {
+            not: RecommendationStatus.WITHDRAWN
+          }
+        },
         include: {
           fabric: {
             include: {
               provider: true
             }
           },
-          provider: true
+          provider: true,
+          createdBy: {
+            select: {
+              id: true,
+              nickname: true
+            }
+          }
         },
         orderBy: {
           createdAt: "desc"
-        }
+        },
+        take: 12
       },
       providerWorkProposals: {
         include: {
@@ -416,6 +445,40 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
     : [null, null, null];
   const isOwner = Boolean(currentUser && currentUser.id === work.userId);
   const isAdminUser = currentUser?.role === "ADMIN";
+  const currentProvider = await getProviderForUser(currentUser);
+  const canRecommendFabric = Boolean(
+    currentProvider &&
+      currentProvider.type === ProviderType.FABRIC_SUPPLIER &&
+      currentProvider.opportunityVisible &&
+      currentProvider.availabilityStatus !== ProviderAvailabilityStatus.PAUSED &&
+      !isOwner
+  );
+  const fabricRecommendationProducts: FabricRecommendationProduct[] = canRecommendFabric
+    ? (await prisma.fabric.findMany({
+        where: {
+          providerId: currentProvider!.id,
+          status: FabricStatus.ACTIVE
+        },
+        orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
+        take: 50
+      })).map((fabric) => ({
+        id: fabric.id,
+        name: fabric.name,
+        slug: fabric.slug,
+        code: fabric.code,
+        imageUrl: fabric.imageUrl ?? fabric.imageUrls[0] ?? null,
+        composition: fabric.composition,
+        weight: fabric.weight,
+        width: fabric.width,
+        usage: fabric.usage,
+        moqNote: fabric.moqNote,
+        defaultReason: generateFabricRecommendationReason({
+          workCategory: work.category,
+          styleTags: work.styleTags,
+          fabric
+        })
+      }))
+    : [];
   const canViewFullAiDiagnosis = isOwner || isAdminUser;
   const aiDiagnoses = await prisma.workAiDiagnosis.findMany({
     where: canViewFullAiDiagnosis
@@ -462,6 +525,36 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
   const fabricSignalCount = fabricProposalCount + (providerMarketInfo?.fabricRecommendations.length ?? 0);
   const providerProposalSignalCount = sampleProposalCount + factoryProposalCount + (providerMarketInfo?.providerWorkProposals.length ?? 0);
   const presaleSignalCount = presaleIntentCount + (activePresaleCampaign?.currentCount ?? 0);
+  const workFabricRecommendationViews: WorkFabricRecommendationView[] = (providerMarketInfo?.fabricRecommendations ?? []).map((recommendation) => ({
+    id: recommendation.id,
+    status: recommendation.status,
+    reason: recommendation.reason,
+    sampleAvailability: recommendation.sampleAvailability,
+    moqText: recommendation.moqText,
+    responseTime: recommendation.responseTime,
+    createdAt: recommendation.createdAt.toLocaleString("zh-CN"),
+    fabric: {
+      id: recommendation.fabric.id,
+      name: recommendation.fabric.name,
+      slug: recommendation.fabric.slug,
+      imageUrl: recommendation.fabric.imageUrl ?? recommendation.fabric.imageUrls[0] ?? null,
+      composition: recommendation.fabric.composition,
+      weight: recommendation.fabric.weight,
+      width: recommendation.fabric.width,
+      usage: recommendation.fabric.usage
+    },
+    provider: recommendation.provider
+      ? {
+          name: recommendation.provider.name,
+          city: recommendation.provider.city
+        }
+      : recommendation.fabric.provider
+        ? {
+            name: recommendation.fabric.provider.name,
+            city: recommendation.fabric.provider.city
+          }
+        : null
+  }));
   const completedSignals = [
     teacherRecommendationCount ? "老师推荐" : null,
     fabricSignalCount ? "面料建议" : null,
@@ -544,6 +637,14 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
             note={"note" in actionCopy ? actionCopy.note : undefined}
             actions={actionCopy.actions}
           />
+
+          {canRecommendFabric ? (
+            <FabricRecommendationDialog workId={work.id} workTitle={work.title} products={fabricRecommendationProducts} />
+          ) : null}
+
+          {isOwner && workFabricRecommendationViews.length ? (
+            <WorkFabricRecommendationPanel workId={work.id} recommendations={workFabricRecommendationViews} canManage />
+          ) : null}
 
           {(canViewFullAiDiagnosis || aiDiagnosisViews.length > 0) ? (
             <details className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
@@ -741,7 +842,12 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
                   <div className="grid gap-3 md:grid-cols-2">
                     {providerMarketInfo.fabricRecommendations.map((recommendation) => (
                       <Link key={recommendation.id} href={`/fabrics/${recommendation.fabric.slug ?? recommendation.fabric.id}`} className="flex gap-3 rounded-[8px] border border-black/8 bg-paper p-3">
-                        <img src={fabricCoverUrl(recommendation.fabric.imageUrl)} alt={recommendation.fabric.name} className="size-20 rounded-[6px] object-cover" />
+                        <SafeImage
+                          src={recommendation.fabric.imageUrl ?? recommendation.fabric.imageUrls[0] ?? null}
+                          alt={recommendation.fabric.name}
+                          className="size-20 shrink-0 rounded-[6px] object-cover"
+                          placeholder="暂无图片"
+                        />
                         <span className="min-w-0 text-sm">
                           <span className="block truncate font-semibold text-ink">{recommendation.fabric.name}</span>
                           <span className="mt-1 block text-ink/52">{recommendation.provider?.name ?? recommendation.fabric.provider?.name ?? "供应商待关联"}</span>
