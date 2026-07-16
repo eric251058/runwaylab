@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { tooManyRequests } from "@/lib/security/api-response";
 import { checkRateLimit } from "@/lib/security/rate-limit";
-import { publicWorkWhere } from "@/lib/works/public";
+import { isPublicWorkAccessible, publicQualityWorkCheckSelect, publicWorkWhere } from "@/lib/works/public";
 
 type RouteContext = {
   params: Promise<{
@@ -27,12 +27,10 @@ export async function POST(_request: Request, context: RouteContext) {
       id,
       ...publicWorkWhere
     },
-    select: {
-      id: true
-    }
+    select: publicQualityWorkCheckSelect
   });
 
-  if (!work) {
+  if (!isPublicWorkAccessible(work)) {
     return NextResponse.json({ message: "作品不存在或暂不可收藏。" }, { status: 404 });
   }
 

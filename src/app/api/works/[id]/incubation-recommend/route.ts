@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { tooManyRequests } from "@/lib/security/api-response";
 import { checkRateLimit } from "@/lib/security/rate-limit";
-import { publicWorkWhere } from "@/lib/works/public";
+import { isPublicWorkAccessible, publicQualityWorkCheckSelect, publicWorkWhere } from "@/lib/works/public";
 
 type RouteContext = {
   params: Promise<{
@@ -39,12 +39,12 @@ export async function POST(_request: Request, context: RouteContext) {
       ...publicWorkWhere
     },
     select: {
-      id: true,
+      ...publicQualityWorkCheckSelect,
       userId: true
     }
   });
 
-  if (!work) {
+  if (!isPublicWorkAccessible(work)) {
     return NextResponse.json({ message: "作品不存在或暂不可推荐。" }, { status: 404 });
   }
 

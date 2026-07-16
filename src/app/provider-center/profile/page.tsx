@@ -21,7 +21,7 @@ export default async function ProviderCenterProfilePage() {
       <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">PROVIDER PROFILE</p>
-          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">完善供应商主页</h1>
+          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">完善服务商主页</h1>
           <p className="mt-3 text-sm text-ink/52">{provider.name} / {SUPPLY_PROVIDER_TYPE_LABELS[provider.type]}</p>
         </div>
         <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">返回中心</Link>

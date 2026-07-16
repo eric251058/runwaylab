@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { schoolCoverUrl } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
+import { getPublicQualityWorkIds } from "@/lib/works/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,8 @@ export const metadata: Metadata = {
 };
 
 export default async function SchoolsPage() {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  const qualityWorkIdList = qualityWorkIds.length ? qualityWorkIds : ["__no_public_quality_work__"];
   const schools = await prisma.school.findMany({
     where: {
       status: "ACTIVE"
@@ -19,7 +22,13 @@ export default async function SchoolsPage() {
       _count: {
         select: {
           teachers: true,
-          works: true,
+          works: {
+            where: {
+              id: {
+                in: qualityWorkIdList
+              }
+            }
+          },
           exhibitions: true,
           challenges: true
         }

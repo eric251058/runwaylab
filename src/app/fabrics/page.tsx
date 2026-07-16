@@ -66,7 +66,7 @@ export default async function FabricsPage() {
         <div className="grid w-full min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {fabrics.map((fabric) => {
             const params = fabricParams(fabric);
-            const supplier = fabric.provider ? `${fabric.provider.name} · ${PROVIDER_TYPE_LABELS[fabric.provider.type]}` : "供应商待对接";
+            const supplier = fabric.provider ? `${fabric.provider.name} · ${PROVIDER_TYPE_LABELS[fabric.provider.type]}` : "服务商待对接";
 
             return (
               <Link

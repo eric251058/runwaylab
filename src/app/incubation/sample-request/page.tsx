@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { SampleRequestForm } from "@/components/incubation/SampleRequestForm";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-import { publicWorkWhere } from "@/lib/works/public";
+import { getRequestableWork } from "@/lib/requests/work-access";
 
 export const dynamic = "force-dynamic";
 
@@ -35,18 +35,7 @@ export default async function SampleRequestPage({ searchParams }: SampleRequestP
         createdAt: "desc"
       }
     }),
-    selectedWorkId
-      ? prisma.work.findFirst({
-          where: {
-            id: selectedWorkId,
-            OR: [{ userId: user.id }, publicWorkWhere]
-          },
-          select: {
-            id: true,
-            title: true
-          }
-        })
-      : null
+    getRequestableWork(selectedWorkId, user.id)
   ]);
 
   const workMap = new Map(ownWorks.map((work) => [work.id, work]));

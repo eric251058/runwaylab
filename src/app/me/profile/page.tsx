@@ -6,6 +6,8 @@ import { useEffect, useState, type FormEvent } from "react";
 
 type ProfileForm = {
   nickname: string;
+  phone: string;
+  maskedPhone: string;
   school: string;
   city: string;
   styleTags: string;
@@ -14,6 +16,8 @@ type ProfileForm = {
 
 const emptyProfile: ProfileForm = {
   nickname: "",
+  phone: "",
+  maskedPhone: "未填写",
   school: "",
   city: "",
   styleTags: "",
@@ -93,7 +97,7 @@ export default function ProfilePage() {
     if (data?.profile) {
       setProfile(data.profile);
     }
-    setMessage("个人资料已保存。");
+    setMessage("个人资料和账号联系信息已保存。");
     router.refresh();
   }
 
@@ -104,9 +108,9 @@ export default function ProfilePage() {
       </Link>
 
       <header className="mt-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">Designer Profile</p>
-        <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">编辑个人资料</h1>
-        <p className="mt-4 text-sm leading-6 text-ink/58">这些信息会展示在你的设计师主页，帮助别人理解你的学校、城市、风格和创作方向。</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">Account Profile</p>
+        <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">编辑账号与个人资料</h1>
+        <p className="mt-4 text-sm leading-6 text-ink/58">公开资料会展示在个人主页；手机号码仅用于账号联系与服务商审核，不公开展示。</p>
       </header>
 
       <form onSubmit={submit} className="mt-7 space-y-4 rounded-[8px] bg-white p-4 shadow-[0_18px_54px_rgba(16,16,16,0.08)] md:p-6">
@@ -124,6 +128,23 @@ export default function ProfilePage() {
                 className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-base outline-none transition focus:border-ink focus:bg-white"
                 placeholder="请输入昵称"
               />
+            </label>
+
+            <label className="block">
+              <span className="flex items-center justify-between gap-3 text-xs font-semibold text-ink/50">
+                <span>手机号码（选填）</span>
+                <span className="truncate font-medium text-ink/35">当前：{profile.maskedPhone || "未填写"}</span>
+              </span>
+              <input
+                value={profile.phone}
+                onChange={(event) => updateField("phone", event.target.value)}
+                maxLength={32}
+                type="tel"
+                autoComplete="tel"
+                className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-base outline-none transition focus:border-ink focus:bg-white"
+                placeholder="留空则不绑定手机号"
+              />
+              <span className="mt-2 block text-xs leading-5 text-ink/45">支持 13800138000、+86 13800138000 或以 + 开头的国际手机号。</span>
             </label>
 
             <div className="grid gap-4 md:grid-cols-2">

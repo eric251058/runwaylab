@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ContentStatus, OpportunityStage, ReviewStatus } from "@prisma/client";
+import { OpportunityStage } from "@prisma/client";
 import { ProviderOpportunityInterestForm } from "@/components/providers/ProviderOpportunityInterestForm";
 import { visualFor } from "@/components/works/work-visuals";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -14,6 +14,8 @@ import {
 } from "@/lib/order-maturity";
 import { getProviderForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
+import { getPublicQualityWorkIds } from "@/lib/works/queries";
+import { isPublicQualityWork } from "@/lib/works/rules";
 
 export const dynamic = "force-dynamic";
 
@@ -46,10 +48,12 @@ export default async function ProviderOpportunitiesPage() {
     );
   }
 
-  const works = await prisma.work.findMany({
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  const works = qualityWorkIds.length ? await prisma.work.findMany({
     where: {
-      reviewStatus: ReviewStatus.APPROVED,
-      contentStatus: ContentStatus.VISIBLE,
+      id: {
+        in: qualityWorkIds
+      },
       opportunityProfile: {
         adminApproved: true,
         stage: {
@@ -75,9 +79,9 @@ export default async function ProviderOpportunitiesPage() {
     },
     orderBy: [{ isEditorPick: "desc" }, { createdAt: "desc" }],
     take: 80
-  });
+  }) : [];
   const opportunities = works
-    .filter((work) => work.opportunityProfile && providerCanSeeStage(provider, work.opportunityProfile))
+    .filter((work) => isPublicQualityWork(work) && work.opportunityProfile && providerCanSeeStage(provider, work.opportunityProfile))
     .map((work, index) => {
       const profile = work.opportunityProfile!;
       const maturity = calculateOrderMaturity({

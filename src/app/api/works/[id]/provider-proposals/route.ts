@@ -8,7 +8,7 @@ import { getProviderForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
 import { apiError, forbidden, tooManyRequests, unauthenticated } from "@/lib/security/api-response";
 import { checkRateLimit } from "@/lib/security/rate-limit";
-import { publicWorkWhere } from "@/lib/works/public";
+import { isPublicWorkAccessible, publicQualityWorkCheckSelect, publicWorkWhere } from "@/lib/works/public";
 
 const proposalSchema = z.object({
   showcaseItemId: z.string().trim().optional().nullable(),
@@ -52,13 +52,13 @@ export async function POST(request: Request, context: RouteContext) {
       ...publicWorkWhere
     },
     select: {
-      id: true,
+      ...publicQualityWorkCheckSelect,
       title: true,
       userId: true
     }
   });
 
-  if (!work) return apiError("作品不存在或暂不可提交支持方案。", 404);
+  if (!isPublicWorkAccessible(work)) return apiError("作品不存在或暂不可提交支持方案。", 404);
   if (work.userId === user.id) return forbidden("不能给自己的作品提交支持方案。");
 
   let showcaseId: string | null = null;

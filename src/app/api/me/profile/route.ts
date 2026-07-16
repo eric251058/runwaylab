@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
+import { maskPhone, validatePhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 
 const profileSchema = z.object({
   nickname: z.string().trim().min(1, "昵称必填").max(24, "昵称不能超过 24 字"),
   school: z.string().trim().max(60, "学校不能超过 60 字").optional().nullable(),
   city: z.string().trim().max(40, "城市不能超过 40 字").optional().nullable(),
+  phone: z.string().trim().max(32, "手机号不能超过 32 个字符").optional().nullable(),
   styleTags: z.string().trim().max(120, "风格标签不能超过 120 字").optional().nullable(),
   bio: z.string().trim().max(200, "个人简介不能超过 200 字").optional().nullable()
 });
@@ -48,6 +51,8 @@ export async function GET() {
   return NextResponse.json({
     profile: {
       nickname: user.nickname,
+      phone: user.phone ?? "",
+      maskedPhone: maskPhone(user.phone) ?? "未填写",
       school: user.designerProfile?.school ?? "",
       city: user.designerProfile?.city ?? "",
       styleTags: user.designerProfile?.designDirection ?? "",
@@ -69,43 +74,70 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? "请检查资料内容。" }, { status: 400 });
   }
 
-  const profile = await prisma.$transaction(async (tx) => {
-    const user = await tx.user.update({
+  const phoneResult = validatePhone(parsed.data.phone);
+  if (!phoneResult.ok) {
+    return NextResponse.json({ message: phoneResult.message ?? "手机号格式不正确。" }, { status: 400 });
+  }
+
+  if (phoneResult.normalized) {
+    const phoneOwner = await prisma.user.findFirst({
       where: {
-        id: currentUser.id
-      },
-      data: {
-        nickname: parsed.data.nickname
+        phone: phoneResult.normalized,
+        id: { not: currentUser.id }
       }
     });
+    if (phoneOwner) {
+      return NextResponse.json({ message: "该手机号已被使用" }, { status: 409 });
+    }
+  }
 
-    const designerProfile = await tx.designerProfile.upsert({
-      where: {
-        userId: currentUser.id
-      },
-      create: {
-        userId: currentUser.id,
-        school: cleanText(parsed.data.school),
-        city: cleanText(parsed.data.city),
-        designDirection: cleanStyleTags(parsed.data.styleTags),
-        bio: cleanText(parsed.data.bio)
-      },
-      update: {
-        school: cleanText(parsed.data.school),
-        city: cleanText(parsed.data.city),
-        designDirection: cleanStyleTags(parsed.data.styleTags),
-        bio: cleanText(parsed.data.bio)
-      }
+  try {
+    const profile = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: {
+          id: currentUser.id
+        },
+        data: {
+          nickname: parsed.data.nickname,
+          phone: phoneResult.normalized
+        }
+      });
+
+      const designerProfile = await tx.designerProfile.upsert({
+        where: {
+          userId: currentUser.id
+        },
+        create: {
+          userId: currentUser.id,
+          school: cleanText(parsed.data.school),
+          city: cleanText(parsed.data.city),
+          designDirection: cleanStyleTags(parsed.data.styleTags),
+          bio: cleanText(parsed.data.bio)
+        },
+        update: {
+          school: cleanText(parsed.data.school),
+          city: cleanText(parsed.data.city),
+          designDirection: cleanStyleTags(parsed.data.styleTags),
+          bio: cleanText(parsed.data.bio)
+        }
+      });
+
+      return {
+        nickname: user.nickname,
+        phone: user.phone ?? "",
+        maskedPhone: maskPhone(user.phone) ?? "未填写",
+        school: designerProfile.school ?? "",
+        city: designerProfile.city ?? "",
+        styleTags: designerProfile.designDirection ?? "",
+        bio: designerProfile.bio ?? ""
+      };
     });
 
-    return {
-      nickname: user.nickname,
-      school: designerProfile.school ?? "",
-      city: designerProfile.city ?? "",
-      styleTags: designerProfile.designDirection ?? "",
-      bio: designerProfile.bio ?? ""
-    };
-  });
-
-  return NextResponse.json({ profile });
+    return NextResponse.json({ profile });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ message: "该手机号已被使用" }, { status: 409 });
+    }
+    throw error;
+  }
 }

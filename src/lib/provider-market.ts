@@ -1,9 +1,9 @@
 import { FabricStatus, ProviderType, type ProviderWorkProposalStatus, type ProviderWorkProposalType } from "@prisma/client";
 
 export const PROVIDER_TYPE_LABELS: Record<ProviderType, string> = {
-  FABRIC_SUPPLIER: "面料商",
+  FABRIC_SUPPLIER: "面料供应商",
   SAMPLE_STUDIO: "打样工作室",
-  FACTORY: "服装工厂",
+  FACTORY: "生产工厂",
   BUYER: "买手/采购商",
   OTHER: "其他服务商"
 };

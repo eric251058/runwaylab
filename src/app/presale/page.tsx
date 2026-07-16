@@ -3,7 +3,8 @@ import { CrowdSubmissionForm } from "@/components/incubation/CrowdSubmissionForm
 import { visualFor } from "@/components/works/work-visuals";
 import { PRESALE_CAMPAIGN_STATUS_LABELS, presaleProgress } from "@/lib/presale-campaign";
 import { prisma } from "@/lib/prisma";
-import { approvedVisibleWorkWhere } from "@/lib/works/rules";
+import { getPublicQualityWorkIds } from "@/lib/works/queries";
+import { isPublicQualityWork } from "@/lib/works/rules";
 import { PresaleCampaignStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +16,15 @@ type PresalePageProps = {
 };
 
 async function getActiveCampaigns() {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  if (!qualityWorkIds.length) return [];
+
   return prisma.presaleCampaign.findMany({
     where: {
       status: PresaleCampaignStatus.ACTIVE,
-      work: approvedVisibleWorkWhere
+      workId: {
+        in: qualityWorkIds
+      }
     },
     include: {
       work: {
@@ -35,12 +41,19 @@ async function getActiveCampaigns() {
     },
     orderBy: [{ isFeatured: "desc" }, { currentCount: "desc" }, { createdAt: "desc" }],
     take: 24
-  });
+  }).then((campaigns) => campaigns.filter((campaign) => isPublicQualityWork(campaign.work)));
 }
 
 async function getLegacyPresaleWorks() {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  if (!qualityWorkIds.length) return [];
+
   return prisma.work.findMany({
-    where: approvedVisibleWorkWhere,
+    where: {
+      id: {
+        in: qualityWorkIds
+      }
+    },
     include: {
       images: { orderBy: { sortOrder: "asc" } },
       user: { include: { designerProfile: true } },
@@ -52,7 +65,7 @@ async function getLegacyPresaleWorks() {
     },
     orderBy: [{ likeCount: "desc" }, { favoriteCount: "desc" }, { createdAt: "desc" }],
     take: 8
-  });
+  }).then((works) => works.filter(isPublicQualityWork));
 }
 
 export default async function PresalePage({ searchParams }: PresalePageProps) {

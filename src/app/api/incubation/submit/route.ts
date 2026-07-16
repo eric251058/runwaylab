@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { tooManyRequests } from "@/lib/security/api-response";
 import { checkRateLimit, getClientIp } from "@/lib/security/rate-limit";
-import { approvedVisibleWorkWhere } from "@/lib/works/rules";
+import { isPublicQualityWork } from "@/lib/works/rules";
 
 type SubmissionKind = "presale" | "fabric" | "sample" | "factory" | "buyer";
 
@@ -35,15 +35,23 @@ export async function POST(request: Request) {
 
     const work = await prisma.work.findFirst({
       where: {
-        ...approvedVisibleWorkWhere,
         id: workId
       },
       select: {
-        id: true
+        id: true,
+        title: true,
+        description: true,
+        reviewStatus: true,
+        contentStatus: true,
+        images: {
+          select: {
+            imageUrl: true
+          }
+        }
       }
     });
 
-    if (!work) {
+    if (!work || !isPublicQualityWork(work)) {
       return NextResponse.json({ error: "作品不存在或暂不可提交" }, { status: 404 });
     }
 

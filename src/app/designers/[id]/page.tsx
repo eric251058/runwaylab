@@ -4,7 +4,8 @@ import { IncubationApplicationStatus, type Prisma } from "@prisma/client";
 import { ArrowLeft, Bookmark, Heart, Images, MapPin, Trophy } from "lucide-react";
 import { WorkMasonry } from "@/components/works/WorkMasonry";
 import { prisma } from "@/lib/prisma";
-import { approvedVisibleWorkWhere } from "@/lib/works/rules";
+import { getPublicQualityWorkIds } from "@/lib/works/queries";
+import { isPublicQualityWork } from "@/lib/works/rules";
 import { initials, normalizeImageUrl } from "@/components/works/work-visuals";
 
 export const dynamic = "force-dynamic";
@@ -71,6 +72,8 @@ function splitStyleTags(value?: string | null) {
 
 export default async function DesignerPage({ params }: DesignerPageProps) {
   const { id } = await params;
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  const qualityWorkIdList = qualityWorkIds.length ? qualityWorkIds : ["__no_public_quality_work__"];
   const data = await Promise.all([
     prisma.user.findUnique({
       where: {
@@ -82,7 +85,9 @@ export default async function DesignerPage({ params }: DesignerPageProps) {
     }),
     prisma.work.findMany({
       where: {
-        ...approvedVisibleWorkWhere,
+        id: {
+          in: qualityWorkIdList
+        },
         userId: id
       },
       include: designerWorkInclude,
@@ -93,7 +98,9 @@ export default async function DesignerPage({ params }: DesignerPageProps) {
     prisma.challengeEntry.findMany({
       where: {
         userId: id,
-        work: approvedVisibleWorkWhere
+        workId: {
+          in: qualityWorkIdList
+        }
       },
       distinct: ["challengeId"],
       select: {
@@ -117,7 +124,8 @@ export default async function DesignerPage({ params }: DesignerPageProps) {
     notFound();
   }
 
-  const [user, works, challengeEntries] = data;
+  const [user, rawWorks, challengeEntries] = data;
+  const works = rawWorks.filter(isPublicQualityWork);
 
   if (!user) {
     notFound();

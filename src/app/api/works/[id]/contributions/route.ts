@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { tooManyRequests } from "@/lib/security/api-response";
 import { checkRateLimit, getClientIp } from "@/lib/security/rate-limit";
 import { cleanPlainText } from "@/lib/user-contributions";
-import { publicWorkWhere } from "@/lib/works/public";
+import { isPublicWorkAccessible, publicQualityWorkCheckSelect, publicWorkWhere } from "@/lib/works/public";
 
 const contributionSchema = z.object({
   persona: z.nativeEnum(ContributionPersona),
@@ -59,12 +59,10 @@ export async function POST(request: Request, context: RouteContext) {
       id,
       ...publicWorkWhere
     },
-    select: {
-      id: true
-    }
+    select: publicQualityWorkCheckSelect
   });
 
-  if (!work) {
+  if (!isPublicWorkAccessible(work)) {
     return NextResponse.json({ message: "作品不存在或暂不可提交建议。" }, { status: 404 });
   }
 

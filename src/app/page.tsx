@@ -6,8 +6,8 @@ import { visualFor } from "@/components/works/work-visuals";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { publicProviderWhere, SUPPLY_PROVIDER_TYPE_LABELS } from "@/lib/supply-network";
-import { approvedVisibleWorkWhere } from "@/lib/works/rules";
-import { attachWorkCardInteractionState, type WorkCardData } from "@/lib/works/queries";
+import { isPublicQualityWork } from "@/lib/works/rules";
+import { attachWorkCardInteractionState, getPublicQualityWorkIds, type WorkCardData } from "@/lib/works/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -33,28 +33,26 @@ const workInclude = {
   }
 };
 
-function isUsableHomeWork(work: { title: string; description: string; images: unknown[] }) {
-  const title = work.title.trim().toLowerCase();
-  const description = work.description.trim();
-  if (!work.images.length) return false;
-  if (["a", "s", "ssss", "test", "测试", "demo"].includes(title)) return false;
-  if (title.length < 3 || description.length < 16) return false;
-  return true;
-}
-
 function asWorkCard(work: Awaited<ReturnType<typeof getHomeWorks>>[number]) {
   return work as unknown as WorkCardData;
 }
 
 async function getHomeWorks() {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  if (!qualityWorkIds.length) return [];
+
   const works = await prisma.work.findMany({
-    where: approvedVisibleWorkWhere,
+    where: {
+      id: {
+        in: qualityWorkIds
+      }
+    },
     include: workInclude,
     orderBy: [{ isEditorPick: "desc" }, { isFeatured: "desc" }, { favoriteCount: "desc" }, { updatedAt: "desc" }],
     take: 18
   });
 
-  return works.filter(isUsableHomeWork).slice(0, 6);
+  return works.filter(isPublicQualityWork).slice(0, 6);
 }
 
 function fabricMeta(fabric: { composition?: string | null; weight?: string | null; width?: string | null }) {
@@ -63,11 +61,15 @@ function fabricMeta(fabric: { composition?: string | null; weight?: string | nul
 
 export default async function HomePage() {
   const currentUser = await getCurrentUser();
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  const qualityWorkIdList = qualityWorkIds.length ? qualityWorkIds : ["__no_public_quality_work__"];
   const [works, opportunityWorks, providers, fabrics, featuredCase] = await Promise.all([
     getHomeWorks(),
     prisma.work.findMany({
       where: {
-        ...approvedVisibleWorkWhere,
+        id: {
+          in: qualityWorkIdList
+        },
         opportunityProfile: {
           adminApproved: true,
           stage: { not: OpportunityStage.DISPLAY_ONLY }
@@ -99,6 +101,7 @@ export default async function HomePage() {
     })
   ]);
   const worksWithInteractions = await attachWorkCardInteractionState(works, currentUser?.id);
+  const qualityOpportunityWorks = opportunityWorks.filter(isPublicQualityWork);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-5 md:px-8 md:py-10">
@@ -151,9 +154,9 @@ export default async function HomePage() {
             查看机会 <ArrowRight size={15} />
           </Link>
         </div>
-        {opportunityWorks.length ? (
+        {qualityOpportunityWorks.length ? (
           <div className="grid gap-4 md:grid-cols-3">
-            {opportunityWorks.map((work, index) => (
+            {qualityOpportunityWorks.map((work, index) => (
               <Link key={work.id} href={`/works/${work.id}`} className="overflow-hidden rounded-[8px] border border-black/8 bg-white transition hover:border-ink/30">
                 <img src={visualFor(index, work.images[0]?.imageUrl)} alt={work.title} className="aspect-[4/3] w-full object-cover" />
                 <div className="p-4">
@@ -171,8 +174,8 @@ export default async function HomePage() {
 
       <section className="mt-10 md:mt-12">
         <div className="mb-5">
-          <h2 className="text-2xl font-semibold text-ink md:text-3xl">面料与服务资源</h2>
-          <p className="mt-2 text-sm text-ink/52">为作品寻找下一步所需的真实资源。</p>
+          <h2 className="text-2xl font-semibold text-ink md:text-3xl">面料与服务商</h2>
+          <p className="mt-2 text-sm text-ink/52">为作品寻找下一步所需的真实服务商支持。</p>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-[8px] border border-black/8 bg-white p-4">
@@ -206,7 +209,7 @@ export default async function HomePage() {
                     <span className="mt-1 block truncate text-xs text-ink/45">{[provider.city, SUPPLY_PROVIDER_TYPE_LABELS[provider.type]].filter(Boolean).join(" · ") || "服务信息待补充"}</span>
                   </span>
                 </Link>
-              )) : <p className="rounded-[6px] bg-paper p-4 text-sm text-ink/52">服务商资源正在补充中。</p>}
+              )) : <p className="rounded-[6px] bg-paper p-4 text-sm text-ink/52">服务商正在补充中。</p>}
             </div>
           </div>
         </div>

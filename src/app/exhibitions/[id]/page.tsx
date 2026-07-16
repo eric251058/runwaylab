@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { WorkCard } from "@/components/works/WorkCard";
 import { activityWorkInclude, displayDateRange, exhibitionCoverUrl } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
-import type { WorkCardData } from "@/lib/works/queries";
+import { isPublicQualityWork } from "@/lib/works/rules";
+import { getPublicQualityWorkIds, type WorkCardData } from "@/lib/works/queries";
 import { ExhibitionStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,8 @@ type ExhibitionDetailPageProps = {
 
 export default async function ExhibitionDetailPage({ params }: ExhibitionDetailPageProps) {
   const { id } = await params;
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  const qualityWorkIdList = qualityWorkIds.length ? qualityWorkIds : ["__no_public_quality_work__"];
   const exhibition = await prisma.exhibition.findFirst({
     where: {
       AND: [
@@ -25,6 +28,11 @@ export default async function ExhibitionDetailPage({ params }: ExhibitionDetailP
       school: true,
       teacher: true,
       works: {
+        where: {
+          workId: {
+            in: qualityWorkIdList
+          }
+        },
         include: {
           work: {
             include: activityWorkInclude
@@ -39,7 +47,7 @@ export default async function ExhibitionDetailPage({ params }: ExhibitionDetailP
     notFound();
   }
 
-  const works = exhibition.works.filter((item) => item.work.reviewStatus === "APPROVED" && item.work.contentStatus === "VISIBLE");
+  const works = exhibition.works.filter((item) => isPublicQualityWork(item.work));
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">

@@ -7,6 +7,7 @@ import {
   INCUBATION_BATCH_TYPE_LABELS,
   calculateBatchStats,
   publicBatchWhere,
+  publicQualityBatchWorkWhere,
   selectedBatchWorkStatuses
 } from "@/lib/incubation-batches";
 import { prisma } from "@/lib/prisma";
@@ -51,6 +52,7 @@ export default async function BatchesPage({ searchParams }: BatchesPageProps) {
     ...(school ? { schoolId: school } : {}),
     ...(recruiting === "true" ? { status: IncubationBatchStatus.RECRUITING } : {})
   };
+  const batchWorkWhere = await publicQualityBatchWorkWhere();
 
   const [batches, schools] = await Promise.all([
     prisma.incubationBatch.findMany({
@@ -59,6 +61,7 @@ export default async function BatchesPage({ searchParams }: BatchesPageProps) {
         school: true,
         challenge: true,
         works: {
+          where: batchWorkWhere,
           include: {
             work: {
               include: {

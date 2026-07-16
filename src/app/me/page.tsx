@@ -255,7 +255,7 @@ export default async function MePage({ searchParams }: MePageProps) {
           </h2>
           <p className="mt-2 text-sm leading-6 text-ink/58">
             {providerApplication.status === ProviderApplicationStatus.PENDING
-              ? "审核通过后可创建供应商主页和发布产品。"
+              ? "审核通过后可创建服务商主页和发布产品。"
               : providerApplication.reviewNote || "请根据平台反馈完善资料。"}
           </p>
           {providerApplication.status === ProviderApplicationStatus.REJECTED ? (

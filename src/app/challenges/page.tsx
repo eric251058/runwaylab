@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { challengeCoverUrl, displayDateRange } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
+import { getPublicQualityWorkIds } from "@/lib/works/queries";
 import { ChallengeStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,8 @@ export const metadata: Metadata = {
 };
 
 export default async function ChallengesPage() {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  const qualityWorkIdList = qualityWorkIds.length ? qualityWorkIds : ["__no_public_quality_work__"];
   const challenges = await prisma.challenge.findMany({
     where: {
       OR: [{ status: { in: [ChallengeStatus.PUBLISHED, ChallengeStatus.ACTIVE] } }, { isFeatured: true }]
@@ -21,8 +24,20 @@ export default async function ChallengesPage() {
       teacher: true,
       _count: {
         select: {
-          works: true,
-          entries: true
+          works: {
+            where: {
+              workId: {
+                in: qualityWorkIdList
+              }
+            }
+          },
+          entries: {
+            where: {
+              workId: {
+                in: qualityWorkIdList
+              }
+            }
+          }
         }
       }
     },

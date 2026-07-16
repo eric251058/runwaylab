@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimits } from "@/lib/security/rate-limit";
 import { tooManyRequests } from "@/lib/security/api-response";
-import { publicWorkWhere } from "@/lib/works/public";
+import { isPublicWorkAccessible, publicQualityWorkCheckSelect, publicWorkWhere } from "@/lib/works/public";
 
 const commentSchema = z.object({
   content: z.string().trim().min(1).max(500)
@@ -45,12 +45,10 @@ export async function POST(request: Request, context: RouteContext) {
       id,
       ...publicWorkWhere
     },
-    select: {
-      id: true
-    }
+    select: publicQualityWorkCheckSelect
   });
 
-  if (!work) {
+  if (!isPublicWorkAccessible(work)) {
     return NextResponse.json({ message: "作品不存在或暂不可评论。" }, { status: 404 });
   }
 

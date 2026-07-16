@@ -5,8 +5,9 @@ import {
   UserRole,
   type Prisma
 } from "@prisma/client";
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
-import { approvedVisibleWorkWhere, publicChallengeEntryWhere } from "@/lib/works/rules";
+import { approvedVisibleWorkWhere, isPublicQualityWork, publicQualityWorkWhere } from "@/lib/works/rules";
 
 const workCardInclude = {
   images: {
@@ -168,15 +169,35 @@ const workFilterWhere: Record<WorkFilter, Prisma.WorkWhereInput> = {
 function getApprovedWorksWhere(filter?: WorkFilter): Prisma.WorkWhereInput {
   return filter
     ? {
-        AND: [approvedVisibleWorkWhere, workFilterWhere[filter]]
+        AND: [publicQualityWorkWhere, workFilterWhere[filter]]
       }
-    : approvedVisibleWorkWhere;
+    : publicQualityWorkWhere;
 }
 
-export function getApprovedWorks(options: { take?: number; sort?: WorkSort; filter?: WorkFilter } = {}) {
+export const getPublicQualityWorkIds = cache(async () => {
+  const works = await prisma.work.findMany({
+    where: publicQualityWorkWhere,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      reviewStatus: true,
+      contentStatus: true,
+      images: {
+        select: {
+          imageUrl: true
+        }
+      }
+    }
+  });
+
+  return works.filter(isPublicQualityWork).map((work) => work.id);
+});
+
+export async function getApprovedWorks(options: { take?: number; sort?: WorkSort; filter?: WorkFilter } = {}) {
   const { take = 30, sort = "latest", filter } = options;
 
-  return prisma.work.findMany({
+  const works = await prisma.work.findMany({
     where: getApprovedWorksWhere(filter),
     include: workCardInclude,
     orderBy:
@@ -189,8 +210,10 @@ export function getApprovedWorks(options: { take?: number; sort?: WorkSort; filt
             { createdAt: "desc" }
           ]
         : [{ createdAt: "desc" }],
-    take
+    take: Math.min(take * 3, 120)
   });
+
+  return works.filter(isPublicQualityWork).slice(0, take);
 }
 
 export async function attachWorkCardInteractionState<T extends { id: string }>(
@@ -243,33 +266,35 @@ export async function attachWorkCardInteractionState<T extends { id: string }>(
   }));
 }
 
-export function getFeaturedWorks(take = 8) {
-  return prisma.work.findMany({
+export async function getFeaturedWorks(take = 8) {
+  const works = await prisma.work.findMany({
     where: {
-      ...approvedVisibleWorkWhere,
+      ...publicQualityWorkWhere,
       isFeatured: true
     },
     include: workCardInclude,
     orderBy: [{ createdAt: "desc" }],
-    take
+    take: Math.min(take * 3, 60)
   });
+  return works.filter(isPublicQualityWork).slice(0, take);
 }
 
-export function getEditorPickWorks(take = 8) {
-  return prisma.work.findMany({
+export async function getEditorPickWorks(take = 8) {
+  const works = await prisma.work.findMany({
     where: {
-      ...approvedVisibleWorkWhere,
+      ...publicQualityWorkWhere,
       isEditorPick: true
     },
     include: workCardInclude,
     orderBy: [{ createdAt: "desc" }],
-    take
+    take: Math.min(take * 3, 60)
   });
+  return works.filter(isPublicQualityWork).slice(0, take);
 }
 
-export function getPopularWorks(take = 10) {
-  return prisma.work.findMany({
-    where: approvedVisibleWorkWhere,
+export async function getPopularWorks(take = 10) {
+  const works = await prisma.work.findMany({
+    where: publicQualityWorkWhere,
     include: workCardInclude,
     orderBy: [
       { likeCount: "desc" },
@@ -278,23 +303,25 @@ export function getPopularWorks(take = 10) {
       { shareCount: "desc" },
       { createdAt: "desc" }
     ],
-    take
+    take: Math.min(take * 3, 80)
   });
+  return works.filter(isPublicQualityWork).slice(0, take);
 }
 
-export function getIncubationRecommendedWorks(take = 10) {
-  return prisma.work.findMany({
-    where: approvedVisibleWorkWhere,
+export async function getIncubationRecommendedWorks(take = 10) {
+  const works = await prisma.work.findMany({
+    where: publicQualityWorkWhere,
     include: workCardInclude,
     orderBy: [{ incubationRecommendCount: "desc" }, { likeCount: "desc" }, { createdAt: "desc" }],
-    take
+    take: Math.min(take * 3, 80)
   });
+  return works.filter(isPublicQualityWork).slice(0, take);
 }
 
-export function getIncubationCandidateWorks(take = 8) {
-  return prisma.work.findMany({
+export async function getIncubationCandidateWorks(take = 8) {
+  const works = await prisma.work.findMany({
     where: {
-      ...approvedVisibleWorkWhere,
+      ...publicQualityWorkWhere,
       OR: [
         { incubationStatus: IncubationStatus.CANDIDATE },
         {
@@ -310,18 +337,21 @@ export function getIncubationCandidateWorks(take = 8) {
     },
     include: workCardInclude,
     orderBy: [{ incubationRecommendCount: "desc" }, { createdAt: "desc" }],
-    take
+    take: Math.min(take * 3, 60)
   });
+  return works.filter(isPublicQualityWork).slice(0, take);
 }
 
-export function getWorkById(id: string) {
-  return prisma.work.findFirst({
+export async function getWorkById(id: string) {
+  const work = await prisma.work.findFirst({
     where: {
       ...approvedVisibleWorkWhere,
       id
     },
     include: workDetailInclude
   });
+
+  return work && isPublicQualityWork(work) ? work : null;
 }
 
 export function getWorkDetailById(id: string) {
@@ -370,15 +400,33 @@ export function getChallengeById(id: string) {
   });
 }
 
-export function getRecommendedDesigners(take = 6) {
+export async function getRecommendedDesigners(take = 6) {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  if (!qualityWorkIds.length) return [];
+
   return prisma.designerProfile.findMany({
+    where: {
+      user: {
+        works: {
+          some: {
+            id: {
+              in: qualityWorkIds
+            }
+          }
+        }
+      }
+    },
     include: {
       user: {
         include: {
           _count: {
             select: {
               works: {
-                where: approvedVisibleWorkWhere
+                where: {
+                  id: {
+                    in: qualityWorkIds
+                  }
+                }
               }
             }
           }
@@ -392,10 +440,15 @@ export function getRecommendedDesigners(take = 6) {
   });
 }
 
-export function getIncubationProjects(take = 8) {
-  return prisma.incubationProject.findMany({
+export async function getIncubationProjects(take = 8) {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  if (!qualityWorkIds.length) return [];
+
+  const projects = await prisma.incubationProject.findMany({
     where: {
-      work: approvedVisibleWorkWhere
+      workId: {
+        in: qualityWorkIds
+      }
     },
     include: {
       work: {
@@ -410,22 +463,34 @@ export function getIncubationProjects(take = 8) {
     orderBy: [{ createdAt: "desc" }],
     take
   });
+
+  return projects.filter((project) => isPublicQualityWork(project.work));
 }
 
-export function getChallengeEntryCount(challengeId: string) {
+export async function getChallengeEntryCount(challengeId: string) {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  if (!qualityWorkIds.length) return 0;
+
   return prisma.challengeEntry.count({
     where: {
-      ...publicChallengeEntryWhere,
-      challengeId
+      challengeId,
+      workId: {
+        in: qualityWorkIds
+      }
     }
   });
 }
 
-export function getPublicChallengeEntries(challengeId: string) {
-  return prisma.challengeEntry.findMany({
+export async function getPublicChallengeEntries(challengeId: string) {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  if (!qualityWorkIds.length) return [];
+
+  const entries = await prisma.challengeEntry.findMany({
     where: {
-      ...publicChallengeEntryWhere,
-      challengeId
+      challengeId,
+      workId: {
+        in: qualityWorkIds
+      }
     },
     include: {
       work: {
@@ -439,6 +504,7 @@ export function getPublicChallengeEntries(challengeId: string) {
     },
     orderBy: [{ manualRank: "asc" }, { popularityScore: "desc" }, { incubationScore: "desc" }]
   });
+  return entries.filter((entry) => isPublicQualityWork(entry.work));
 }
 
 export const getApprovedVisibleWorks = (take = 24) => getApprovedWorks({ take });

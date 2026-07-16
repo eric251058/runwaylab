@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "服务商",
-  description: "寻找 RunwayLab 认证面料商、打样工作室、服装工厂和专业服务资源。"
+  description: "寻找 RunwayLab 认证面料供应商、打样工作室、生产工厂和专业服务商。"
 };
 
 type ProvidersPageProps = {
@@ -73,6 +73,7 @@ function providerPublicFacts(provider: {
   productionLeadDays: number | null;
   monthlyCapacity: string | null;
   capacityText: string | null;
+  priceRange: string | null;
 }) {
   const moq = provider.moqMin ?? provider.minimumOrderQuantity;
   const category = provider.categories[0] ?? provider.specialties[0];
@@ -83,14 +84,27 @@ function providerPublicFacts(provider: {
   if (provider.type === ProviderType.FABRIC_SUPPLIER) {
     facts.push(material ? `主营 ${material}` : null, provider.sampleSupported ?? provider.acceptsSampling ? "支持寄样" : null, provider.minimumOrder || (moq ? `MOQ ${moq}` : null));
   } else if (provider.type === ProviderType.SAMPLE_STUDIO) {
-    facts.push(category ? `擅长 ${category}` : null, provider.singleSampleSupported ? "单件打样" : null, provider.leadTime || (provider.sampleLeadDays ? `打样 ${provider.sampleLeadDays} 天` : null));
+    facts.push(category ? `擅长 ${category}` : null, provider.singleSampleSupported ? "单件打样" : null, provider.leadTime || (provider.sampleLeadDays ? `打样 ${provider.sampleLeadDays} 天` : null), provider.priceRange);
   } else if (provider.type === ProviderType.FACTORY) {
-    facts.push(category ? `擅长 ${category}` : null, provider.acceptsSmallBatch ? "可接小单" : null, provider.minimumOrder || (moq ? `MOQ ${moq}` : null), provider.monthlyCapacity);
+    facts.push(category ? `擅长 ${category}` : null, provider.acceptsSmallBatch ? "可接小单" : null, provider.minimumOrder || (moq ? `MOQ ${moq}` : null), provider.monthlyCapacity, provider.leadTime || (provider.productionLeadDays ? `生产 ${provider.productionLeadDays} 天` : null));
   } else {
     facts.push(category ? `服务 ${category}` : null, technique ? `擅长 ${technique}` : null, provider.sampleLeadDays ? `周期 ${provider.sampleLeadDays} 天` : null);
   }
 
   return facts.filter(Boolean).slice(0, 3) as string[];
+}
+
+function providerCountText(provider: { type: ProviderType; _count: { fabrics: number; showcaseItems: number } }) {
+  if (provider.type === ProviderType.FABRIC_SUPPLIER) {
+    return provider._count.fabrics > 0 ? `产品 ${provider._count.fabrics}` : null;
+  }
+  if (provider.type === ProviderType.SAMPLE_STUDIO) {
+    return provider._count.showcaseItems > 0 ? `打样案例 ${provider._count.showcaseItems}` : null;
+  }
+  if (provider.type === ProviderType.FACTORY) {
+    return provider._count.showcaseItems > 0 ? `生产案例 ${provider._count.showcaseItems}` : null;
+  }
+  return provider._count.showcaseItems > 0 ? `服务案例 ${provider._count.showcaseItems}` : null;
 }
 
 export default async function ProvidersPage({ searchParams }: ProvidersPageProps) {
@@ -195,7 +209,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
       <header className="mb-7 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-3xl font-semibold text-ink md:text-5xl">寻找适合你的服务商</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">浏览面料、打样和生产资源，为作品寻找下一步合作伙伴。</p>
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">浏览面料、打样和生产服务商，为作品寻找下一步合作伙伴。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {currentProvider ? (
@@ -245,6 +259,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
             const heroImage = providerDisplayImage(provider);
             const tags = getProviderTags(provider);
             const facts = providerPublicFacts(provider);
+            const countText = providerCountText(provider);
             const thumbs = [
               ...provider.fabrics.map((fabric) => ({ id: fabric.id, image: fabric.imageUrl, label: fabric.name })),
               ...provider.showcaseItems.map((item) => ({ id: item.id, image: item.coverImageUrl, label: item.title }))
@@ -288,7 +303,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
                       ))}
                     </div>
                   ) : null}
-                  <p className="mt-3 text-xs text-ink/42">产品 {provider._count.fabrics} · 案例 {provider._count.showcaseItems}</p>
+                  {countText ? <p className="mt-3 text-xs text-ink/42">{countText}</p> : null}
                   <div className="mt-5 grid gap-2 sm:grid-cols-2">
                     <Link href={providerPublicUrl(provider)} className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">查看详情</Link>
                     <Link href={`${providerPublicUrl(provider)}#inquiry`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">联系合作</Link>
@@ -300,7 +315,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
         </section>
       ) : (
         <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm leading-6 text-ink/58">
-          暂无符合条件的服务商。可以减少筛选条件，或稍后查看平台新增资源。
+          暂无符合条件的服务商。可以减少筛选条件，或稍后查看平台新增服务商。
         </div>
       )}
 

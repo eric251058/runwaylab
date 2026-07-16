@@ -6,7 +6,8 @@ import { visualFor } from "@/components/works/work-visuals";
 import { canEnterIncubationCandidate, incubationStatusLabels } from "@/lib/incubation";
 import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
 import { prisma } from "@/lib/prisma";
-import { approvedVisibleWorkWhere } from "@/lib/works/rules";
+import { getPublicQualityWorkIds } from "@/lib/works/queries";
+import { isPublicQualityWork } from "@/lib/works/rules";
 import { WorkIncubationStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -21,8 +22,15 @@ const sections = [
 type IncubationWork = Awaited<ReturnType<typeof getIncubationWorks>>[number];
 
 async function getIncubationWorks() {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  if (!qualityWorkIds.length) return [];
+
   return prisma.work.findMany({
-    where: approvedVisibleWorkWhere,
+    where: {
+      id: {
+        in: qualityWorkIds
+      }
+    },
     include: {
       images: {
         orderBy: {
@@ -47,7 +55,7 @@ async function getIncubationWorks() {
     },
     orderBy: [{ incubationRecommendCount: "desc" }, { likeCount: "desc" }, { createdAt: "desc" }],
     take: 60
-  });
+  }).then((works) => works.filter(isPublicQualityWork));
 }
 
 function effectiveStatus(work: IncubationWork) {

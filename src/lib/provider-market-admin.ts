@@ -18,6 +18,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { normalizeProviderEmail } from "@/lib/provider-duplicates";
 import { optionalText, requiredText, splitTags } from "@/lib/provider-market";
 import {
   ONBOARDING_PROVIDER_TYPES,
@@ -40,6 +41,11 @@ function optionalInt(value: FormDataEntryValue | null) {
   if (!text) return null;
   const parsed = Number.parseInt(text, 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function enumValue<T extends string>(values: readonly T[], value: FormDataEntryValue | null, fallback: T) {
+  const text = optionalText(value);
+  return text && values.includes(text as T) ? (text as T) : fallback;
 }
 
 function fabricCatalogStatus(value: FormDataEntryValue | null) {
@@ -124,6 +130,7 @@ export async function applyProvider(formData: FormData) {
     throw new Error(parsed.error.issues[0]?.message ?? "请检查入驻申请信息");
   }
 
+  const applicationEmail = normalizeProviderEmail(parsed.data.email) ?? user.email.toLowerCase();
   const [existingApplication, existingProvider] = await Promise.all([
     prisma.providerApplication.findFirst({
       where: {
@@ -134,7 +141,7 @@ export async function applyProvider(formData: FormData) {
     }),
     prisma.provider.findFirst({
       where: {
-        OR: [{ ownerId: user.id }, { contactEmail: user.email }]
+        OR: [{ ownerId: user.id }, { contactEmail: { equals: applicationEmail, mode: Prisma.QueryMode.insensitive } }]
       },
       select: { id: true, type: true, status: true }
     })
@@ -177,7 +184,7 @@ export async function applyProvider(formData: FormData) {
       companyName: parsed.data.companyName,
       contactName: parsed.data.contactName,
       phone: parsed.data.phone,
-      email: parsed.data.email || user.email,
+      email: applicationEmail,
       wechat: parsed.data.wechat || null,
       city: parsed.data.city,
       address: parsed.data.address || null,
@@ -206,10 +213,11 @@ export async function applyProvider(formData: FormData) {
 export async function saveProvider(formData: FormData) {
   await requireAdmin();
   const id = optionalText(formData.get("id"));
+  const contactEmail = normalizeProviderEmail(optionalText(formData.get("contactEmail")));
   const data = {
     name: requiredText(formData.get("name"), "服务商名称"),
     slug: optionalText(formData.get("slug")),
-    type: (optionalText(formData.get("type")) ?? ProviderType.OTHER) as ProviderType,
+    type: enumValue(Object.values(ProviderType), formData.get("type"), ProviderType.OTHER),
     logoUrl: optionalText(formData.get("logoUrl")),
     coverUrl: optionalText(formData.get("coverUrl")),
     tagline: optionalText(formData.get("tagline")),
@@ -220,7 +228,7 @@ export async function saveProvider(formData: FormData) {
     description: optionalText(formData.get("description")),
     contactName: optionalText(formData.get("contactName")),
     contactPhone: optionalText(formData.get("contactPhone")),
-    contactEmail: optionalText(formData.get("contactEmail")),
+    contactEmail,
     wechat: optionalText(formData.get("wechat")),
     whatsapp: optionalText(formData.get("whatsapp")),
     website: optionalText(formData.get("website")),
@@ -234,8 +242,8 @@ export async function saveProvider(formData: FormData) {
     responseTime: optionalText(formData.get("responseTime")),
     isVerified: boolValue(formData, "isVerified"),
     isFeatured: boolValue(formData, "isFeatured"),
-    status: (optionalText(formData.get("status")) ?? ProviderStatus.PENDING) as ProviderStatus,
-    orderPreference: (optionalText(formData.get("orderPreference")) ?? ProviderOrderPreference.FLEXIBLE) as ProviderOrderPreference,
+    status: enumValue(Object.values(ProviderStatus), formData.get("status"), ProviderStatus.PENDING),
+    orderPreference: enumValue(Object.values(ProviderOrderPreference), formData.get("orderPreference"), ProviderOrderPreference.FLEXIBLE),
     minimumOrderQuantity: optionalInt(formData.get("minimumOrderQuantity")),
     maximumOrderQuantity: optionalInt(formData.get("maximumOrderQuantity")),
     moqMin: optionalInt(formData.get("moqMin")),
@@ -253,14 +261,27 @@ export async function saveProvider(formData: FormData) {
     monthlyCapacity: optionalText(formData.get("monthlyCapacity")),
     qualityControl: optionalText(formData.get("qualityControl")),
     capacityText: optionalText(formData.get("capacityText")),
-    capacityStatus: (optionalText(formData.get("capacityStatus")) ?? ProviderCapacityStatus.UNKNOWN) as ProviderCapacityStatus,
-    availabilityStatus: (optionalText(formData.get("availabilityStatus")) ?? ProviderAvailabilityStatus.OPEN) as ProviderAvailabilityStatus,
+    capacityStatus: enumValue(Object.values(ProviderCapacityStatus), formData.get("capacityStatus"), ProviderCapacityStatus.UNKNOWN),
+    availabilityStatus: enumValue(Object.values(ProviderAvailabilityStatus), formData.get("availabilityStatus"), ProviderAvailabilityStatus.OPEN),
     supportedCategories: optionalText(formData.get("supportedCategories")),
     preferredMaterials: optionalText(formData.get("preferredMaterials")),
     preferredRegions: optionalText(formData.get("preferredRegions")),
     opportunityVisible: boolValue(formData, "opportunityVisible"),
     publicContactEnabled: boolValue(formData, "publicContactEnabled")
   };
+
+  if (contactEmail) {
+    const duplicate = await prisma.provider.findFirst({
+      where: {
+        contactEmail: { equals: contactEmail, mode: Prisma.QueryMode.insensitive },
+        ...(id ? { id: { not: id } } : {})
+      },
+      select: { id: true, name: true }
+    });
+    if (duplicate) {
+      throw new Error(`联系邮箱已关联服务商：${duplicate.name}`);
+    }
+  }
 
   if (id) await prisma.provider.update({ where: { id }, data });
   else await prisma.provider.create({ data });
@@ -272,7 +293,7 @@ export async function saveProvider(formData: FormData) {
 export async function reviewProviderApplication(formData: FormData) {
   await requireAdmin();
   const id = requiredText(formData.get("id"), "申请 ID");
-  const status = (optionalText(formData.get("status")) ?? ProviderApplicationStatus.PENDING) as ProviderApplicationStatus;
+  const status = enumValue(Object.values(ProviderApplicationStatus), formData.get("status"), ProviderApplicationStatus.PENDING);
   const reviewNote = optionalText(formData.get("reviewNote"));
 
   const application = await prisma.providerApplication.update({
@@ -281,18 +302,19 @@ export async function reviewProviderApplication(formData: FormData) {
   });
 
   if (status === ProviderApplicationStatus.APPROVED) {
-    const exists = await prisma.provider.findFirst({
-      where: application.userId
-        ? {
-            OR: [{ ownerId: application.userId }, { contactEmail: application.email }],
-            type: application.providerType
-          }
-        : {
-            name: application.companyName,
-            type: application.providerType
+    const applicationEmail = normalizeProviderEmail(application.email);
+    const duplicateConditions: Prisma.ProviderWhereInput[] = [
+      ...(application.userId ? [{ ownerId: application.userId }] : []),
+      ...(applicationEmail ? [{ contactEmail: { equals: applicationEmail, mode: Prisma.QueryMode.insensitive } }] : [])
+    ];
+    const exists = duplicateConditions.length
+      ? await prisma.provider.findFirst({
+          where: {
+            OR: duplicateConditions
           },
-      select: { id: true }
-    });
+          select: { id: true }
+        })
+      : null;
 
     if (!exists) {
       await prisma.provider.create({
@@ -306,7 +328,7 @@ export async function reviewProviderApplication(formData: FormData) {
           description: application.description,
           contactName: application.contactName,
           contactPhone: application.phone,
-          contactEmail: application.email,
+          contactEmail: applicationEmail,
           wechat: application.wechat,
           specialties: application.specialties,
           categories: application.categories,
@@ -341,9 +363,8 @@ export async function reviewProviderApplication(formData: FormData) {
         where: { id: exists.id },
         data: {
           ownerId: application.userId,
-          contactEmail: application.email ?? undefined,
-          status: ProviderStatus.ACTIVE,
-          type: application.providerType
+          contactEmail: applicationEmail ?? undefined,
+          status: ProviderStatus.ACTIVE
         }
       });
     }
@@ -397,7 +418,7 @@ export async function saveWorkFabricRecommendation(formData: FormData) {
       providerId: optionalText(formData.get("providerId")) ?? fabric?.providerId ?? null,
       reason: optionalText(formData.get("reason")),
       recommendedBy: optionalText(formData.get("recommendedBy")) ?? "ADMIN",
-      status: (optionalText(formData.get("status")) ?? RecommendationStatus.PENDING) as RecommendationStatus
+      status: enumValue(Object.values(RecommendationStatus), formData.get("status"), RecommendationStatus.PENDING)
     },
     create: {
       workId,
@@ -405,7 +426,7 @@ export async function saveWorkFabricRecommendation(formData: FormData) {
       providerId: optionalText(formData.get("providerId")) ?? fabric?.providerId ?? null,
       reason: optionalText(formData.get("reason")),
       recommendedBy: optionalText(formData.get("recommendedBy")) ?? "ADMIN",
-      status: (optionalText(formData.get("status")) ?? RecommendationStatus.PENDING) as RecommendationStatus
+      status: enumValue(Object.values(RecommendationStatus), formData.get("status"), RecommendationStatus.PENDING)
     }
   });
 
@@ -419,14 +440,14 @@ export async function saveProviderWorkProposal(formData: FormData) {
   const data = {
     workId: requiredText(formData.get("workId"), "作品 ID"),
     providerId: requiredText(formData.get("providerId"), "服务商 ID"),
-    type: (optionalText(formData.get("type")) ?? ProviderWorkProposalType.OTHER) as ProviderWorkProposalType,
+    type: enumValue(Object.values(ProviderWorkProposalType), formData.get("type"), ProviderWorkProposalType.OTHER),
     title: requiredText(formData.get("title"), "方案标题"),
     description: optionalText(formData.get("description")),
     estimatedPrice: optionalText(formData.get("estimatedPrice")),
     estimatedTime: optionalText(formData.get("estimatedTime")),
     moq: optionalText(formData.get("moq")),
     attachments: splitTags(formData.get("attachments")),
-    status: (optionalText(formData.get("status")) ?? ProviderWorkProposalStatus.PENDING) as ProviderWorkProposalStatus
+    status: enumValue(Object.values(ProviderWorkProposalStatus), formData.get("status"), ProviderWorkProposalStatus.PENDING)
   };
 
   if (id) await prisma.providerWorkProposal.update({ where: { id }, data });

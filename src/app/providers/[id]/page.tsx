@@ -157,7 +157,11 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
       <section id="products" className="mt-10">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-semibold text-ink">{isFabricProvider ? "面料产品" : isFactory ? "生产案例" : "打样案例"}</h2>
-          <span className="text-sm text-ink/40">{isFabricProvider ? `面料 ${provider._count.fabrics}` : `案例 ${provider._count.showcaseItems}`}</span>
+          {(isFabricProvider ? provider._count.fabrics : provider._count.showcaseItems) > 0 ? (
+            <span className="text-sm text-ink/40">
+              {isFabricProvider ? `产品 ${provider._count.fabrics}` : isFactory ? `生产案例 ${provider._count.showcaseItems}` : `打样案例 ${provider._count.showcaseItems}`}
+            </span>
+          ) : null}
         </div>
         {isFabricProvider && provider.fabrics.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -3,13 +3,11 @@ import {
   BatchProviderRole,
   BatchProviderStatus,
   BatchWorkStatus,
-  ContentStatus,
   IncubationBatchStatus,
   IncubationBatchType,
   ProviderOrderPreference,
   ProviderStatus,
   ProviderType,
-  ReviewStatus,
   WorkVoteStatus,
   WorkVoteType,
   type IncubationBatchProvider,
@@ -22,6 +20,8 @@ import { calculateOrderMaturity } from "@/lib/order-maturity";
 import { isAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { optionalText } from "@/lib/provider-market";
+import { getPublicQualityWorkIds } from "@/lib/works/queries";
+import { publicQualityWorkWhere } from "@/lib/works/rules";
 
 export const INCUBATION_BATCH_TYPE_LABELS: Record<IncubationBatchType, string> = {
   SCHOOL_COURSE: "学校课程批次",
@@ -96,13 +96,37 @@ export function publicBatchWhere() {
 export function workPublicWhere(userId?: string) {
   return userId
     ? {
+        ...publicQualityWorkWhere,
         userId,
-        reviewStatus: ReviewStatus.APPROVED,
-        contentStatus: ContentStatus.VISIBLE
+      }
+    : publicQualityWorkWhere;
+}
+
+export async function publicQualityBatchWorkWhere() {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+
+  return {
+    workId: {
+      in: qualityWorkIds.length ? qualityWorkIds : ["__no_public_quality_work__"]
+    }
+  };
+}
+
+export async function publicQualityWorkWhereForUser(userId?: string) {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  if (!qualityWorkIds.length) return null;
+
+  return userId
+    ? {
+        id: {
+          in: qualityWorkIds
+        },
+        userId
       }
     : {
-        reviewStatus: ReviewStatus.APPROVED,
-        contentStatus: ContentStatus.VISIBLE
+        id: {
+          in: qualityWorkIds
+        }
       };
 }
 

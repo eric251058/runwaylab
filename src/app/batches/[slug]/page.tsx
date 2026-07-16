@@ -11,7 +11,8 @@ import {
   INCUBATION_BATCH_TYPE_LABELS,
   calculateBatchStats,
   publicBatchWhere,
-  workPublicWhere
+  publicQualityBatchWorkWhere,
+  publicQualityWorkWhereForUser
 } from "@/lib/incubation-batches";
 import { prisma } from "@/lib/prisma";
 import { visualFor } from "@/components/works/work-visuals";
@@ -40,6 +41,7 @@ function metric(label: string, value: string | number) {
 export default async function BatchDetailPage({ params }: BatchDetailPageProps) {
   const { slug } = await params;
   const currentUser = await getCurrentUser();
+  const batchWorkWhere = await publicQualityBatchWorkWhere();
   const batch = await prisma.incubationBatch.findFirst({
     where: {
       slug,
@@ -49,6 +51,7 @@ export default async function BatchDetailPage({ params }: BatchDetailPageProps) 
       school: true,
       challenge: true,
       works: {
+        where: batchWorkWhere,
         include: {
           work: {
             include: {
@@ -75,9 +78,10 @@ export default async function BatchDetailPage({ params }: BatchDetailPageProps) 
 
   if (!batch) notFound();
 
+  const myWorkWhere = currentUser ? await publicQualityWorkWhereForUser(currentUser.id) : null;
   const myWorks = currentUser
     ? await prisma.work.findMany({
-        where: workPublicWhere(currentUser.id),
+        where: myWorkWhere ?? { id: "__no_public_quality_work__" },
         select: { id: true, title: true },
         orderBy: { createdAt: "desc" },
         take: 50

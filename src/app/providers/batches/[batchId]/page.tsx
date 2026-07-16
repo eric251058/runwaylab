@@ -10,7 +10,8 @@ import {
   INCUBATION_BATCH_TYPE_LABELS,
   calculateBatchStats,
   providerBatchRecommendationReason,
-  providerCanSeeBatch
+  providerCanSeeBatch,
+  publicQualityBatchWorkWhere
 } from "@/lib/incubation-batches";
 import { getProviderForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
@@ -48,10 +49,12 @@ export default async function ProviderBatchDetailPage({ params }: ProviderBatchD
   const provider = await getProviderForUser(user);
   if (!provider) redirect("/providers/batches");
 
+  const batchWorkWhere = await publicQualityBatchWorkWhere();
   const batch = await prisma.incubationBatch.findUnique({
     where: { id: batchId },
     include: {
       works: {
+        where: batchWorkWhere,
         include: {
           work: {
             include: {

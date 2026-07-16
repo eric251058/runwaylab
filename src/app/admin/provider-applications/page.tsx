@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ProviderApplicationStatus, ProviderType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reviewProviderApplication } from "@/lib/provider-market-admin";
+import { providerDuplicateRisks } from "@/lib/provider-duplicates";
 import { PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
 import { ONBOARDING_PROVIDER_TYPES, PROVIDER_TYPE_SHORT_LABELS } from "@/lib/provider-onboarding";
 
@@ -68,13 +69,25 @@ function abilityText(application: {
 export default async function AdminProviderApplicationsPage({ searchParams }: AdminProviderApplicationsPageProps) {
   const params = await searchParams;
   const type = selectedType(params);
-  const applications = await prisma.providerApplication.findMany({
-    where: type ? { providerType: type } : undefined,
-    include: {
-      user: { select: { id: true, email: true, nickname: true } }
-    },
-    orderBy: [{ status: "asc" }, { createdAt: "desc" }]
-  });
+  const [applications, existingProviders] = await Promise.all([
+    prisma.providerApplication.findMany({
+      where: type ? { providerType: type } : undefined,
+      include: {
+        user: { select: { id: true, email: true, nickname: true } }
+      },
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }]
+    }),
+    prisma.provider.findMany({
+      select: {
+        id: true,
+        name: true,
+        city: true,
+        ownerId: true,
+        contactEmail: true,
+        type: true
+      }
+    })
+  ]);
   const pendingCount = applications.filter((application) => application.status === ProviderApplicationStatus.PENDING).length;
   const completeCount = applications.filter((application) => application.city && application.description && (application.phone || application.email || application.wechat)).length;
 
@@ -114,7 +127,9 @@ export default async function AdminProviderApplicationsPage({ searchParams }: Ad
       </section>
 
       <section className="space-y-3">
-        {applications.length ? applications.map((application) => (
+        {applications.length ? applications.map((application) => {
+          const duplicateRisks = providerDuplicateRisks(application, existingProviders);
+          return (
           <article key={application.id} className="rounded-[8px] border border-black/8 bg-white p-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
@@ -128,6 +143,14 @@ export default async function AdminProviderApplicationsPage({ searchParams }: Ad
                 <p className="mt-1 text-xs text-ink/40">绑定账号：{application.user?.email ?? application.email ?? "未记录"}</p>
                 <p className="mt-2 text-sm leading-6 text-ink/58">核心能力：{abilityText(application)}</p>
                 <p className="mt-2 text-sm leading-6 text-ink/58">能力说明：{application.description ?? "简介待补充"}</p>
+                {duplicateRisks.length ? (
+                  <div className="mt-3 rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                    <p className="font-semibold">重复风险提示</p>
+                    {duplicateRisks.map((risk) => (
+                      <p key={risk.message} className="mt-1">{risk.message}</p>
+                    ))}
+                  </div>
+                ) : null}
                 {application.qualityControl ? <p className="mt-1 text-xs leading-5 text-ink/45">品控说明：{application.qualityControl}</p> : null}
                 <p className="mt-1 text-xs text-ink/40">申请时间：{formatDate(application.createdAt)}</p>
               </div>
@@ -143,7 +166,8 @@ export default async function AdminProviderApplicationsPage({ searchParams }: Ad
               </div>
             </div>
           </article>
-        )) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无入驻申请。</div>}
+          );
+        }) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无入驻申请。</div>}
       </section>
     </div>
   );

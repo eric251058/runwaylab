@@ -4,8 +4,8 @@ import { WorkIncubationStatus } from "@prisma/client";
 import { WorkCard } from "@/components/works/WorkCard";
 import { getHeatScore } from "@/lib/operation-growth";
 import { prisma } from "@/lib/prisma";
-import { approvedVisibleWorkWhere } from "@/lib/works/rules";
-import type { WorkCardData } from "@/lib/works/queries";
+import { isPublicQualityWork } from "@/lib/works/rules";
+import { getPublicQualityWorkIds, type WorkCardData } from "@/lib/works/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -50,14 +50,22 @@ const workInclude = {
 type RankingWork = Awaited<ReturnType<typeof getRankingWorks>>[number];
 
 async function getRankingWorks() {
-  return prisma.work.findMany({
-    where: approvedVisibleWorkWhere,
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  if (!qualityWorkIds.length) return [];
+
+  const works = await prisma.work.findMany({
+    where: {
+      id: {
+        in: qualityWorkIds
+      }
+    },
     include: workInclude,
     orderBy: {
       createdAt: "desc"
     },
     take: 100
   });
+  return works.filter(isPublicQualityWork);
 }
 
 function heatOf(work: RankingWork) {
@@ -101,6 +109,7 @@ function RankingSection({ title, works, emptyText }: { title: string; works: Ran
 
 export default async function RankingsPage() {
   const works = await getRankingWorks();
+  const qualityWorkIds = await getPublicQualityWorkIds();
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const weeklyHot = works.filter((work) => work.createdAt >= weekAgo).sort((a, b) => heatOf(b) - heatOf(a));
   const latestWorks = works.slice().sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -110,16 +119,24 @@ export default async function RankingsPage() {
   const presaleRank = works.slice().sort((a, b) => b._count.presaleIntents - a._count.presaleIntents);
   const buyerRank = works.slice().sort((a, b) => b._count.buyerIntents - a._count.buyerIntents);
 
-  const designers = await prisma.user.findMany({
+  const designers = qualityWorkIds.length ? await prisma.user.findMany({
     where: {
       works: {
-        some: approvedVisibleWorkWhere
+        some: {
+          id: {
+            in: qualityWorkIds
+          }
+        }
       }
     },
     include: {
       designerProfile: true,
       works: {
-        where: approvedVisibleWorkWhere,
+        where: {
+          id: {
+            in: qualityWorkIds
+          }
+        },
         include: {
           _count: {
             select: {
@@ -134,7 +151,7 @@ export default async function RankingsPage() {
       }
     },
     take: 40
-  });
+  }) : [];
   const designerRank = designers
     .map((designer) => ({
       id: designer.id,

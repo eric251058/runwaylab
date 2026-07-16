@@ -8,7 +8,8 @@ import {
   calculateBatchStats,
   providerBatchRecommendationReason,
   providerCanSeeBatch,
-  publicBatchWhere
+  publicBatchWhere,
+  publicQualityBatchWorkWhere
 } from "@/lib/incubation-batches";
 import { getProviderForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
@@ -48,10 +49,12 @@ export default async function ProviderBatchesPage() {
     );
   }
 
+  const batchWorkWhere = await publicQualityBatchWorkWhere();
   const batches = await prisma.incubationBatch.findMany({
     where: publicBatchWhere(),
     include: {
       works: {
+        where: batchWorkWhere,
         include: {
           work: {
             include: {

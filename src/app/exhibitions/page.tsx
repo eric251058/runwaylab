@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { displayDateRange, exhibitionCoverUrl } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
+import { getPublicQualityWorkIds } from "@/lib/works/queries";
 import { ExhibitionStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 export default async function ExhibitionsPage() {
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  const qualityWorkIdList = qualityWorkIds.length ? qualityWorkIds : ["__no_public_quality_work__"];
   const exhibitions = await prisma.exhibition.findMany({
     where: {
       OR: [{ status: ExhibitionStatus.PUBLISHED }, { isFeatured: true }]
@@ -15,7 +18,13 @@ export default async function ExhibitionsPage() {
       teacher: true,
       _count: {
         select: {
-          works: true
+          works: {
+            where: {
+              workId: {
+                in: qualityWorkIdList
+              }
+            }
+          }
         }
       }
     },

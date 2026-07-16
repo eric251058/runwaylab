@@ -79,7 +79,7 @@ export default async function AdminProvidersPage({ searchParams }: AdminProvider
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
       <header className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Admin</p>
-        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">供应网络管理</h1>
+        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">服务商管理</h1>
       </header>
 
       <nav className="mb-6 flex gap-2 overflow-x-auto pb-1">
@@ -244,7 +244,7 @@ export default async function AdminProvidersPage({ searchParams }: AdminProvider
                 </form>
               </div>
             </article>
-          )) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无供应商询盘。</div>}
+          )) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无服务商询盘。</div>}
         </section>
       ) : null}
     </div>

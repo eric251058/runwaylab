@@ -3,6 +3,7 @@ import { UserStatusActionForm } from "@/components/admin/UserStatusActionForm";
 import { getCurrentUser } from "@/lib/auth/session";
 import { updateUserStatus } from "@/lib/admin-user-actions";
 import { USER_PERSONA_LABELS } from "@/lib/persona";
+import { maskPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -73,7 +74,8 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="font-semibold text-ink">{user.nickname}</h2>
-                <p className="mt-1 text-sm text-ink/52">{user.email}</p>
+                <p className="mt-1 break-all text-sm text-ink/52">{user.email}</p>
+                <p className="mt-1 text-sm text-ink/52">手机号：{maskPhone(user.phone) ?? "未填写"}</p>
                 <p className="mt-2 text-xs text-ink/42">
                   角色：{roleLabels[user.role]} / 状态：{statusLabels[user.status]}
                 </p>

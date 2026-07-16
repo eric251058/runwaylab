@@ -23,7 +23,7 @@ export default async function AdminFabricsPage() {
         <input name="name" required placeholder="面料名称" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
         <input name="slug" placeholder="slug，可选" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
         <select name="providerId" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm">
-          <option value="">关联供应商</option>
+          <option value="">关联服务商</option>
           {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
         </select>
         <select name="status" defaultValue={FabricStatus.ACTIVE} className="h-11 rounded-[6px] border border-black/10 px-3 text-sm">{fabricStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select>
@@ -54,7 +54,7 @@ export default async function AdminFabricsPage() {
             <input name="slug" defaultValue={fabric.slug ?? ""} placeholder="slug" className="h-10 rounded-[6px] border border-black/10 px-3 text-sm" />
             <select name="status" defaultValue={fabric.status} className="h-10 rounded-[6px] border border-black/10 px-3 text-sm">{fabricStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select>
             <select name="providerId" defaultValue={fabric.providerId ?? ""} className="h-10 rounded-[6px] border border-black/10 px-3 text-sm">
-              <option value="">未关联供应商</option>
+              <option value="">未关联服务商</option>
               {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
             </select>
             <input name="imageUrls" defaultValue={fabric.imageUrls.join(", ")} placeholder="更多图片 URL" className="h-10 rounded-[6px] border border-black/10 px-3 text-sm md:col-span-2" />

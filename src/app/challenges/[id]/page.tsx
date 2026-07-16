@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { WorkCard } from "@/components/works/WorkCard";
 import { activityWorkInclude, challengeCoverUrl, displayDateRange } from "@/lib/school-activity";
-import { INCUBATION_BATCH_STATUS_LABELS, INCUBATION_BATCH_TYPE_LABELS, publicBatchWhere } from "@/lib/incubation-batches";
+import { INCUBATION_BATCH_STATUS_LABELS, INCUBATION_BATCH_TYPE_LABELS, publicBatchWhere, publicQualityBatchWorkWhere } from "@/lib/incubation-batches";
 import { prisma } from "@/lib/prisma";
-import type { WorkCardData } from "@/lib/works/queries";
+import { isPublicQualityWork } from "@/lib/works/rules";
+import { getPublicQualityWorkIds, type WorkCardData } from "@/lib/works/queries";
 import { ChallengeStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,9 @@ type ChallengeDetailPageProps = {
 
 export default async function ChallengeDetailPage({ params }: ChallengeDetailPageProps) {
   const { id } = await params;
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  const qualityWorkIdList = qualityWorkIds.length ? qualityWorkIds : ["__no_public_quality_work__"];
+  const batchWorkWhere = await publicQualityBatchWorkWhere();
   const challenge = await prisma.challenge.findFirst({
     where: {
       AND: [
@@ -26,6 +30,11 @@ export default async function ChallengeDetailPage({ params }: ChallengeDetailPag
       school: true,
       teacher: true,
       works: {
+        where: {
+          workId: {
+            in: qualityWorkIdList
+          }
+        },
         include: {
           work: {
             include: activityWorkInclude
@@ -34,6 +43,11 @@ export default async function ChallengeDetailPage({ params }: ChallengeDetailPag
         orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }]
       },
       entries: {
+        where: {
+          workId: {
+            in: qualityWorkIdList
+          }
+        },
         include: {
           work: {
             include: activityWorkInclude
@@ -43,7 +57,7 @@ export default async function ChallengeDetailPage({ params }: ChallengeDetailPag
       },
       incubationBatches: {
         where: publicBatchWhere(),
-        include: { _count: { select: { works: true, providers: true } } },
+        include: { _count: { select: { works: { where: batchWorkWhere }, providers: true } } },
         orderBy: [{ featured: "desc" }, { updatedAt: "desc" }],
         take: 6
       }
@@ -57,7 +71,7 @@ export default async function ChallengeDetailPage({ params }: ChallengeDetailPag
   const directWorks = challenge.works.map((item) => item.work);
   const entryWorks = challenge.entries.map((item) => item.work);
   const works = [...directWorks, ...entryWorks].filter((work, index, array) => {
-    return work.reviewStatus === "APPROVED" && work.contentStatus === "VISIBLE" && array.findIndex((item) => item.id === work.id) === index;
+    return isPublicQualityWork(work) && array.findIndex((item) => item.id === work.id) === index;
   });
 
   return (

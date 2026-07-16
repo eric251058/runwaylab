@@ -2,10 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { WorkCard } from "@/components/works/WorkCard";
 import { activityWorkInclude, displayDateRange, schoolCoverUrl } from "@/lib/school-activity";
-import { INCUBATION_BATCH_STATUS_LABELS, INCUBATION_BATCH_TYPE_LABELS, publicBatchWhere } from "@/lib/incubation-batches";
+import { INCUBATION_BATCH_STATUS_LABELS, INCUBATION_BATCH_TYPE_LABELS, publicBatchWhere, publicQualityBatchWorkWhere } from "@/lib/incubation-batches";
 import { prisma } from "@/lib/prisma";
-import { approvedVisibleWorkWhere } from "@/lib/works/rules";
-import type { WorkCardData } from "@/lib/works/queries";
+import { getPublicQualityWorkIds, type WorkCardData } from "@/lib/works/queries";
+import { isPublicQualityWork } from "@/lib/works/rules";
 import { ChallengeStatus, ExhibitionStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +20,9 @@ function Empty({ text }: { text: string }) {
 
 export default async function SchoolDetailPage({ params }: SchoolDetailPageProps) {
   const { id } = await params;
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  const qualityWorkIdList = qualityWorkIds.length ? qualityWorkIds : ["__no_public_quality_work__"];
+  const batchWorkWhere = await publicQualityBatchWorkWhere();
   const school = await prisma.school.findFirst({
     where: {
       OR: [{ id }, { slug: id }],
@@ -33,7 +36,11 @@ export default async function SchoolDetailPage({ params }: SchoolDetailPageProps
         orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }]
       },
       works: {
-        where: approvedVisibleWorkWhere,
+        where: {
+          id: {
+            in: qualityWorkIdList
+          }
+        },
         include: activityWorkInclude,
         take: 8,
         orderBy: { createdAt: "desc" }
@@ -42,19 +49,19 @@ export default async function SchoolDetailPage({ params }: SchoolDetailPageProps
         where: {
           status: ExhibitionStatus.PUBLISHED
         },
-        include: { _count: { select: { works: true } } },
+        include: { _count: { select: { works: { where: { workId: { in: qualityWorkIdList } } } } } },
         orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }]
       },
       challenges: {
         where: {
           status: { in: [ChallengeStatus.PUBLISHED, ChallengeStatus.ACTIVE] }
         },
-        include: { _count: { select: { works: true, entries: true } } },
+        include: { _count: { select: { works: { where: { workId: { in: qualityWorkIdList } } }, entries: { where: { workId: { in: qualityWorkIdList } } } } } },
         orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }]
       },
       incubationBatches: {
         where: publicBatchWhere(),
-        include: { _count: { select: { works: true, providers: true } } },
+        include: { _count: { select: { works: { where: batchWorkWhere }, providers: true } } },
         orderBy: [{ featured: "desc" }, { updatedAt: "desc" }],
         take: 6
       }
@@ -64,6 +71,8 @@ export default async function SchoolDetailPage({ params }: SchoolDetailPageProps
   if (!school) {
     notFound();
   }
+
+  const schoolWorks = school.works.filter(isPublicQualityWork);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
@@ -101,9 +110,9 @@ export default async function SchoolDetailPage({ params }: SchoolDetailPageProps
 
         <section>
           <h2 className="mb-4 text-2xl font-semibold text-ink">学校作品</h2>
-          {school.works.length ? (
+          {schoolWorks.length ? (
             <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-4">
-              {school.works.map((work, index) => (
+              {schoolWorks.map((work, index) => (
                 <WorkCard key={work.id} work={work as unknown as WorkCardData} index={index} compact />
               ))}
             </div>

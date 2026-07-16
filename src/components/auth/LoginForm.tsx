@@ -19,6 +19,7 @@ export function LoginForm() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,7 +31,7 @@ export function LoginForm() {
     setLoading(true);
     setMessage("");
 
-    const payload = isRegister ? { email, password, nickname } : { email, password };
+    const payload = isRegister ? { email, password, nickname, phone } : { email, password };
     const response = await fetch(isRegister ? "/api/auth/register" : "/api/auth/login", {
       method: "POST",
       headers: {
@@ -58,8 +59,8 @@ export function LoginForm() {
       <div className="mx-auto grid max-w-4xl items-center gap-6 md:grid-cols-[0.85fr_1.15fr]">
         <section className="hidden rounded-[8px] border border-black/8 bg-ink p-6 text-white md:block md:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/45">RUNWAYLAB ACCOUNT</p>
-          <h1 className="mt-5 max-w-xl text-4xl font-semibold leading-tight">登录后发布作品。</h1>
-          <p className="mt-5 max-w-lg text-sm leading-7 text-white/68">用自己的邮箱登录，继续发布、收藏和跟进作品进展。</p>
+          <h1 className="mt-5 max-w-xl text-4xl font-semibold leading-tight">登录后继续推进作品与合作。</h1>
+          <p className="mt-5 max-w-lg text-sm leading-7 text-white/68">设计师、学生、面料供应商、打样工作室、生产工厂和合作方均可使用同一个账号体系。</p>
         </section>
 
         <form
@@ -68,7 +69,7 @@ export function LoginForm() {
         >
           <div className="mb-5 md:hidden">
             <h1 className="text-3xl font-semibold text-ink">登录 RunwayLab</h1>
-            <p className="mt-2 text-sm leading-6 text-ink/52">发布作品，查看进展。</p>
+            <p className="mt-2 text-sm leading-6 text-ink/52">发布作品、申请服务商、跟进合作进展。</p>
           </div>
           <div className="mb-7 flex rounded-full border border-black/10 bg-paper p-1 text-sm font-semibold">
             <button
@@ -110,6 +111,22 @@ export function LoginForm() {
                   className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-sm outline-none transition focus:border-ink focus:bg-white"
                   required
                 />
+              </label>
+            ) : null}
+
+            {isRegister ? (
+              <label className="block">
+                <span className="text-xs font-semibold text-ink/50">手机号码（选填）</span>
+                <input
+                  name="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                  placeholder="例如：13800138000 或 +86 13800138000"
+                  autoComplete="tel"
+                  className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-sm outline-none transition focus:border-ink focus:bg-white"
+                />
+                <span className="mt-2 block text-xs leading-5 text-ink/45">仅用于账号联系与服务商审核，不公开展示。</span>
               </label>
             ) : null}
 
@@ -164,7 +181,7 @@ export function LoginForm() {
             }}
             className="mt-4 w-full text-center text-xs font-semibold text-ink/50 hover:text-ink"
           >
-            {isRegister ? "已有账号？切换到登录" : "还没有账号？创建设计师账号"}
+            {isRegister ? "已有账号？切换到登录" : "还没有账号？创建账号"}
           </button>
         </form>
       </div>

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { tooManyRequests } from "@/lib/security/api-response";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { providerBelongsToUser, publicProviderWhere } from "@/lib/supply-network";
-import { publicWorkWhere } from "@/lib/works/public";
+import { isPublicWorkAccessible, publicQualityWorkCheckSelect, publicWorkWhere } from "@/lib/works/public";
 
 const cooperationRequestSchema = z.object({
   workId: z.string().trim().optional().nullable(),
@@ -157,12 +157,10 @@ export async function POST(request: Request) {
       id: data.workId,
       ...publicWorkWhere
     },
-    select: {
-      id: true
-    }
+    select: publicQualityWorkCheckSelect
   });
 
-  if (!work) {
+  if (!isPublicWorkAccessible(work)) {
     return NextResponse.json({ message: "作品不存在或暂不可提交合作意向。" }, { status: 404 });
   }
 

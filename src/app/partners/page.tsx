@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CrowdSubmissionForm, type CrowdSubmissionKind } from "@/components/incubation/CrowdSubmissionForm";
 import { prisma } from "@/lib/prisma";
-import { approvedVisibleWorkWhere } from "@/lib/works/rules";
+import { getPublicQualityWorkIds } from "@/lib/works/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -46,10 +46,10 @@ function isPartnerKind(value?: string): value is CrowdSubmissionKind {
 export default async function PartnersPage({ searchParams }: PartnersPageProps) {
   const params = await searchParams;
   const activeKind = isPartnerKind(params?.type) ? params.type : undefined;
-  const work = params?.workId
+  const qualityWorkIds = params?.workId ? await getPublicQualityWorkIds() : [];
+  const work = params?.workId && qualityWorkIds.includes(params.workId)
     ? await prisma.work.findFirst({
         where: {
-          ...approvedVisibleWorkWhere,
           id: params.workId
         },
         select: {

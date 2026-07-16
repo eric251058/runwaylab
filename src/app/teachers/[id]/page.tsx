@@ -4,8 +4,8 @@ import { ActionGuide } from "@/components/ActionGuide";
 import { WorkCard } from "@/components/works/WorkCard";
 import { activityWorkInclude, displayDateRange, teacherAvatarUrl } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
-import { approvedVisibleWorkWhere } from "@/lib/works/rules";
-import type { WorkCardData } from "@/lib/works/queries";
+import { isPublicQualityWork } from "@/lib/works/rules";
+import { getPublicQualityWorkIds, type WorkCardData } from "@/lib/works/queries";
 import { ChallengeStatus, ExhibitionStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +20,8 @@ function Empty({ text }: { text: string }) {
 
 export default async function TeacherDetailPage({ params }: TeacherDetailPageProps) {
   const { id } = await params;
+  const qualityWorkIds = await getPublicQualityWorkIds();
+  const qualityWorkIdList = qualityWorkIds.length ? qualityWorkIds : ["__no_public_quality_work__"];
   const teacher = await prisma.teacher.findFirst({
     where: {
       OR: [{ id }, { slug: id }],
@@ -28,6 +30,11 @@ export default async function TeacherDetailPage({ params }: TeacherDetailPagePro
     include: {
       school: true,
       recommendations: {
+        where: {
+          workId: {
+            in: qualityWorkIdList
+          }
+        },
         include: {
           work: {
             include: activityWorkInclude
@@ -39,7 +46,7 @@ export default async function TeacherDetailPage({ params }: TeacherDetailPagePro
         where: { status: ExhibitionStatus.PUBLISHED },
         include: {
           school: true,
-          _count: { select: { works: true } }
+          _count: { select: { works: { where: { workId: { in: qualityWorkIdList } } } } }
         },
         orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }]
       },
@@ -47,7 +54,7 @@ export default async function TeacherDetailPage({ params }: TeacherDetailPagePro
         where: { status: { in: [ChallengeStatus.PUBLISHED, ChallengeStatus.ACTIVE] } },
         include: {
           school: true,
-          _count: { select: { works: true, entries: true } }
+          _count: { select: { works: { where: { workId: { in: qualityWorkIdList } } }, entries: { where: { workId: { in: qualityWorkIdList } } } } }
         },
         orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }]
       }
@@ -58,7 +65,7 @@ export default async function TeacherDetailPage({ params }: TeacherDetailPagePro
     notFound();
   }
 
-  const visibleRecommendations = teacher.recommendations.filter((item) => item.work.reviewStatus === "APPROVED" && item.work.contentStatus === "VISIBLE");
+  const visibleRecommendations = teacher.recommendations.filter((item) => isPublicQualityWork(item.work));
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
