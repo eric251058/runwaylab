@@ -1,7 +1,9 @@
-import { ProviderApplicationStatus } from "@prisma/client";
+import Link from "next/link";
+import { ProviderApplicationStatus, ProviderType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reviewProviderApplication } from "@/lib/provider-market-admin";
 import { PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
+import { ONBOARDING_PROVIDER_TYPES, PROVIDER_TYPE_SHORT_LABELS } from "@/lib/provider-onboarding";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +27,49 @@ function contactText(application: { phone?: string | null; email?: string | null
   return [application.phone && `手机 ${application.phone}`, application.email && `邮箱 ${application.email}`, application.wechat && `微信 ${application.wechat}`].filter(Boolean).join(" / ") || "联系方式待补充";
 }
 
-export default async function AdminProviderApplicationsPage() {
+type AdminProviderApplicationsPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function selectedType(params: Record<string, string | string[] | undefined> | undefined) {
+  const value = params?.type;
+  const text = Array.isArray(value) ? value[0] : value;
+  return ONBOARDING_PROVIDER_TYPES.includes(text as (typeof ONBOARDING_PROVIDER_TYPES)[number]) ? (text as ProviderType) : null;
+}
+
+function abilityText(application: {
+  providerType: ProviderType;
+  specialties: string[];
+  categories: string[];
+  serviceArea?: string | null;
+  patternMaking?: string | null;
+  sampleSupported?: boolean | null;
+  singleSampleSupported?: boolean | null;
+  smallOrderSupported?: boolean | null;
+  minimumOrder?: string | null;
+  leadTime?: string | null;
+  priceRange?: string | null;
+  monthlyCapacity?: string | null;
+  qualityControl?: string | null;
+}) {
+  const base = [...application.specialties, ...application.categories].slice(0, 4);
+  if (application.providerType === ProviderType.FABRIC_SUPPLIER) {
+    return [base.join(" / "), application.sampleSupported ? "支持寄样" : null, application.minimumOrder, application.leadTime].filter(Boolean).join(" · ") || "能力待补充";
+  }
+  if (application.providerType === ProviderType.SAMPLE_STUDIO) {
+    return [base.join(" / "), application.patternMaking ? `制版：${application.patternMaking}` : null, application.singleSampleSupported ? "单件打样" : null, application.smallOrderSupported ? "支持小单" : null, application.leadTime, application.priceRange].filter(Boolean).join(" · ") || "能力待补充";
+  }
+  if (application.providerType === ProviderType.FACTORY) {
+    return [base.join(" / "), application.smallOrderSupported ? "支持小单" : null, application.minimumOrder, application.monthlyCapacity, application.leadTime].filter(Boolean).join(" · ") || "能力待补充";
+  }
+  return base.join(" / ") || application.serviceArea || "能力待补充";
+}
+
+export default async function AdminProviderApplicationsPage({ searchParams }: AdminProviderApplicationsPageProps) {
+  const params = await searchParams;
+  const type = selectedType(params);
   const applications = await prisma.providerApplication.findMany({
+    where: type ? { providerType: type } : undefined,
     include: {
       user: { select: { id: true, email: true, nickname: true } }
     },
@@ -42,6 +85,15 @@ export default async function AdminProviderApplicationsPage() {
         <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">入驻审核</h1>
         <p className="mt-4 max-w-3xl text-sm leading-6 text-ink/58">这里用于筛选面料商、打样工作室、工厂和专业服务。审核通过后会生成服务商主页，并绑定到申请账号。</p>
       </header>
+
+      <nav className="mb-6 flex gap-2 overflow-x-auto pb-1">
+        <Link href="/admin/provider-applications" className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${!type ? "bg-ink text-white" : "bg-white text-ink/60"}`}>全部</Link>
+        {ONBOARDING_PROVIDER_TYPES.map((item) => (
+          <Link key={item} href={`/admin/provider-applications?type=${item}`} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${type === item ? "bg-ink text-white" : "bg-white text-ink/60"}`}>
+            {PROVIDER_TYPE_SHORT_LABELS[item]}
+          </Link>
+        ))}
+      </nav>
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-[8px] border border-black/8 bg-white p-4">
@@ -74,7 +126,9 @@ export default async function AdminProviderApplicationsPage() {
                 <h2 className="mt-3 text-lg font-semibold text-ink">{application.companyName}</h2>
                 <p className="mt-1 text-sm text-ink/52">申请人：{application.contactName} / {contactText(application)}</p>
                 <p className="mt-1 text-xs text-ink/40">绑定账号：{application.user?.email ?? application.email ?? "未记录"}</p>
+                <p className="mt-2 text-sm leading-6 text-ink/58">核心能力：{abilityText(application)}</p>
                 <p className="mt-2 text-sm leading-6 text-ink/58">能力说明：{application.description ?? "简介待补充"}</p>
+                {application.qualityControl ? <p className="mt-1 text-xs leading-5 text-ink/45">品控说明：{application.qualityControl}</p> : null}
                 <p className="mt-1 text-xs text-ink/40">申请时间：{formatDate(application.createdAt)}</p>
               </div>
               <div className="grid gap-2 md:w-72">

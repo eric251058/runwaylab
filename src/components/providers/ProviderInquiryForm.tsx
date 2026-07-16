@@ -16,11 +16,24 @@ type ProviderInquiryFormProps = {
   isLoggedIn: boolean;
   fabricId?: string;
   showcaseItemId?: string;
+  defaultRequestType?: string;
+  title?: string;
+  description?: string;
 };
 
 const inquiryTypes = Object.entries(PROVIDER_INQUIRY_TYPE_LABELS);
 
-export function ProviderInquiryForm({ providerId, workOptions, loginHref, isLoggedIn, fabricId, showcaseItemId }: ProviderInquiryFormProps) {
+export function ProviderInquiryForm({
+  providerId,
+  workOptions,
+  loginHref,
+  isLoggedIn,
+  fabricId,
+  showcaseItemId,
+  defaultRequestType = "GENERAL",
+  title = "发起合作询盘",
+  description = "请用一段清楚的话说明你需要面料、打样还是生产支持。24 小时内同一服务商最多提交 5 次。"
+}: ProviderInquiryFormProps) {
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -28,7 +41,7 @@ export function ProviderInquiryForm({ providerId, workOptions, loginHref, isLogg
   if (!isLoggedIn) {
     return (
       <div className="rounded-[8px] border border-black/8 bg-white p-4">
-        <h3 className="text-lg font-semibold text-ink">发起合作询盘</h3>
+        <h3 className="text-lg font-semibold text-ink">{title}</h3>
         <p className="mt-2 text-sm leading-6 text-ink/55">登录后可以关联自己的作品，向服务商提交结构化合作需求。</p>
         <Link href={loginHref} className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white sm:w-fit">
           登录后发起合作
@@ -71,8 +84,8 @@ export function ProviderInquiryForm({ providerId, workOptions, loginHref, isLogg
   return (
     <form action={onSubmit} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-4">
       <div>
-        <h3 className="text-lg font-semibold text-ink">发起合作询盘</h3>
-        <p className="mt-1 text-sm leading-6 text-ink/55">请用一段清楚的话说明你需要面料、打样还是生产支持。24 小时内同一服务商最多提交 5 次。</p>
+        <h3 className="text-lg font-semibold text-ink">{title}</h3>
+        <p className="mt-1 text-sm leading-6 text-ink/55">{description}</p>
       </div>
       {message ? <p className="rounded-[6px] bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p> : null}
       {success ? <p className="rounded-[6px] bg-green-50 px-3 py-2 text-sm text-green-700">{success}</p> : null}
@@ -82,7 +95,7 @@ export function ProviderInquiryForm({ providerId, workOptions, loginHref, isLogg
           <option key={work.id} value={work.id}>{work.title}</option>
         ))}
       </select>
-      <select name="requestType" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm">
+      <select name="requestType" defaultValue={defaultRequestType} className="h-12 rounded-[6px] border border-black/10 px-3 text-sm">
         {inquiryTypes.map(([value, label]) => (
           <option key={value} value={value}>{label}</option>
         ))}

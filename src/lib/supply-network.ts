@@ -17,14 +17,13 @@ import {
 export const SUPPLY_PROVIDER_TYPES = [
   ProviderType.FABRIC_SUPPLIER,
   ProviderType.SAMPLE_STUDIO,
-  ProviderType.FACTORY,
-  ProviderType.OTHER
+  ProviderType.FACTORY
 ] as const;
 
 export const SUPPLY_PROVIDER_TYPE_LABELS: Record<ProviderType, string> = {
-  FABRIC_SUPPLIER: "面料商",
-  SAMPLE_STUDIO: "制版打样工作室",
-  FACTORY: "服装工厂",
+  FABRIC_SUPPLIER: "面料供应商",
+  SAMPLE_STUDIO: "打样工作室",
+  FACTORY: "生产工厂",
   BUYER: "买手/采购商",
   OTHER: "专业服务"
 };
@@ -127,9 +126,9 @@ export function getProviderTags(provider: Pick<Provider, "specialties" | "catego
 
 export function getProviderFitTags(provider: Pick<Provider, "type" | "acceptsSampling" | "acceptsSmallBatch" | "acceptsLargeOrder" | "minimumOrderQuantity" | "moqMin" | "categories" | "materials">) {
   const tags: string[] = [];
-  if (provider.type === ProviderType.FABRIC_SUPPLIER) tags.push("适合材料匹配");
-  if (provider.type === ProviderType.SAMPLE_STUDIO) tags.push("适合样衣打样");
-  if (provider.type === ProviderType.FACTORY) tags.push("适合生产落地");
+  if (provider.type === ProviderType.FABRIC_SUPPLIER) tags.push("面料匹配");
+  if (provider.type === ProviderType.SAMPLE_STUDIO) tags.push("样衣打样");
+  if (provider.type === ProviderType.FACTORY) tags.push("生产落地");
   if (provider.acceptsSampling) tags.push("适合学生毕业设计");
   if (provider.acceptsSmallBatch) tags.push("适合 50-200 件小单");
   if (provider.acceptsLargeOrder) tags.push("适合品牌大货");
@@ -191,4 +190,3 @@ export function providerCompleteness(
 export function providerPublicUrl(provider: Pick<Provider, "id" | "slug">) {
   return `/providers/${provider.slug ?? provider.id}`;
 }
-

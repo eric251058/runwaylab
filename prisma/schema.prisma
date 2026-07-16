@@ -893,6 +893,7 @@ model Provider {
   coverUrl     String?
   tagline      String?
   city         String?
+  address      String?
   province     String?
   country      String         @default("China")
   description  String?
@@ -908,6 +909,8 @@ model Provider {
   materials    String[]       @default([])
   techniques   String[]       @default([])
   serviceRegions String[]     @default([])
+  serviceArea  String?
+  responseTime String?
   isVerified   Boolean        @default(false)
   isFeatured   Boolean        @default(false)
   status       ProviderStatus @default(PENDING)
@@ -918,14 +921,23 @@ model Provider {
   acceptsSampling Boolean @default(true)
   acceptsSmallBatch Boolean @default(false)
   acceptsLargeOrder Boolean @default(false)
+  sampleSupported Boolean?
+  singleSampleSupported Boolean?
+  patternMaking String?
+  minimumOrder String?
   sampleLeadDays Int?
   productionLeadDays Int?
+  leadTime String?
+  priceRange String?
+  monthlyCapacity String?
+  qualityControl String?
   capacityText String?
   capacityStatus ProviderCapacityStatus @default(UNKNOWN)
   availabilityStatus ProviderAvailabilityStatus @default(OPEN)
   supportedCategories String?
   preferredMaterials String?
   preferredRegions String?
+  providerDetails Json?
   opportunityVisible Boolean @default(true)
   publicContactEnabled Boolean @default(false)
 
@@ -1132,6 +1144,22 @@ model ProviderApplication {
   email        String?
   wechat       String?
   city         String?
+  address      String?
+  logoUrl      String?
+  serviceArea  String?
+  responseTime String?
+  specialties  String[]                  @default([])
+  categories   String[]                  @default([])
+  patternMaking String?
+  sampleSupported Boolean?
+  singleSampleSupported Boolean?
+  smallOrderSupported Boolean?
+  minimumOrder String?
+  leadTime     String?
+  priceRange   String?
+  monthlyCapacity String?
+  qualityControl String?
+  providerDetails Json?
   description  String?
   status       ProviderApplicationStatus @default(PENDING)
   reviewNote   String?

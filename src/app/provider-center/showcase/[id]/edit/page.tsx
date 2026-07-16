@@ -30,7 +30,7 @@ export default async function EditProviderShowcasePage({ params }: EditProviderS
         </div>
         <Link href="/provider-center/showcase" className="rounded-full border border-black/10 px-5 py-2 text-sm font-semibold text-ink">返回</Link>
       </header>
-      <ProviderShowcaseForm item={item} />
+      <ProviderShowcaseForm item={item} providerType={provider.type} />
     </div>
   );
 }

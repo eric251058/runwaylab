@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ProviderApplicationStatus, ProviderShowcaseStatus, ProviderStatus, RequestStatus } from "@prisma/client";
 import { getProviderCenterContext } from "@/lib/provider-center-context";
+import { PROVIDER_WORKBENCH_COPY, isOnboardingProviderType } from "@/lib/provider-onboarding";
 import { prisma } from "@/lib/prisma";
 import {
   PROVIDER_AVAILABILITY_LABELS,
@@ -95,26 +96,38 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
   const newInquiries = fullProvider.inquiries.filter((item) => item.status === RequestStatus.PENDING).length;
   const processingInquiries = fullProvider.inquiries.filter((item) => processingInquiryStatuses.includes(item.status)).length;
   const suspended = fullProvider.status === ProviderStatus.SUSPENDED;
+  const workbenchCopy = isOnboardingProviderType(fullProvider.type)
+    ? PROVIDER_WORKBENCH_COPY[fullProvider.type]
+    : {
+        title: "服务商工作台",
+        description: "维护主页、案例和合作需求。",
+        primaryLabel: "上传案例",
+        primaryHref: "/provider-center/showcase/new",
+        secondaryLabel: "管理案例",
+        secondaryHref: "/provider-center/showcase",
+        opportunityLabel: "查看合作机会",
+        opportunityHref: "/providers/opportunities"
+      };
   const profileUpdated = searchValue(params, "profile") === "updated";
   const nextTask = !fullProvider.logoUrl || !fullProvider.coverUrl
     ? { title: "完善品牌形象", description: "补充 Logo、封面和一句定位，让公开主页更可信。", href: "/provider-center/profile" }
-    : publicFabrics === 0
+    : fullProvider.type === "FABRIC_SUPPLIER" && publicFabrics === 0
       ? { title: "上传第一款面料", description: "添加一款带图片的面料，供设计师浏览和询盘。", href: "/provider-center/fabrics/new" }
       : publicShowcase === 0
-        ? { title: "上传第一个案例", description: "展示打样、生产或服务案例，帮助设计师判断是否合适。", href: "/provider-center/showcase/new" }
+        ? { title: fullProvider.type === "FACTORY" ? "上传第一个生产案例" : "上传第一个打样案例", description: "展示真实能力，帮助设计师判断是否合适。", href: "/provider-center/showcase/new" }
         : newInquiries > 0
           ? { title: "处理新询盘", description: "有新的合作需求等待查看，建议尽快处理。", href: "/provider-center/inquiries" }
-          : { title: "继续维护产品与案例", description: "定期更新面料、案例和联系方式，保持公开主页准确。", href: "/provider-center" };
+          : { title: "继续维护主页", description: "定期更新产品、案例和联系方式，保持公开主页准确。", href: "/provider-center" };
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-12">
       <header className="mb-6 rounded-[8px] bg-white p-5 md:p-7">
         <div>
-          <h1 className="text-3xl font-semibold text-ink md:text-5xl">{fullProvider.name}</h1>
+          <h1 className="text-3xl font-semibold text-ink md:text-5xl">{workbenchCopy.title}</h1>
           <p className="mt-3 text-sm text-ink/52">{SUPPLY_PROVIDER_TYPE_LABELS[fullProvider.type]} / {fullProvider.city || "城市未填写"} / {PROVIDER_AVAILABILITY_LABELS[fullProvider.availabilityStatus]}</p>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-ink/55">管理产品，回应真实合作需求。</p>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-ink/55">{workbenchCopy.description}</p>
           <div className="mt-5 flex flex-wrap gap-2">
-            <Link href={fullProvider.type === "FABRIC_SUPPLIER" ? "/provider-center/fabrics" : "/provider-center/showcase"} className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">管理产品</Link>
+            <Link href={workbenchCopy.primaryHref} className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">{workbenchCopy.primaryLabel}</Link>
             <Link href={providerPublicUrl(fullProvider)} className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看主页</Link>
           </div>
         </div>
@@ -140,18 +153,18 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
       </section>
 
       <section className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {stat("已发布面料", publicFabrics)}
-        {stat("公开案例", publicShowcase)}
+        {fullProvider.type === "FABRIC_SUPPLIER" ? stat("已发布面料", publicFabrics) : stat("公开案例", publicShowcase)}
+        {fullProvider.type === "FABRIC_SUPPLIER" ? stat("公开案例", publicShowcase) : stat("服务类型", SUPPLY_PROVIDER_TYPE_LABELS[fullProvider.type])}
         {stat("新询盘", newInquiries)}
         {stat("处理中询盘", processingInquiries)}
       </section>
 
       <section className="grid gap-3 md:grid-cols-5">
-        {actionCard("我的产品", "维护可公开展示的面料或服务内容。", "/provider-center/fabrics")}
-        {actionCard("我的推荐", "查看推荐给设计师的产品和反馈。", "/provider-center/recommendations")}
+        {actionCard(workbenchCopy.primaryLabel, fullProvider.type === "FABRIC_SUPPLIER" ? "上传可公开展示的面料产品。" : "上传可公开展示的服务案例。", workbenchCopy.primaryHref)}
+        {actionCard(workbenchCopy.secondaryLabel, fullProvider.type === "FABRIC_SUPPLIER" ? "维护面料产品和公开状态。" : "维护打样或生产案例。", workbenchCopy.secondaryHref)}
+        {actionCard(workbenchCopy.opportunityLabel, fullProvider.type === "FABRIC_SUPPLIER" ? "查看推荐给设计师的产品和反馈。" : "查看适合参与的作品机会。", workbenchCopy.opportunityHref)}
         {actionCard("收到的合作需求", "查看并回应设计师发来的需求。", "/provider-center/inquiries")}
         {actionCard("服务商资料", "更新品牌形象和联系方式。", "/provider-center/profile")}
-        {actionCard("案例展示", "展示打样、生产或服务案例。", "/provider-center/showcase")}
       </section>
     </div>
   );

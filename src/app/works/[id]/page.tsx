@@ -8,6 +8,7 @@ import { IncubationProgress } from "@/components/incubation/IncubationProgress";
 import { SafeImage } from "@/components/media/SafeImage";
 import { PresaleCampaignPanel } from "@/components/presale/PresaleCampaignPanel";
 import { FabricRecommendationDialog, type FabricRecommendationProduct } from "@/components/works/FabricRecommendationDialog";
+import { ProviderWorkSupportDialog } from "@/components/works/ProviderWorkSupportDialog";
 import { WorkImageCarousel } from "@/components/works/WorkImageCarousel";
 import { WorkContributionPanel } from "@/components/works/WorkContributionPanel";
 import { WorkFabricRecommendationPanel, type WorkFabricRecommendationView } from "@/components/works/WorkFabricRecommendationPanel";
@@ -453,6 +454,13 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
       currentProvider.availabilityStatus !== ProviderAvailabilityStatus.PAUSED &&
       !isOwner
   );
+  const canSubmitProviderSupport = Boolean(
+    currentProvider &&
+      (currentProvider.type === ProviderType.SAMPLE_STUDIO || currentProvider.type === ProviderType.FACTORY) &&
+      currentProvider.opportunityVisible &&
+      currentProvider.availabilityStatus !== ProviderAvailabilityStatus.PAUSED &&
+      !isOwner
+  );
   const fabricRecommendationProducts: FabricRecommendationProduct[] = canRecommendFabric
     ? (await prisma.fabric.findMany({
         where: {
@@ -478,6 +486,20 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
           fabric
         })
       }))
+    : [];
+  const providerSupportShowcases = canSubmitProviderSupport
+    ? await prisma.providerShowcaseItem.findMany({
+        where: {
+          providerId: currentProvider!.id,
+          status: "PUBLISHED"
+        },
+        select: {
+          id: true,
+          title: true
+        },
+        orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
+        take: 20
+      })
     : [];
   const canViewFullAiDiagnosis = isOwner || isAdminUser;
   const aiDiagnoses = await prisma.workAiDiagnosis.findMany({
@@ -640,6 +662,10 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
 
           {canRecommendFabric ? (
             <FabricRecommendationDialog workId={work.id} workTitle={work.title} products={fabricRecommendationProducts} />
+          ) : null}
+
+          {canSubmitProviderSupport && currentProvider && (currentProvider.type === ProviderType.SAMPLE_STUDIO || currentProvider.type === ProviderType.FACTORY) ? (
+            <ProviderWorkSupportDialog workId={work.id} providerType={currentProvider.type} showcaseItems={providerSupportShowcases} />
           ) : null}
 
           {isOwner && workFabricRecommendationViews.length ? (

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { FabricStatus, Prisma, ProviderApplicationStatus, ProviderType } from "@prisma/client";
+import { SafeImage } from "@/components/media/SafeImage";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAnyProviderForUser, getProviderApplicationForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
@@ -64,8 +65,13 @@ function providerPublicFacts(provider: {
   acceptsLargeOrder: boolean;
   moqMin: number | null;
   minimumOrderQuantity: number | null;
+  minimumOrder: string | null;
+  leadTime: string | null;
+  sampleSupported: boolean | null;
+  singleSampleSupported: boolean | null;
   sampleLeadDays: number | null;
   productionLeadDays: number | null;
+  monthlyCapacity: string | null;
   capacityText: string | null;
 }) {
   const moq = provider.moqMin ?? provider.minimumOrderQuantity;
@@ -75,11 +81,11 @@ function providerPublicFacts(provider: {
   const facts: Array<string | null> = [];
 
   if (provider.type === ProviderType.FABRIC_SUPPLIER) {
-    facts.push(material ? `主营 ${material}` : null, provider.acceptsSampling ? "支持样布" : null, moq ? `MOQ ${moq}` : null);
+    facts.push(material ? `主营 ${material}` : null, provider.sampleSupported ?? provider.acceptsSampling ? "支持寄样" : null, provider.minimumOrder || (moq ? `MOQ ${moq}` : null));
   } else if (provider.type === ProviderType.SAMPLE_STUDIO) {
-    facts.push(category ? `擅长 ${category}` : null, provider.sampleLeadDays ? `打样 ${provider.sampleLeadDays} 天` : null, technique ? `工艺 ${technique}` : null);
+    facts.push(category ? `擅长 ${category}` : null, provider.singleSampleSupported ? "单件打样" : null, provider.leadTime || (provider.sampleLeadDays ? `打样 ${provider.sampleLeadDays} 天` : null));
   } else if (provider.type === ProviderType.FACTORY) {
-    facts.push(category ? `擅长 ${category}` : null, provider.acceptsSmallBatch ? "可接小单" : null, moq ? `MOQ ${moq}` : null, provider.productionLeadDays ? `生产 ${provider.productionLeadDays} 天` : null);
+    facts.push(category ? `擅长 ${category}` : null, provider.acceptsSmallBatch ? "可接小单" : null, provider.minimumOrder || (moq ? `MOQ ${moq}` : null), provider.monthlyCapacity);
   } else {
     facts.push(category ? `服务 ${category}` : null, technique ? `擅长 ${technique}` : null, provider.sampleLeadDays ? `周期 ${provider.sampleLeadDays} 天` : null);
   }
@@ -245,11 +251,12 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
             ].slice(0, 3);
             return (
               <article key={provider.id} className="overflow-hidden rounded-[8px] border border-black/8 bg-white">
-                {heroImage ? (
-                  <img src={heroImage} alt={provider.name} className="aspect-[16/8] w-full object-cover" />
-                ) : (
-                  <div className="flex aspect-[16/8] w-full items-center justify-center bg-paper text-3xl font-semibold text-ink/35">{provider.name.slice(0, 1)}</div>
-                )}
+                <SafeImage
+                  src={heroImage}
+                  alt={provider.name}
+                  className="aspect-[16/8] w-full object-cover"
+                  placeholder={<span className="text-3xl font-semibold text-ink/35">{provider.name.slice(0, 1)}</span>}
+                />
                 <div className="p-4">
                   <div className="flex items-start gap-3">
                     <div className="flex size-12 shrink-0 items-center justify-center rounded-[6px] bg-paper text-sm font-semibold text-ink/55">{provider.name.slice(0, 1)}</div>
@@ -261,7 +268,8 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
                   <p className="mt-4 line-clamp-2 text-sm leading-6 text-ink/58">{provider.tagline || provider.description || "可参与作品孵化，为设计作品提供材料、打样、生产或专业服务支持。"}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {provider.isVerified ? <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">已认证</span> : null}
-                    {provider.acceptsSampling ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">接打样</span> : null}
+                    {provider.type === ProviderType.FABRIC_SUPPLIER && (provider.sampleSupported ?? provider.acceptsSampling) ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">支持寄样</span> : null}
+                    {provider.type === ProviderType.SAMPLE_STUDIO && provider.singleSampleSupported ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">单件打样</span> : null}
                     {provider.acceptsSmallBatch ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">接小单</span> : null}
                     {provider.acceptsLargeOrder ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">接大货</span> : null}
                     {tags.map((tag) => <span key={tag} className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{tag}</span>)}
@@ -275,13 +283,12 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
                   ) : null}
                   {thumbs.length ? (
                     <div className="mt-4 grid grid-cols-3 gap-2">
-                      {thumbs.map((thumb) => thumb.image ? (
-                        <img key={thumb.id} src={thumb.image} alt={thumb.label} className="aspect-square rounded-[6px] object-cover" />
-                      ) : (
-                        <div key={thumb.id} className="flex aspect-square items-center justify-center rounded-[6px] bg-paper text-xs font-semibold text-ink/35">案例</div>
+                      {thumbs.map((thumb) => (
+                        <SafeImage key={thumb.id} src={thumb.image} alt={thumb.label} className="aspect-square rounded-[6px] object-cover" placeholder="案例" />
                       ))}
                     </div>
                   ) : null}
+                  <p className="mt-3 text-xs text-ink/42">产品 {provider._count.fabrics} · 案例 {provider._count.showcaseItems}</p>
                   <div className="mt-5 grid gap-2 sm:grid-cols-2">
                     <Link href={providerPublicUrl(provider)} className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">查看详情</Link>
                     <Link href={`${providerPublicUrl(provider)}#inquiry`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">联系合作</Link>

@@ -11,6 +11,7 @@ import {
   ProviderType,
   ProviderWorkProposalStatus,
   ProviderWorkProposalType,
+  Prisma,
   RecommendationStatus
 } from "@prisma/client";
 import { z } from "zod";
@@ -18,6 +19,12 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { optionalText, requiredText, splitTags } from "@/lib/provider-market";
+import {
+  ONBOARDING_PROVIDER_TYPES,
+  isOnboardingProviderType,
+  parseMoq,
+  parsePositiveDays
+} from "@/lib/provider-onboarding";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -40,39 +47,128 @@ function fabricCatalogStatus(value: FormDataEntryValue | null) {
   return status === FabricStatus.INACTIVE || status === FabricStatus.ARCHIVED ? status : FabricStatus.ACTIVE;
 }
 
-const supplyProviderTypeSchema = z.nativeEnum(ProviderType).refine((value) => value !== ProviderType.BUYER, {
-  message: "本轮仅支持面料商、打样工作室、服装工厂和专业服务"
-});
-
 const providerApplicationSchema = z.object({
-  providerType: supplyProviderTypeSchema.default(ProviderType.OTHER),
+  providerType: z.enum(ONBOARDING_PROVIDER_TYPES),
   companyName: z.string().trim().min(1, "公司/工作室名称不能为空").max(100),
   contactName: z.string().trim().min(1, "联系人不能为空").max(60),
-  phone: z.string().trim().max(80).optional().nullable(),
+  phone: z.string().trim().min(1, "联系电话不能为空").max(80),
   email: z.string().trim().max(120).optional().nullable(),
   wechat: z.string().trim().max(80).optional().nullable(),
-  city: z.string().trim().max(60).optional().nullable(),
-  description: z.string().trim().max(500).optional().nullable()
+  city: z.string().trim().min(1, "所在城市不能为空").max(60),
+  address: z.string().trim().max(160).optional().nullable(),
+  logoUrl: z.string().trim().max(500).optional().nullable(),
+  serviceArea: z.string().trim().max(120).optional().nullable(),
+  responseTime: z.string().trim().max(80).optional().nullable(),
+  description: z.string().trim().min(20, "简介至少 20 个字").max(500, "简介最多 500 个字"),
+  patternMaking: z.string().trim().max(40).optional().nullable(),
+  sampleSupported: z.boolean().optional().nullable(),
+  singleSampleSupported: z.boolean().optional().nullable(),
+  smallOrderSupported: z.boolean().optional().nullable(),
+  minimumOrder: z.string().trim().max(80).optional().nullable(),
+  leadTime: z.string().trim().max(80).optional().nullable(),
+  priceRange: z.string().trim().max(120).optional().nullable(),
+  monthlyCapacity: z.string().trim().max(120).optional().nullable(),
+  qualityControl: z.string().trim().max(500).optional().nullable()
 });
+
+function splitFormList(formData: FormData, key: string, limit = 12) {
+  const values = formData.getAll(key).flatMap((item) => (typeof item === "string" ? splitTags(item) : []));
+  return [...new Set(values)].slice(0, limit);
+}
+
+function booleanFromForm(formData: FormData, key: string) {
+  const value = optionalText(formData.get(key));
+  if (value === "true" || value === "yes" || value === "on") return true;
+  if (value === "false" || value === "no") return false;
+  return null;
+}
 
 export async function applyProvider(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) throw new Error("请先登录后再提交服务商入驻申请");
 
+  if (formData.get("acceptRules") !== "on") {
+    throw new Error("请先确认接受平台合作规则。");
+  }
+
+  const providerType = optionalText(formData.get("providerType"));
+  if (!isOnboardingProviderType(providerType)) {
+    throw new Error("请选择正确的服务商类型。");
+  }
+
   const parsed = providerApplicationSchema.safeParse({
-    providerType: optionalText(formData.get("providerType")) ?? ProviderType.OTHER,
+    providerType,
     companyName: formData.get("companyName"),
     contactName: formData.get("contactName"),
     phone: formData.get("phone"),
     email: formData.get("email"),
     wechat: formData.get("wechat"),
     city: formData.get("city"),
-    description: formData.get("description")
+    address: formData.get("address"),
+    logoUrl: formData.get("logoUrl"),
+    serviceArea: formData.get("serviceArea"),
+    responseTime: formData.get("responseTime"),
+    description: formData.get("description"),
+    patternMaking: formData.get("patternMaking"),
+    sampleSupported: booleanFromForm(formData, "sampleSupported"),
+    singleSampleSupported: booleanFromForm(formData, "singleSampleSupported"),
+    smallOrderSupported: booleanFromForm(formData, "smallOrderSupported"),
+    minimumOrder: formData.get("minimumOrder"),
+    leadTime: formData.get("leadTime"),
+    priceRange: formData.get("priceRange"),
+    monthlyCapacity: formData.get("monthlyCapacity"),
+    qualityControl: formData.get("qualityControl")
   });
 
   if (!parsed.success) {
     throw new Error(parsed.error.issues[0]?.message ?? "请检查入驻申请信息");
   }
+
+  const [existingApplication, existingProvider] = await Promise.all([
+    prisma.providerApplication.findFirst({
+      where: {
+        userId: user.id,
+        status: ProviderApplicationStatus.PENDING
+      },
+      select: { id: true, providerType: true }
+    }),
+    prisma.provider.findFirst({
+      where: {
+        OR: [{ ownerId: user.id }, { contactEmail: user.email }]
+      },
+      select: { id: true, type: true, status: true }
+    })
+  ]);
+
+  if (existingProvider) {
+    if (existingProvider.type === parsed.data.providerType) {
+      throw new Error("当前账号已经有同类型服务商资料，请进入服务商工作台维护。");
+    }
+    throw new Error("当前版本暂不支持一个账号同时入驻多种服务商类型，请联系平台处理类型变更。");
+  }
+
+  if (existingApplication) {
+    throw new Error("你已有入驻申请正在审核中，请等待平台处理。");
+  }
+
+  const specialties = splitFormList(formData, "specialties");
+  const categories = splitFormList(formData, "categories");
+  const providerDetails = {
+    providerType: parsed.data.providerType,
+    specialties,
+    categories,
+    serviceArea: parsed.data.serviceArea || null,
+    responseTime: parsed.data.responseTime || null,
+    patternMaking: parsed.data.patternMaking || null,
+    sampleSupported: parsed.data.sampleSupported,
+    singleSampleSupported: parsed.data.singleSampleSupported,
+    smallOrderSupported: parsed.data.smallOrderSupported,
+    minimumOrder: parsed.data.minimumOrder || null,
+    leadTime: parsed.data.leadTime || null,
+    priceRange: parsed.data.priceRange || null,
+    monthlyCapacity: parsed.data.monthlyCapacity || null,
+    qualityControl: parsed.data.qualityControl || null
+  };
 
   await prisma.providerApplication.create({
     data: {
@@ -80,11 +176,27 @@ export async function applyProvider(formData: FormData) {
       providerType: parsed.data.providerType,
       companyName: parsed.data.companyName,
       contactName: parsed.data.contactName,
-      phone: parsed.data.phone || null,
+      phone: parsed.data.phone,
       email: parsed.data.email || user.email,
       wechat: parsed.data.wechat || null,
-      city: parsed.data.city || null,
-      description: parsed.data.description || null
+      city: parsed.data.city,
+      address: parsed.data.address || null,
+      logoUrl: parsed.data.logoUrl || null,
+      serviceArea: parsed.data.serviceArea || null,
+      responseTime: parsed.data.responseTime || null,
+      specialties,
+      categories,
+      patternMaking: parsed.data.patternMaking || null,
+      sampleSupported: parsed.data.sampleSupported,
+      singleSampleSupported: parsed.data.singleSampleSupported,
+      smallOrderSupported: parsed.data.smallOrderSupported,
+      minimumOrder: parsed.data.minimumOrder || null,
+      leadTime: parsed.data.leadTime || null,
+      priceRange: parsed.data.priceRange || null,
+      monthlyCapacity: parsed.data.monthlyCapacity || null,
+      qualityControl: parsed.data.qualityControl || null,
+      providerDetails,
+      description: parsed.data.description
     }
   });
 
@@ -102,6 +214,7 @@ export async function saveProvider(formData: FormData) {
     coverUrl: optionalText(formData.get("coverUrl")),
     tagline: optionalText(formData.get("tagline")),
     city: optionalText(formData.get("city")),
+    address: optionalText(formData.get("address")),
     province: optionalText(formData.get("province")),
     country: optionalText(formData.get("country")) ?? "China",
     description: optionalText(formData.get("description")),
@@ -117,6 +230,8 @@ export async function saveProvider(formData: FormData) {
     materials: splitTags(formData.get("materials")),
     techniques: splitTags(formData.get("techniques")),
     serviceRegions: splitTags(formData.get("serviceRegions")),
+    serviceArea: optionalText(formData.get("serviceArea")),
+    responseTime: optionalText(formData.get("responseTime")),
     isVerified: boolValue(formData, "isVerified"),
     isFeatured: boolValue(formData, "isFeatured"),
     status: (optionalText(formData.get("status")) ?? ProviderStatus.PENDING) as ProviderStatus,
@@ -127,8 +242,16 @@ export async function saveProvider(formData: FormData) {
     acceptsSampling: boolValue(formData, "acceptsSampling"),
     acceptsSmallBatch: boolValue(formData, "acceptsSmallBatch"),
     acceptsLargeOrder: boolValue(formData, "acceptsLargeOrder"),
+    sampleSupported: boolValue(formData, "sampleSupported"),
+    singleSampleSupported: boolValue(formData, "singleSampleSupported"),
+    patternMaking: optionalText(formData.get("patternMaking")),
+    minimumOrder: optionalText(formData.get("minimumOrder")),
     sampleLeadDays: optionalInt(formData.get("sampleLeadDays")),
     productionLeadDays: optionalInt(formData.get("productionLeadDays")),
+    leadTime: optionalText(formData.get("leadTime")),
+    priceRange: optionalText(formData.get("priceRange")),
+    monthlyCapacity: optionalText(formData.get("monthlyCapacity")),
+    qualityControl: optionalText(formData.get("qualityControl")),
     capacityText: optionalText(formData.get("capacityText")),
     capacityStatus: (optionalText(formData.get("capacityStatus")) ?? ProviderCapacityStatus.UNKNOWN) as ProviderCapacityStatus,
     availabilityStatus: (optionalText(formData.get("availabilityStatus")) ?? ProviderAvailabilityStatus.OPEN) as ProviderAvailabilityStatus,
@@ -159,10 +282,15 @@ export async function reviewProviderApplication(formData: FormData) {
 
   if (status === ProviderApplicationStatus.APPROVED) {
     const exists = await prisma.provider.findFirst({
-      where: {
-        name: application.companyName,
-        type: application.providerType
-      },
+      where: application.userId
+        ? {
+            OR: [{ ownerId: application.userId }, { contactEmail: application.email }],
+            type: application.providerType
+          }
+        : {
+            name: application.companyName,
+            type: application.providerType
+          },
       select: { id: true }
     });
 
@@ -172,16 +300,40 @@ export async function reviewProviderApplication(formData: FormData) {
           name: application.companyName,
           ownerId: application.userId,
           type: application.providerType,
+          logoUrl: application.logoUrl,
           city: application.city,
+          address: application.address,
           description: application.description,
           contactName: application.contactName,
           contactPhone: application.phone,
           contactEmail: application.email,
           wechat: application.wechat,
+          specialties: application.specialties,
+          categories: application.categories,
+          serviceRegions: application.serviceArea ? splitTags(application.serviceArea) : [],
+          serviceArea: application.serviceArea,
+          responseTime: application.responseTime,
+          patternMaking: application.patternMaking,
+          sampleSupported: application.sampleSupported,
+          singleSampleSupported: application.singleSampleSupported,
+          minimumOrder: application.minimumOrder,
+          moqMin: parseMoq(application.minimumOrder),
+          leadTime: application.leadTime,
+          priceRange: application.priceRange,
+          monthlyCapacity: application.monthlyCapacity,
+          qualityControl: application.qualityControl,
+          sampleLeadDays: application.providerType === ProviderType.SAMPLE_STUDIO ? parsePositiveDays(application.leadTime) : null,
+          productionLeadDays: application.providerType === ProviderType.FACTORY ? parsePositiveDays(application.leadTime) : null,
+          acceptsSampling: application.providerType === ProviderType.FABRIC_SUPPLIER ? Boolean(application.sampleSupported ?? true) : Boolean(application.singleSampleSupported ?? application.sampleSupported),
+          acceptsSmallBatch: Boolean(application.smallOrderSupported),
+          acceptsLargeOrder: application.providerType === ProviderType.FACTORY,
+          capacityText: [application.monthlyCapacity, application.priceRange].filter(Boolean).join(" / ") || null,
+          providerDetails: application.providerDetails === null ? undefined : (application.providerDetails as Prisma.InputJsonValue),
           status: ProviderStatus.ACTIVE,
           isVerified: true,
           opportunityVisible: true,
-          tags: []
+          tags: [],
+          publicContactEnabled: false
         }
       });
     } else if (application.userId) {
@@ -190,7 +342,8 @@ export async function reviewProviderApplication(formData: FormData) {
         data: {
           ownerId: application.userId,
           contactEmail: application.email ?? undefined,
-          status: ProviderStatus.ACTIVE
+          status: ProviderStatus.ACTIVE,
+          type: application.providerType
         }
       });
     }

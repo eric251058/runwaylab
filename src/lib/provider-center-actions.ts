@@ -16,6 +16,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/permissions";
 import { getAnyProviderForUser } from "@/lib/provider-access";
+import { providerShowcaseTypeForProvider } from "@/lib/provider-onboarding";
 import { prisma } from "@/lib/prisma";
 import { providerBelongsToUser, splitList } from "@/lib/supply-network";
 
@@ -186,6 +187,7 @@ const profileSchema = z.object({
   name: z.string().trim().min(1, "服务商名称不能为空").max(100),
   tagline: z.string().trim().max(180).optional().nullable(),
   city: z.string().trim().max(60).optional().nullable(),
+  address: z.string().trim().max(160).optional().nullable(),
   province: z.string().trim().max(60).optional().nullable(),
   country: z.string().trim().max(60).optional().nullable(),
   description: z.string().trim().max(5000).optional().nullable(),
@@ -205,6 +207,7 @@ export async function saveProviderCenterProfile(formData: FormData) {
     name: formData.get("name"),
     tagline: formData.get("tagline"),
     city: formData.get("city"),
+    address: formData.get("address"),
     province: formData.get("province"),
     country: formData.get("country"),
     description: formData.get("description"),
@@ -229,16 +232,26 @@ export async function saveProviderCenterProfile(formData: FormData) {
       materials: splitList(textValue(formData, "materials")),
       techniques: splitList(textValue(formData, "techniques")),
       serviceRegions: splitList(textValue(formData, "serviceRegions")),
+      serviceArea: textValue(formData, "serviceArea"),
+      responseTime: textValue(formData, "responseTime"),
       tags: splitList(textValue(formData, "tags")),
       minimumOrderQuantity: intValue(formData, "minimumOrderQuantity") ?? intValue(formData, "moqMin"),
       maximumOrderQuantity: intValue(formData, "maximumOrderQuantity"),
       moqMin: intValue(formData, "moqMin"),
       sampleLeadDays: intValue(formData, "sampleLeadDays"),
       productionLeadDays: intValue(formData, "productionLeadDays"),
+      patternMaking: textValue(formData, "patternMaking"),
+      minimumOrder: textValue(formData, "minimumOrder"),
+      leadTime: textValue(formData, "leadTime"),
+      priceRange: textValue(formData, "priceRange"),
+      monthlyCapacity: textValue(formData, "monthlyCapacity"),
+      qualityControl: textValue(formData, "qualityControl"),
       capacityText: textValue(formData, "capacityText"),
       acceptsSampling: boolValue(formData, "acceptsSampling"),
       acceptsSmallBatch: boolValue(formData, "acceptsSmallBatch"),
       acceptsLargeOrder: boolValue(formData, "acceptsLargeOrder"),
+      sampleSupported: boolValue(formData, "sampleSupported"),
+      singleSampleSupported: boolValue(formData, "singleSampleSupported"),
       availabilityStatus: (textValue(formData, "availabilityStatus") ?? ProviderAvailabilityStatus.OPEN) as ProviderAvailabilityStatus,
       publicContactEnabled: boolValue(formData, "publicContactEnabled"),
       opportunityVisible: true
@@ -399,6 +412,7 @@ export async function saveProviderShowcaseItem(formData: FormData) {
   const nextStatus = intent === "submit" ? ProviderShowcaseStatus.PENDING_REVIEW : ProviderShowcaseStatus.DRAFT;
   const data = {
     ...parsed.data,
+    type: providerShowcaseTypeForProvider(provider.type),
     imageUrls: splitList(textValue(formData, "imageUrls"), 8),
     tags: splitList(textValue(formData, "tags")),
     materials: splitList(textValue(formData, "materials")),

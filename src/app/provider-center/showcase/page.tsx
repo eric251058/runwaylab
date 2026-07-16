@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { SafeImage } from "@/components/media/SafeImage";
 import { getProviderCenterContext } from "@/lib/provider-center-context";
 import { prisma } from "@/lib/prisma";
-import { PROVIDER_SHOWCASE_STATUS_LABELS, PROVIDER_SHOWCASE_TYPE_LABELS, visibleImage } from "@/lib/supply-network";
+import { PROVIDER_SHOWCASE_STATUS_LABELS, PROVIDER_SHOWCASE_TYPE_LABELS } from "@/lib/supply-network";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProviderCenterShowcasePage() {
   const { provider } = await getProviderCenterContext("/provider-center/showcase");
   if (!provider) redirect("/providers/apply");
+  const title = provider.type === "FACTORY" ? "管理生产案例" : provider.type === "SAMPLE_STUDIO" ? "管理打样案例" : "管理案例";
+  const newLabel = provider.type === "FACTORY" ? "新增生产案例" : provider.type === "SAMPLE_STUDIO" ? "新增打样案例" : "新增案例";
 
   const items = await prisma.providerShowcaseItem.findMany({
     where: { providerId: provider.id },
@@ -20,22 +23,21 @@ export default async function ProviderCenterShowcasePage() {
       <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">SHOWCASE</p>
-          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">管理案例</h1>
-          <p className="mt-3 text-sm text-ink/52">用于打样案例、生产案例和专业服务展示。面料仍请放在面料管理。</p>
+          <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">{title}</h1>
+          <p className="mt-3 text-sm text-ink/52">用于展示真实服务能力。面料供应商的产品仍请放在面料管理。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">返回中心</Link>
-          <Link href="/provider-center/showcase/new" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">新增案例</Link>
+          <Link href="/provider-center/showcase/new" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">{newLabel}</Link>
         </div>
       </header>
 
       {items.length ? (
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => {
-            const image = visibleImage(item.coverImageUrl);
             return (
               <article key={item.id} className="rounded-[8px] border border-black/8 bg-white p-3">
-                {image ? <img src={image} alt={item.title} className="aspect-[4/3] w-full rounded-[6px] object-cover" /> : <div className="flex aspect-[4/3] items-center justify-center rounded-[6px] bg-paper text-sm font-semibold text-ink/35">案例</div>}
+                <SafeImage src={item.coverImageUrl} alt={item.title} className="aspect-[4/3] w-full rounded-[6px] object-cover" placeholder="案例图片" />
                 <div className="mt-3 flex flex-wrap gap-2">
                   <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{PROVIDER_SHOWCASE_TYPE_LABELS[item.type]}</span>
                   <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{PROVIDER_SHOWCASE_STATUS_LABELS[item.status]}</span>
