@@ -2,10 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { buildLoginPayload, buildRegisterPayload, defaultRegisterContactMode, type RegisterContactMode } from "@/lib/auth/identity-ui";
 import { safeRedirectPath } from "@/lib/safe-redirect";
 
 type Mode = "login" | "register";
-type RegisterContact = "phone" | "email";
 
 type AuthUser = {
   id: string;
@@ -18,13 +18,14 @@ export function LoginForm({ identityEnabled = false }: { identityEnabled?: boole
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>("login");
-  const [registerContact, setRegisterContact] = useState<RegisterContact>(identityEnabled ? "phone" : "email");
+  const [registerContact, setRegisterContact] = useState<RegisterContactMode>(defaultRegisterContactMode(identityEnabled));
   const [identifier, setIdentifier] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [fieldMessage, setFieldMessage] = useState<{ email?: string; phone?: string; identifier?: string }>({});
   const [loading, setLoading] = useState(false);
 
   const isRegister = mode === "register";
@@ -34,15 +35,18 @@ export function LoginForm({ identityEnabled = false }: { identityEnabled?: boole
     event.preventDefault();
     setLoading(true);
     setMessage("");
+    setFieldMessage({});
 
     const payload = isRegister
-      ? {
-          email: usePhoneRegister ? null : email,
-          phone: usePhoneRegister ? phone : null,
-          password,
-          nickname
-        }
-      : { identifier: identityEnabled ? identifier : email || identifier, email: email || identifier, password };
+      ? buildRegisterPayload({
+          identityEnabled,
+          contactMode: registerContact,
+          nickname,
+          email,
+          phone,
+          password
+        })
+      : buildLoginPayload({ identityEnabled, identifier, email, password });
 
     const response = await fetch(isRegister ? "/api/auth/register" : "/api/auth/login", {
       method: "POST",
@@ -54,7 +58,11 @@ export function LoginForm({ identityEnabled = false }: { identityEnabled?: boole
     setLoading(false);
 
     if (!response.ok) {
-      setMessage(data?.message ?? data?.error ?? "操作失败，请稍后再试。");
+      const error = data?.message ?? data?.error ?? "操作失败，请稍后再试。";
+      setMessage(error);
+      if (error.includes("手机号")) setFieldMessage({ phone: error });
+      else if (error.includes("邮箱")) setFieldMessage({ email: error });
+      else if (error.includes("账号")) setFieldMessage({ identifier: error });
       return;
     }
 
@@ -64,14 +72,25 @@ export function LoginForm({ identityEnabled = false }: { identityEnabled?: boole
     router.refresh();
   };
 
+  function switchRegisterContact(next: RegisterContactMode) {
+    setRegisterContact(next);
+    setMessage("");
+    setFieldMessage({});
+    if (next === "phone") {
+      setEmail("");
+    } else {
+      setPhone("");
+    }
+  }
+
   return (
     <main className="min-h-[calc(100dvh-72px)] bg-paper px-4 py-6 text-ink md:px-8 md:py-10">
       <div className="mx-auto grid max-w-4xl items-center gap-6 md:grid-cols-[0.85fr_1.15fr]">
         <section className="hidden rounded-[8px] border border-black/8 bg-ink p-8 text-white md:block">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/45">RUNWAYLAB ACCOUNT</p>
-          <h1 className="mt-5 max-w-xl text-4xl font-semibold leading-tight">一个账号，进入你的设计协作路径。</h1>
+          <h1 className="mt-5 max-w-xl text-4xl font-semibold leading-tight">一个账号，开启你的原创设计旅程。</h1>
           <p className="mt-5 max-w-lg text-sm leading-7 text-white/68">
-            登录后可发布作品、表达想要、提交服务商方案或跟进项目进展。手机号登录在未接入短信前仅使用密码，不显示为已认证。
+            发现原创设计、发布作品，或连接面料、打样与生产服务。
           </p>
         </section>
 
@@ -90,10 +109,10 @@ export function LoginForm({ identityEnabled = false }: { identityEnabled?: boole
               <>
                 {identityEnabled ? (
                   <div className="grid grid-cols-2 gap-2 rounded-[8px] bg-paper p-1 text-xs font-semibold">
-                    <button type="button" onClick={() => setRegisterContact("phone")} className={`rounded-[6px] px-3 py-2 ${registerContact === "phone" ? "bg-white text-ink shadow-sm" : "text-ink/45"}`}>
+                    <button type="button" onClick={() => switchRegisterContact("phone")} className={`rounded-[6px] px-3 py-2 ${registerContact === "phone" ? "bg-white text-ink shadow-sm" : "text-ink/45"}`}>
                       手机号注册
                     </button>
-                    <button type="button" onClick={() => setRegisterContact("email")} className={`rounded-[6px] px-3 py-2 ${registerContact === "email" ? "bg-white text-ink shadow-sm" : "text-ink/45"}`}>
+                    <button type="button" onClick={() => switchRegisterContact("email")} className={`rounded-[6px] px-3 py-2 ${registerContact === "email" ? "bg-white text-ink shadow-sm" : "text-ink/45"}`}>
                       邮箱注册
                     </button>
                   </div>
@@ -105,13 +124,15 @@ export function LoginForm({ identityEnabled = false }: { identityEnabled?: boole
                 {usePhoneRegister ? (
                   <label className="block">
                     <span className="text-xs font-semibold text-ink/50">手机号</span>
-                    <input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="tel" placeholder="13800138000" className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-sm outline-none transition focus:border-ink focus:bg-white" required />
-                    <span className="mt-2 block text-xs leading-5 text-ink/45">手机号尚未验证，仅用于账号登录，不会公开展示。</span>
+                    <input type="tel" inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="tel" placeholder="13800138000" className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-sm outline-none transition focus:border-ink focus:bg-white" required />
+                    <span className="mt-2 block text-xs leading-5 text-ink/45">暂未验证的手机号可使用密码登录。</span>
+                    {fieldMessage.phone ? <span className="mt-2 block text-xs text-red-600">{fieldMessage.phone}</span> : null}
                   </label>
                 ) : (
                   <label className="block">
                     <span className="text-xs font-semibold text-ink/50">邮箱</span>
                     <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-sm outline-none transition focus:border-ink focus:bg-white" required />
+                    {fieldMessage.email ? <span className="mt-2 block text-xs text-red-600">{fieldMessage.email}</span> : null}
                   </label>
                 )}
               </>
@@ -119,6 +140,7 @@ export function LoginForm({ identityEnabled = false }: { identityEnabled?: boole
               <label className="block">
                 <span className="text-xs font-semibold text-ink/50">{identityEnabled ? "手机号或邮箱" : "邮箱"}</span>
                 <input value={identityEnabled ? identifier : email} onChange={(event) => (identityEnabled ? setIdentifier(event.target.value) : setEmail(event.target.value))} autoComplete="username" placeholder={identityEnabled ? "手机号或 you@example.com" : "you@example.com"} className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-sm outline-none transition focus:border-ink focus:bg-white" required />
+                {fieldMessage.identifier || fieldMessage.email ? <span className="mt-2 block text-xs text-red-600">{fieldMessage.identifier ?? fieldMessage.email}</span> : null}
               </label>
             )}
 

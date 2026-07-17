@@ -24,13 +24,16 @@ export async function POST(request: Request) {
   if (!parsed.success) return apiError("请填写昵称和至少 8 位密码。", 400);
 
   const identityEnabled = await isFeatureEnabled("feature.identity_v234");
+  const hasEmailInput = typeof parsed.data.email === "string" && parsed.data.email.trim().length > 0;
+  const hasPhoneInput = typeof parsed.data.phone === "string" && parsed.data.phone.trim().length > 0;
   const email = normalizeEmail(parsed.data.email);
   const phoneResult = validateOptionalPhone(parsed.data.phone);
 
   if (!phoneResult.ok) return apiError(phoneResult.message ?? "手机号格式不正确。", 400);
+  if (identityEnabled && hasEmailInput && hasPhoneInput) return apiError("请选择手机号注册或邮箱注册，不要同时提交两种联系方式。", 400);
   if (!identityEnabled && !email) return apiError("请填写有效邮箱。", 400);
   if (identityEnabled && !email && !phoneResult.normalized) return apiError("请填写邮箱或手机号。", 400);
-  if (parsed.data.email && !email) return apiError("邮箱格式不正确。", 400);
+  if (hasEmailInput && !email) return apiError("邮箱格式不正确。", 400);
 
   if (email) {
     const emailOwner = await prisma.user.findUnique({ where: { email } });
