@@ -1,11 +1,16 @@
-import { ProviderStatus, UserRole, UserStatus, type User } from "@prisma/client";
+import { Prisma, ProviderStatus, UserRole, UserStatus, type User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 type ProviderAccessUser = Pick<User, "id" | "email" | "role" | "status"> | null | undefined;
 
 function userProviderWhere(user: Pick<User, "id" | "email">) {
+  const conditions: Prisma.ProviderWhereInput[] = [{ ownerId: user.id }];
+  if (user.email) {
+    conditions.push({ contactEmail: user.email });
+  }
+
   return {
-    OR: [{ ownerId: user.id }, { contactEmail: user.email }]
+    OR: conditions
   };
 }
 
@@ -41,7 +46,7 @@ export async function getProviderApplicationForUser(user: ProviderAccessUser) {
 
   return prisma.providerApplication.findFirst({
     where: {
-      OR: [{ userId: user.id }, { email: user.email }]
+      OR: user.email ? [{ userId: user.id }, { email: user.email }] : [{ userId: user.id }]
     },
     orderBy: [{ createdAt: "desc" }]
   });

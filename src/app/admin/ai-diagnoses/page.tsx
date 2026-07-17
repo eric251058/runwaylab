@@ -65,7 +65,7 @@ export default async function AdminAiDiagnosesPage({ searchParams }: AdminAiDiag
   });
 
   const filtered = query
-    ? diagnoses.filter((item) => [item.work.title, item.work.user.nickname, item.work.user.email].some((value) => value.toLowerCase().includes(query)))
+    ? diagnoses.filter((item) => [item.work.title, item.work.user.nickname, item.work.user.email].some((value) => (value ?? "").toLowerCase().includes(query)))
     : diagnoses;
 
   const counts = await Promise.all([

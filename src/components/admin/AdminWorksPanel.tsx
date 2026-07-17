@@ -30,7 +30,7 @@ export type AdminWorkItem = {
   createdAt: string;
   user: {
     nickname: string;
-    email: string;
+    email: string | null;
   };
   images: Array<{ imageUrl: string }>;
   challengeEntries: Array<{ id: string }>;
@@ -148,7 +148,7 @@ export function AdminWorksPanel({ works }: AdminWorksPanelProps) {
           !normalizedQuery ||
           work.title.toLowerCase().includes(normalizedQuery) ||
           work.user.nickname.toLowerCase().includes(normalizedQuery) ||
-          work.user.email.toLowerCase().includes(normalizedQuery);
+          (work.user.email ?? "").toLowerCase().includes(normalizedQuery);
         const matchesReview = reviewFilter === "ALL" || work.reviewStatus === reviewFilter;
         const matchesIssue = !issueTag || work.operationTags.includes(issueTag);
         return matchesSearch && matchesReview && matchesIssue && matchesOperationFilter(work, operationFilter);
@@ -395,7 +395,7 @@ export function AdminWorksPanel({ works }: AdminWorksPanelProps) {
                 {work.title}
               </Link>
               <p className="mt-1 truncate text-sm text-ink/55">
-                {work.user.nickname} / {work.user.email}
+                {work.user.nickname} / {work.user.email ?? "未填写邮箱"}
               </p>
 
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/48">

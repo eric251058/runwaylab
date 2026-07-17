@@ -28,6 +28,17 @@ export const VERIFICATION_STATUS_LABELS: Record<VerificationStatus, string> = {
 
 export const PROJECT_STATUS_LABELS: Record<CollaborationProjectStatus, string> = {
   DRAFT: "草稿",
+  SEEKING_OWNER: "寻找项目负责人",
+  PLANNING: "方案规划中",
+  SEEKING_PROPOSALS: "征集服务方案",
+  SAMPLE_PREPARATION: "样衣准备中",
+  SAMPLE_REVIEW: "样衣评估中",
+  PREORDER_READY: "预售准备中",
+  PREORDER_OPEN: "限量预订中",
+  PRODUCTION: "生产推进中",
+  QUALITY_CHECK: "质检中",
+  SHIPPING: "发货中",
+  PAUSED: "已暂停",
   MATCHING: "资源匹配中",
   SAMPLING: "打样推进中",
   PRESALE_VALIDATING: "预售验证中",
@@ -45,10 +56,16 @@ export const PROJECT_PRIORITY_LABELS: Record<CollaborationProjectPriority, strin
 
 export const PROJECT_ORDER_STATUS_LABELS: Record<ProjectOrderStatus, string> = {
   INTENT: "合作意向",
+  RESERVATION: "预订意向",
+  PENDING_PAYMENT: "待确认付款",
   CONFIRMED: "已确认",
   IN_PROGRESS: "推进中",
+  PRODUCTION: "生产中",
+  SHIPPED: "已发货",
   COMPLETED: "已完成",
-  CANCELLED: "已取消"
+  CANCELLED: "已取消",
+  REFUND_PENDING: "退款处理中",
+  REFUNDED: "已退款"
 };
 
 export const REVIEW_STATUS_LABELS: Partial<Record<ReviewStatus, string>> = {

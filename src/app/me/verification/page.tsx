@@ -39,7 +39,7 @@ export default async function MeVerificationPage() {
         <input name="organizationName" placeholder="机构 / 公司 / 学校，可选" className={inputClass} />
         <input name="roleTitle" placeholder="职位 / 角色，可选" className={inputClass} />
         <input name="phone" placeholder="手机号，可选" className={inputClass} />
-        <input name="email" placeholder="邮箱，可选" defaultValue={user.email} className={inputClass} />
+        <input name="email" placeholder="邮箱，可选" defaultValue={user.email ?? ""} className={inputClass} />
         <input name="wechat" placeholder="微信，可选" className={inputClass} />
         <input name="city" placeholder="城市，可选" className={inputClass} />
         <input name="proofUrl" placeholder="证明材料链接，可选" className={`${inputClass} md:col-span-2`} />

@@ -20,6 +20,7 @@ import {
   requiredText
 } from "@/lib/commercial-collaboration";
 import { isAdmin } from "@/lib/permissions";
+import { canTransitionProjectStatus } from "@/lib/projects/rules";
 import { prisma } from "@/lib/prisma";
 
 async function requireAdminUser() {
@@ -93,6 +94,17 @@ export async function saveCollaborationProject(formData: FormData) {
     targetLaunchDate: optionalDate(formData.get("targetLaunchDate")),
     internalNote: optionalText(formData.get("internalNote"))
   };
+
+  const existingProject = id
+    ? await prisma.collaborationProject.findUnique({
+        where: { id },
+        select: { designerAuthorizationStatus: true }
+      })
+    : null;
+
+  if (!canTransitionProjectStatus(data.status, existingProject?.designerAuthorizationStatus ?? null)) {
+    throw new Error("设计师尚未授权，不能进入预售准备或预售开放状态。");
+  }
 
   if (id) await prisma.collaborationProject.update({ where: { id }, data });
   else await prisma.collaborationProject.create({ data: { ...data, createdById: admin.id } });

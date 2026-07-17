@@ -130,7 +130,12 @@ export async function applyProvider(formData: FormData) {
     throw new Error(parsed.error.issues[0]?.message ?? "请检查入驻申请信息");
   }
 
-  const applicationEmail = normalizeProviderEmail(parsed.data.email) ?? user.email.toLowerCase();
+  const applicationEmail = normalizeProviderEmail(parsed.data.email) ?? normalizeProviderEmail(user.email);
+  const providerOwnerConditions: Prisma.ProviderWhereInput[] = [{ ownerId: user.id }];
+  if (applicationEmail) {
+    providerOwnerConditions.push({ contactEmail: { equals: applicationEmail, mode: Prisma.QueryMode.insensitive } });
+  }
+
   const [existingApplication, existingProvider] = await Promise.all([
     prisma.providerApplication.findFirst({
       where: {
@@ -141,7 +146,7 @@ export async function applyProvider(formData: FormData) {
     }),
     prisma.provider.findFirst({
       where: {
-        OR: [{ ownerId: user.id }, { contactEmail: { equals: applicationEmail, mode: Prisma.QueryMode.insensitive } }]
+        OR: providerOwnerConditions
       },
       select: { id: true, type: true, status: true }
     })

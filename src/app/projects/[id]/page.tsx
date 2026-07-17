@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ReviewStatus } from "@prisma/client";
+import { LimitedPreorderPanel } from "@/components/projects/LimitedPreorderPanel";
+import { ProjectIssueForm } from "@/components/projects/ProjectIssueForm";
+import { getCurrentUser } from "@/lib/auth/session";
 import { PROJECT_ORDER_STATUS_LABELS, PROJECT_PRIORITY_LABELS, PROJECT_STATUS_LABELS, publicProjectWhere } from "@/lib/commercial-collaboration";
+import { isFeatureEnabled } from "@/lib/features";
+import { canOpenLimitedPreorder, PROJECT_MILESTONE_STATUS_LABELS } from "@/lib/projects/rules";
 import { prisma } from "@/lib/prisma";
 import { visualFor } from "@/components/works/work-visuals";
 
@@ -13,6 +18,11 @@ type ProjectDetailPageProps = {
 
 export default async function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const { id } = await params;
+  const currentUser = await getCurrentUser();
+  const [marketplaceEnabled, preorderEnabled] = await Promise.all([
+    isFeatureEnabled("feature.project_marketplace_v22"),
+    isFeatureEnabled("feature.limited_preorder_v23")
+  ]);
   const project = await prisma.collaborationProject.findFirst({
     where: {
       AND: [publicProjectWhere(), { OR: [{ id }, { slug: id }] }]
@@ -25,12 +35,15 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
       provider: true,
       fabric: true,
       presaleCampaign: true,
+      products: { include: { skus: { where: { enabled: true }, orderBy: { createdAt: "asc" } } }, orderBy: { createdAt: "asc" } },
+      milestones: { orderBy: { createdAt: "asc" } },
       orders: { orderBy: { createdAt: "desc" }, take: 8 },
       reviews: { where: { status: ReviewStatus.PUBLISHED }, include: { reviewer: true }, orderBy: { createdAt: "desc" }, take: 8 }
     }
   });
 
   if (!project) notFound();
+  const preorderProducts = project.products.filter((product) => canOpenLimitedPreorder(project.status, product.status, project.designerAuthorizationStatus));
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12">
@@ -66,6 +79,43 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
           <p className="mt-1 text-sm leading-6 text-ink/58">下一步：继续确认资源、打样和市场反馈。</p>
         </section>
       </div>
+
+      {preorderEnabled && preorderProducts.length ? (
+        <div className="mt-8">
+          <LimitedPreorderPanel
+            projectId={project.slug ?? project.id}
+            isLoggedIn={Boolean(currentUser)}
+            products={preorderProducts.map((product) => ({
+              id: product.id,
+              title: product.title,
+              price: product.price,
+              currency: product.currency,
+              skus: product.skus.map((sku) => ({
+                id: sku.id,
+                size: sku.size,
+                color: sku.color,
+                priceOverride: sku.priceOverride
+              }))
+            }))}
+          />
+        </div>
+      ) : null}
+
+      {marketplaceEnabled && project.milestones.length ? (
+        <section className="mt-8 rounded-[8px] border border-black/8 bg-white p-5">
+          <h2 className="text-2xl font-semibold text-ink">项目进度</h2>
+          <div className="mt-4 space-y-3">
+            {project.milestones.map((milestone) => (
+              <article key={milestone.id} className="rounded-[6px] bg-paper p-3 text-sm text-ink/58">
+                <p className="font-semibold text-ink">{milestone.title}</p>
+                <p className="mt-1">{PROJECT_MILESTONE_STATUS_LABELS[milestone.status]} / {milestone.stage}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {marketplaceEnabled ? <ProjectIssueForm projectId={project.slug ?? project.id} isLoggedIn={Boolean(currentUser)} /> : null}
 
       <section className="mt-8 rounded-[8px] border border-black/8 bg-white p-5">
         <h2 className="text-2xl font-semibold text-ink">合作线索</h2>

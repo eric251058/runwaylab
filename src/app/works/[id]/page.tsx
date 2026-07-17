@@ -11,6 +11,7 @@ import { FabricRecommendationDialog, type FabricRecommendationProduct } from "@/
 import { ProviderWorkSupportDialog } from "@/components/works/ProviderWorkSupportDialog";
 import { WorkImageCarousel } from "@/components/works/WorkImageCarousel";
 import { WorkContributionPanel } from "@/components/works/WorkContributionPanel";
+import { WorkDemandPanel } from "@/components/works/WorkDemandPanel";
 import { WorkFabricRecommendationPanel, type WorkFabricRecommendationView } from "@/components/works/WorkFabricRecommendationPanel";
 import { WorkInteractionBar } from "@/components/works/WorkInteractionBar";
 import { WorkStatusBadge, getWorkBadges } from "@/components/works/WorkStatusBadge";
@@ -18,6 +19,7 @@ import { initials } from "@/components/works/work-visuals";
 import { getCurrentUser } from "@/lib/auth/session";
 import { canUseAiDiagnosis } from "@/lib/ai/work-diagnosis";
 import { generateFabricRecommendationReason } from "@/lib/fabric-recommendations";
+import { isFeatureEnabled } from "@/lib/features";
 import { incubationStatusLabels } from "@/lib/incubation";
 import { getHeatBadges, getHeatScore } from "@/lib/operation-growth";
 import {
@@ -47,6 +49,7 @@ import {
   RecommendationStatus,
   UserPersona,
   WorkIncubationStatus,
+  WorkDemandIntentStatus,
   WorkVoteStatus,
   WorkVoteType
 } from "@prisma/client";
@@ -246,7 +249,8 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
   const badges = getWorkBadges(work);
   const activeChallenge = work.challengeEntries[0]?.challenge;
   const incubationProject = work.incubationProjects[0];
-  const [workIncubation, presaleIntentCount, fabricProposalCount, sampleProposalCount, factoryProposalCount, buyerIntentCount, activePresaleCampaign, workVoteCount, workContributionCount, opportunityProfile, wantBuyVoteCount] = await Promise.all([
+  const demandEnabled = await isFeatureEnabled("feature.demand_v21");
+  const [workIncubation, presaleIntentCount, fabricProposalCount, sampleProposalCount, factoryProposalCount, buyerIntentCount, activePresaleCampaign, workVoteCount, workContributionCount, opportunityProfile, wantBuyVoteCount, demandIntentCount] = await Promise.all([
     prisma.workIncubation.findUnique({
       where: {
         workId: work.id
@@ -306,7 +310,15 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
         status: WorkVoteStatus.ACTIVE,
         type: WorkVoteType.WANT_BUY
       }
-    })
+    }),
+    demandEnabled
+      ? prisma.workDemandIntent.count({
+          where: {
+            workId: work.id,
+            status: WorkDemandIntentStatus.ACTIVE
+          }
+        })
+      : Promise.resolve(0)
   ]);
   const activityInfo = await prisma.work.findUnique({
     where: {
@@ -659,6 +671,8 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
             note={"note" in actionCopy ? actionCopy.note : undefined}
             actions={actionCopy.actions}
           />
+
+          {demandEnabled ? <WorkDemandPanel workId={work.id} initialCount={demandIntentCount} isLoggedIn={Boolean(currentUser)} /> : null}
 
           {canRecommendFabric ? (
             <FabricRecommendationDialog workId={work.id} workTitle={work.title} products={fabricRecommendationProducts} />

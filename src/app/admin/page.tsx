@@ -37,6 +37,10 @@ const adminLinks = [
   ["/admin/presale-campaigns", "预售活动", "创建和维护预售验证"],
   ["/admin/presale-intents", "预售意向", "跟进用户和买手兴趣"],
   ["/admin/projects", "合作项目", "推进商业合作项目"],
+  ["/admin/project-issues", "项目问题", "处理协作过程中的异常反馈"],
+  ["/admin/demand", "需求意向", "查看用户想买和需求信号"],
+  ["/admin/orders", "预订订单", "管理限量预订意向和人工状态"],
+  ["/admin/features", "功能开关", "分阶段开启新版本能力"],
   ["/admin/cases", "成功案例", "沉淀平台案例"],
   ["/admin/users", "用户管理", "查看用户与身份选择"]
 ] as const;
@@ -87,7 +91,8 @@ const adminGroups = [
     links: [
       ["/admin/incubation", "孵化管理"],
       ["/admin/opportunities", "机会管理"],
-      ["/admin/projects", "合作项目"]
+      ["/admin/projects", "合作项目"],
+      ["/admin/features", "功能开关"]
     ]
   }
 ] as const;

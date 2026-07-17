@@ -95,7 +95,7 @@ export function providerBelongsToUser(
 ) {
   if (!user || user.status !== UserStatus.ACTIVE) return false;
   if (user.role === UserRole.ADMIN) return true;
-  return provider.ownerId === user.id || Boolean(provider.contactEmail && provider.contactEmail === user.email);
+  return provider.ownerId === user.id || Boolean(user.email && provider.contactEmail && provider.contactEmail === user.email);
 }
 
 export function publicProviderWhere() {

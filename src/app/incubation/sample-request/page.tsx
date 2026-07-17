@@ -43,5 +43,5 @@ export default async function SampleRequestPage({ searchParams }: SampleRequestP
     workMap.set(selectedWork.id, selectedWork);
   }
 
-  return <SampleRequestForm works={[...workMap.values()]} initialWorkId={selectedWork?.id} defaultContact={user.email} />;
+  return <SampleRequestForm works={[...workMap.values()]} initialWorkId={selectedWork?.id} defaultContact={user.email ?? ""} />;
 }

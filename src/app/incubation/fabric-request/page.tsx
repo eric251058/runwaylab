@@ -43,5 +43,5 @@ export default async function FabricRequestPage({ searchParams }: FabricRequestP
     workMap.set(selectedWork.id, selectedWork);
   }
 
-  return <FabricRequestForm works={[...workMap.values()]} initialWorkId={selectedWork?.id} defaultContact={user.email} />;
+  return <FabricRequestForm works={[...workMap.values()]} initialWorkId={selectedWork?.id} defaultContact={user.email ?? ""} />;
 }

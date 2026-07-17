@@ -325,6 +325,17 @@ enum VerificationStatus {
 
 enum CollaborationProjectStatus {
   DRAFT
+  SEEKING_OWNER
+  PLANNING
+  SEEKING_PROPOSALS
+  SAMPLE_PREPARATION
+  SAMPLE_REVIEW
+  PREORDER_READY
+  PREORDER_OPEN
+  PRODUCTION
+  QUALITY_CHECK
+  SHIPPING
+  PAUSED
   MATCHING
   SAMPLING
   PRESALE_VALIDATING
@@ -342,10 +353,102 @@ enum CollaborationProjectPriority {
 
 enum ProjectOrderStatus {
   INTENT
+  RESERVATION
+  PENDING_PAYMENT
   CONFIRMED
   IN_PROGRESS
+  PRODUCTION
+  SHIPPED
   COMPLETED
   CANCELLED
+  REFUND_PENDING
+  REFUNDED
+}
+
+enum WorkDemandIntentStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum DesignerProjectPreference {
+  DISPLAY_ONLY
+  COLLECT_DEMAND
+  SELF_MANAGE
+  SEEK_OWNER
+  PAUSED
+}
+
+enum CollaborationProjectVisibility {
+  PRIVATE
+  PARTICIPANTS
+  PUBLIC
+}
+
+enum ProjectDesignAuthorizationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  REVOKED
+}
+
+enum ProjectMilestoneStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+}
+
+enum ProjectMilestoneVisibility {
+  PRIVATE
+  PARTICIPANTS
+  PUBLIC
+}
+
+enum ProjectIssueStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+enum ProjectIssueType {
+  NO_UPDATE
+  DELAY
+  OWNER_UNREACHABLE
+  QUALITY_CONCERN
+  DESCRIPTION_MISMATCH
+  COPYRIGHT
+  PROVIDER_BREACH
+  OTHER
+}
+
+enum ProjectProductStatus {
+  DRAFT
+  REVIEWING
+  APPROVED
+  PREORDER_OPEN
+  PAUSED
+  SOLD_OUT
+  ARCHIVED
+}
+
+enum ProjectOrderPaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum ProjectOrderFulfillmentStatus {
+  NOT_STARTED
+  PRODUCTION
+  QUALITY_CHECK
+  READY_TO_SHIP
+  SHIPPED
+  DELIVERED
+  EXCEPTION
 }
 
 enum ReviewTargetType {
@@ -465,8 +568,10 @@ enum ContributionStatus {
 
 model User {
   id               String      @id @default(cuid())
-  email            String      @unique
+  email            String?     @unique
   phone            String?     @unique
+  emailVerifiedAt  DateTime?
+  phoneVerifiedAt  DateTime?
   passwordHash     String
   nickname         String
   avatarUrl        String?
@@ -475,49 +580,55 @@ model User {
   persona          UserPersona @default(CONSUMER)
   personaCompleted Boolean     @default(false)
 
-  designerProfile           DesignerProfile?
-  sessions                  AuthSession[]
-  works                     Work[]
-  comments                  Comment[]
-  likes                     Like[]
-  favorites                 Favorite[]
-  challengeEntries          ChallengeEntry[]
-  follows                   Follow[]                   @relation("Follower")
-  followers                 Follow[]                   @relation("Following")
-  incubationRecommendations IncubationRecommendation[]
-  incubationApplications    IncubationApplication[]
-  incubationProjects        IncubationProject[]        @relation("IncubationProjectDesigner")
-  fabricRequests            FabricRequest[]
-  sampleRequests            SampleRequest[]
-  cooperationRequests       CooperationRequest[]
-  reports                   Report[]                   @relation("Reporter")
-  notifications             Notification[]
+  designerProfile              DesignerProfile?
+  sessions                     AuthSession[]
+  works                        Work[]
+  comments                     Comment[]
+  likes                        Like[]
+  favorites                    Favorite[]
+  challengeEntries             ChallengeEntry[]
+  follows                      Follow[]                   @relation("Follower")
+  followers                    Follow[]                   @relation("Following")
+  incubationRecommendations    IncubationRecommendation[]
+  incubationApplications       IncubationApplication[]
+  incubationProjects           IncubationProject[]        @relation("IncubationProjectDesigner")
+  fabricRequests               FabricRequest[]
+  sampleRequests               SampleRequest[]
+  cooperationRequests          CooperationRequest[]
+  reports                      Report[]                   @relation("Reporter")
+  notifications                Notification[]
   createdFabricRecommendations WorkFabricRecommendation[] @relation("WorkFabricRecommendationCreatedBy")
 
-  handledWorks               Work[]                  @relation("WorkHandledBy")
-  handledComments            Comment[]               @relation("CommentHandledBy")
-  handledApplications        IncubationApplication[] @relation("IncubationApplicationHandledBy")
-  handledProjects            IncubationProject[]     @relation("IncubationProjectHandledBy")
-  handledFabricRequests      FabricRequest[]         @relation("FabricRequestHandledBy")
-  handledSampleRequests      SampleRequest[]         @relation("SampleRequestHandledBy")
-  handledCooperationRequests CooperationRequest[]    @relation("CooperationRequestHandledBy")
-  handledReports             Report[]                @relation("ReportHandledBy")
-  adminLogs                  AdminLog[]
-  presaleCampaigns           PresaleCampaign[]       @relation("PresaleCampaignCreatedBy")
-  presaleCampaignIntents     PresaleCampaignIntent[]
-  verificationRequests       VerificationRequest[]   @relation("VerificationRequestUser")
-  reviewedVerifications      VerificationRequest[]   @relation("VerificationReviewedBy")
-  collaborationProjects      CollaborationProject[]  @relation("CollaborationProjectDesigner")
-  createdProjects            CollaborationProject[]  @relation("CollaborationProjectCreatedBy")
-  projectOrders              ProjectOrder[]          @relation("ProjectOrderBuyer")
-  givenReviews               Review[]                @relation("ReviewReviewer")
-  receivedReviews            Review[]                @relation("ReviewTargetUser")
-  createdIncubationBatches    IncubationBatch[]       @relation("IncubationBatchCreatedBy")
-  requestedAiDiagnoses        WorkAiDiagnosis[]      @relation("WorkAiDiagnosisRequestedBy")
-  reviewedAiDiagnoses         WorkAiDiagnosis[]      @relation("WorkAiDiagnosisReviewedBy")
-  ownedProviders              Provider[]             @relation("ProviderOwner")
-  providerApplications        ProviderApplication[]   @relation("ProviderApplicationUser")
-  reviewedProviderShowcaseItems ProviderShowcaseItem[] @relation("ProviderShowcaseReviewedBy")
+  handledWorks                          Work[]                       @relation("WorkHandledBy")
+  handledComments                       Comment[]                    @relation("CommentHandledBy")
+  handledApplications                   IncubationApplication[]      @relation("IncubationApplicationHandledBy")
+  handledProjects                       IncubationProject[]          @relation("IncubationProjectHandledBy")
+  handledFabricRequests                 FabricRequest[]              @relation("FabricRequestHandledBy")
+  handledSampleRequests                 SampleRequest[]              @relation("SampleRequestHandledBy")
+  handledCooperationRequests            CooperationRequest[]         @relation("CooperationRequestHandledBy")
+  handledReports                        Report[]                     @relation("ReportHandledBy")
+  adminLogs                             AdminLog[]
+  presaleCampaigns                      PresaleCampaign[]            @relation("PresaleCampaignCreatedBy")
+  presaleCampaignIntents                PresaleCampaignIntent[]
+  verificationRequests                  VerificationRequest[]        @relation("VerificationRequestUser")
+  reviewedVerifications                 VerificationRequest[]        @relation("VerificationReviewedBy")
+  collaborationProjects                 CollaborationProject[]       @relation("CollaborationProjectDesigner")
+  ownedCollaborationProjects            CollaborationProject[]       @relation("CollaborationProjectOwner")
+  createdProjects                       CollaborationProject[]       @relation("CollaborationProjectCreatedBy")
+  demandIntents                         WorkDemandIntent[]
+  projectDesignAuthorizationsAsDesigner ProjectDesignAuthorization[] @relation("ProjectDesignAuthorizationDesigner")
+  projectDesignAuthorizationsAsOwner    ProjectDesignAuthorization[] @relation("ProjectDesignAuthorizationOwner")
+  createdProjectMilestones              ProjectMilestone[]           @relation("ProjectMilestoneCreatedBy")
+  projectIssues                         ProjectIssue[]               @relation("ProjectIssueReporter")
+  projectOrders                         ProjectOrder[]               @relation("ProjectOrderBuyer")
+  givenReviews                          Review[]                     @relation("ReviewReviewer")
+  receivedReviews                       Review[]                     @relation("ReviewTargetUser")
+  createdIncubationBatches              IncubationBatch[]            @relation("IncubationBatchCreatedBy")
+  requestedAiDiagnoses                  WorkAiDiagnosis[]            @relation("WorkAiDiagnosisRequestedBy")
+  reviewedAiDiagnoses                   WorkAiDiagnosis[]            @relation("WorkAiDiagnosisReviewedBy")
+  ownedProviders                        Provider[]                   @relation("ProviderOwner")
+  providerApplications                  ProviderApplication[]        @relation("ProviderApplicationUser")
+  reviewedProviderShowcaseItems         ProviderShowcaseItem[]       @relation("ProviderShowcaseReviewedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -588,45 +699,48 @@ model Work {
   handledAt   DateTime?
   handledById String?
 
-  user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  school                    School?                    @relation(fields: [schoolId], references: [id], onDelete: SetNull)
-  teacher                   Teacher?                   @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  handledBy                 User?                      @relation("WorkHandledBy", fields: [handledById], references: [id])
-  images                    WorkImage[]
-  comments                  Comment[]
-  likes                     Like[]
-  favorites                 Favorite[]
-  challengeEntries          ChallengeEntry[]
-  challengeWorks            ChallengeWork[]
-  exhibitionWorks           ExhibitionWork[]
-  teacherRecommendations    TeacherRecommendedWork[]
-  incubationRecommendations IncubationRecommendation[]
-  incubationApplications    IncubationApplication[]
-  incubationProjects        IncubationProject[]
-  workIncubation            WorkIncubation?
-  fabricProposals           FabricProposal[]
-  sampleProposals           SampleProposal[]
-  factoryProposals          FactoryProposal[]
-  buyerIntents              BuyerIntent[]
-  presaleIntents            PresaleIntent[]
-  presaleCampaigns          PresaleCampaign[]
-  presaleCampaignIntents    PresaleCampaignIntent[]
-  collaborationProjects     CollaborationProject[]
-  projectOrders             ProjectOrder[]
-  reviews                   Review[]
-  caseStudies               CaseStudy[]
-  fabricRecommendations     WorkFabricRecommendation[]
-  providerWorkProposals     ProviderWorkProposal[]
-  editorialPicks            EditorialPick[]
-  fabricRequests            FabricRequest[]
-  sampleRequests            SampleRequest[]
-  cooperationRequests       CooperationRequest[]
-  votes                     WorkVote[]
-  contributions             WorkContribution[]
-  opportunityProfile        WorkOpportunityProfile?
+  user                         User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school                       School?                       @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  teacher                      Teacher?                      @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  handledBy                    User?                         @relation("WorkHandledBy", fields: [handledById], references: [id])
+  images                       WorkImage[]
+  comments                     Comment[]
+  likes                        Like[]
+  favorites                    Favorite[]
+  challengeEntries             ChallengeEntry[]
+  challengeWorks               ChallengeWork[]
+  exhibitionWorks              ExhibitionWork[]
+  teacherRecommendations       TeacherRecommendedWork[]
+  incubationRecommendations    IncubationRecommendation[]
+  incubationApplications       IncubationApplication[]
+  incubationProjects           IncubationProject[]
+  workIncubation               WorkIncubation?
+  fabricProposals              FabricProposal[]
+  sampleProposals              SampleProposal[]
+  factoryProposals             FactoryProposal[]
+  buyerIntents                 BuyerIntent[]
+  presaleIntents               PresaleIntent[]
+  presaleCampaigns             PresaleCampaign[]
+  presaleCampaignIntents       PresaleCampaignIntent[]
+  collaborationProjects        CollaborationProject[]
+  projectOrders                ProjectOrder[]
+  reviews                      Review[]
+  caseStudies                  CaseStudy[]
+  fabricRecommendations        WorkFabricRecommendation[]
+  providerWorkProposals        ProviderWorkProposal[]
+  editorialPicks               EditorialPick[]
+  fabricRequests               FabricRequest[]
+  sampleRequests               SampleRequest[]
+  cooperationRequests          CooperationRequest[]
+  votes                        WorkVote[]
+  contributions                WorkContribution[]
+  opportunityProfile           WorkOpportunityProfile?
   providerOpportunityInterests ProviderOpportunityInterest[]
-  incubationBatchWorks      IncubationBatchWork[]
-  aiDiagnoses               WorkAiDiagnosis[]
+  incubationBatchWorks         IncubationBatchWork[]
+  aiDiagnoses                  WorkAiDiagnosis[]
+  demandIntents                WorkDemandIntent[]
+  projectDesignAuthorizations  ProjectDesignAuthorization[]
+  projectProducts              ProjectProduct[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -758,6 +872,31 @@ model ExhibitionWork {
   @@index([workId])
 }
 
+model WorkDemandIntent {
+  id                  String                 @id @default(cuid())
+  workId              String
+  userId              String
+  preferredSizes      String[]
+  preferredColors     String[]
+  priceMin            Int?
+  priceMax            Int?
+  region              String?
+  notifyWhenAvailable Boolean                @default(true)
+  status              WorkDemandIntentStatus @default(ACTIVE)
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workId, userId])
+  @@index([workId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
 model WorkIncubation {
   id        String               @id @default(cuid())
   workId    String               @unique
@@ -835,7 +974,7 @@ model WorkImage {
 }
 
 model WorkVote {
-  id           String       @id @default(cuid())
+  id           String         @id @default(cuid())
   workId       String
   actorKey     String
   type         WorkVoteType
@@ -885,75 +1024,76 @@ model WorkContribution {
 }
 
 model Provider {
-  id           String         @id @default(cuid())
-  ownerId      String?
-  name         String
-  slug         String?        @unique
-  type         ProviderType
-  logoUrl      String?
-  coverUrl     String?
-  tagline      String?
-  city         String?
-  address      String?
-  province     String?
-  country      String         @default("China")
-  description  String?
-  contactName  String?
-  contactPhone String?
-  contactEmail String?
-  wechat       String?
-  whatsapp     String?
-  website      String?
-  tags         String[]
-  specialties  String[]       @default([])
-  categories   String[]       @default([])
-  materials    String[]       @default([])
-  techniques   String[]       @default([])
-  serviceRegions String[]     @default([])
-  serviceArea  String?
-  responseTime String?
-  isVerified   Boolean        @default(false)
-  isFeatured   Boolean        @default(false)
-  status       ProviderStatus @default(PENDING)
-  orderPreference ProviderOrderPreference @default(FLEXIBLE)
-  minimumOrderQuantity Int?
-  maximumOrderQuantity Int?
-  moqMin Int?
-  acceptsSampling Boolean @default(true)
-  acceptsSmallBatch Boolean @default(false)
-  acceptsLargeOrder Boolean @default(false)
-  sampleSupported Boolean?
+  id                    String                     @id @default(cuid())
+  ownerId               String?
+  name                  String
+  slug                  String?                    @unique
+  type                  ProviderType
+  logoUrl               String?
+  coverUrl              String?
+  tagline               String?
+  city                  String?
+  address               String?
+  province              String?
+  country               String                     @default("China")
+  description           String?
+  contactName           String?
+  contactPhone          String?
+  contactEmail          String?
+  wechat                String?
+  whatsapp              String?
+  website               String?
+  tags                  String[]
+  specialties           String[]                   @default([])
+  categories            String[]                   @default([])
+  materials             String[]                   @default([])
+  techniques            String[]                   @default([])
+  serviceRegions        String[]                   @default([])
+  serviceArea           String?
+  responseTime          String?
+  isVerified            Boolean                    @default(false)
+  isFeatured            Boolean                    @default(false)
+  status                ProviderStatus             @default(PENDING)
+  orderPreference       ProviderOrderPreference    @default(FLEXIBLE)
+  minimumOrderQuantity  Int?
+  maximumOrderQuantity  Int?
+  moqMin                Int?
+  acceptsSampling       Boolean                    @default(true)
+  acceptsSmallBatch     Boolean                    @default(false)
+  acceptsLargeOrder     Boolean                    @default(false)
+  sampleSupported       Boolean?
   singleSampleSupported Boolean?
-  patternMaking String?
-  minimumOrder String?
-  sampleLeadDays Int?
-  productionLeadDays Int?
-  leadTime String?
-  priceRange String?
-  monthlyCapacity String?
-  qualityControl String?
-  capacityText String?
-  capacityStatus ProviderCapacityStatus @default(UNKNOWN)
-  availabilityStatus ProviderAvailabilityStatus @default(OPEN)
-  supportedCategories String?
-  preferredMaterials String?
-  preferredRegions String?
-  providerDetails Json?
-  opportunityVisible Boolean @default(true)
-  publicContactEnabled Boolean @default(false)
+  patternMaking         String?
+  minimumOrder          String?
+  sampleLeadDays        Int?
+  productionLeadDays    Int?
+  leadTime              String?
+  priceRange            String?
+  monthlyCapacity       String?
+  qualityControl        String?
+  capacityText          String?
+  capacityStatus        ProviderCapacityStatus     @default(UNKNOWN)
+  availabilityStatus    ProviderAvailabilityStatus @default(OPEN)
+  supportedCategories   String?
+  preferredMaterials    String?
+  preferredRegions      String?
+  providerDetails       Json?
+  opportunityVisible    Boolean                    @default(true)
+  publicContactEnabled  Boolean                    @default(false)
 
-  owner                 User? @relation("ProviderOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  fabrics               Fabric[]
-  fabricRecommendations WorkFabricRecommendation[]
-  workProposals         ProviderWorkProposal[]
-  opportunityInterests  ProviderOpportunityInterest[]
-  incubationBatchProviders IncubationBatchProvider[]
-  collaborationProjects CollaborationProject[]
-  projectOrders         ProjectOrder[]
-  reviews               Review[]
-  caseStudies           CaseStudy[]
-  showcaseItems         ProviderShowcaseItem[]
-  inquiries             CooperationRequest[]
+  owner                      User?                         @relation("ProviderOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  fabrics                    Fabric[]
+  fabricRecommendations      WorkFabricRecommendation[]
+  workProposals              ProviderWorkProposal[]
+  opportunityInterests       ProviderOpportunityInterest[]
+  incubationBatchProviders   IncubationBatchProvider[]
+  collaborationProjects      CollaborationProject[]
+  ownedCollaborationProjects CollaborationProject[]        @relation("CollaborationProjectOwnerProvider")
+  projectOrders              ProjectOrder[]
+  reviews                    Review[]
+  caseStudies                CaseStudy[]
+  showcaseItems              ProviderShowcaseItem[]
+  inquiries                  CooperationRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -970,24 +1110,24 @@ model Provider {
 }
 
 model WorkOpportunityProfile {
-  id String @id @default(cuid())
-  workId String @unique
-  stage OpportunityStage @default(DISPLAY_ONLY)
-  targetQuantity Int?
-  targetUnitCost Decimal? @db.Decimal(10, 2)
-  targetRetailPrice Decimal? @db.Decimal(10, 2)
-  sampleBudget Decimal? @db.Decimal(10, 2)
-  sampleStatus SampleStatus @default(NOT_STARTED)
-  fabricStatus FabricStatus @default(UNKNOWN)
-  targetLaunchDate DateTime?
-  targetDeliveryDate DateTime?
-  expectedFabricMeters Decimal? @db.Decimal(10, 2)
-  expectedReorder Boolean @default(false)
-  buyerInterestCount Int @default(0)
-  confirmedBuyerQuantity Int @default(0)
-  adminApproved Boolean @default(false)
-  adminNote String?
-  designerNote String?
+  id                     String           @id @default(cuid())
+  workId                 String           @unique
+  stage                  OpportunityStage @default(DISPLAY_ONLY)
+  targetQuantity         Int?
+  targetUnitCost         Decimal?         @db.Decimal(10, 2)
+  targetRetailPrice      Decimal?         @db.Decimal(10, 2)
+  sampleBudget           Decimal?         @db.Decimal(10, 2)
+  sampleStatus           SampleStatus     @default(NOT_STARTED)
+  fabricStatus           FabricStatus     @default(UNKNOWN)
+  targetLaunchDate       DateTime?
+  targetDeliveryDate     DateTime?
+  expectedFabricMeters   Decimal?         @db.Decimal(10, 2)
+  expectedReorder        Boolean          @default(false)
+  buyerInterestCount     Int              @default(0)
+  confirmedBuyerQuantity Int              @default(0)
+  adminApproved          Boolean          @default(false)
+  adminNote              String?
+  designerNote           String?
 
   work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
 
@@ -1001,19 +1141,19 @@ model WorkOpportunityProfile {
 }
 
 model ProviderOpportunityInterest {
-  id String @id @default(cuid())
-  providerId String
-  workId String
-  interestType ProviderOpportunityInterestType
-  note String?
-  expectedPriceMin Decimal? @db.Decimal(10, 2)
-  expectedPriceMax Decimal? @db.Decimal(10, 2)
-  minimumQuantity Int?
-  leadDays Int?
-  status ProviderOpportunityInterestStatus @default(SUBMITTED)
+  id               String                            @id @default(cuid())
+  providerId       String
+  workId           String
+  interestType     ProviderOpportunityInterestType
+  note             String?
+  expectedPriceMin Decimal?                          @db.Decimal(10, 2)
+  expectedPriceMax Decimal?                          @db.Decimal(10, 2)
+  minimumQuantity  Int?
+  leadDays         Int?
+  status           ProviderOpportunityInterestStatus @default(SUBMITTED)
 
   provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  work     Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1026,50 +1166,50 @@ model ProviderOpportunityInterest {
 }
 
 model IncubationBatch {
-  id String @id @default(cuid())
-  slug String @unique
-  title String
-  summary String
+  id          String                @id @default(cuid())
+  slug        String                @unique
+  title       String
+  summary     String
   description String?
-  type IncubationBatchType
-  status IncubationBatchStatus @default(DRAFT)
+  type        IncubationBatchType
+  status      IncubationBatchStatus @default(DRAFT)
 
   organizerName String
   organizerType String?
-  schoolId String?
-  challengeId String?
-  coverImage String?
-  city String?
+  schoolId      String?
+  challengeId   String?
+  coverImage    String?
+  city          String?
 
-  startDate DateTime?
-  submissionDeadline DateTime?
-  evaluationDeadline DateTime?
+  startDate            DateTime?
+  submissionDeadline   DateTime?
+  evaluationDeadline   DateTime?
   targetCompletionDate DateTime?
 
-  targetWorkCount Int?
-  targetSampleCount Int?
-  targetProductionQuantity Int?
-  confirmedProductionQuantity Int @default(0)
-  estimatedFabricMeters Decimal? @db.Decimal(10, 2)
+  targetWorkCount             Int?
+  targetSampleCount           Int?
+  targetProductionQuantity    Int?
+  confirmedProductionQuantity Int      @default(0)
+  estimatedFabricMeters       Decimal? @db.Decimal(10, 2)
 
   targetCategories String?
-  targetMaterials String?
+  targetMaterials  String?
   targetPriceRange String?
-  targetMarket String?
+  targetMarket     String?
 
   expectedRepeatOrder Boolean @default(false)
-  adminApproved Boolean @default(false)
-  featured Boolean @default(false)
+  adminApproved       Boolean @default(false)
+  featured            Boolean @default(false)
 
   publicNote String?
-  adminNote String?
+  adminNote  String?
 
   createdById String?
 
-  school School? @relation(fields: [schoolId], references: [id], onDelete: SetNull)
-  challenge Challenge? @relation(fields: [challengeId], references: [id], onDelete: SetNull)
-  createdBy User? @relation("IncubationBatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  works IncubationBatchWork[]
+  school    School?                   @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  challenge Challenge?                @relation(fields: [challengeId], references: [id], onDelete: SetNull)
+  createdBy User?                     @relation("IncubationBatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  works     IncubationBatchWork[]
   providers IncubationBatchProvider[]
 
   createdAt DateTime @default(now())
@@ -1086,17 +1226,17 @@ model IncubationBatch {
 }
 
 model IncubationBatchWork {
-  id String @id @default(cuid())
-  batchId String
-  workId String
-  status BatchWorkStatus @default(SUBMITTED)
+  id               String          @id @default(cuid())
+  batchId          String
+  workId           String
+  status           BatchWorkStatus @default(SUBMITTED)
   nominationReason String?
-  reviewNote String?
-  sortOrder Int @default(0)
-  selectedAt DateTime?
+  reviewNote       String?
+  sortOrder        Int             @default(0)
+  selectedAt       DateTime?
 
   batch IncubationBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  work  Work            @relation(fields: [workId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1109,21 +1249,21 @@ model IncubationBatchWork {
 }
 
 model IncubationBatchProvider {
-  id String @id @default(cuid())
-  batchId String
-  providerId String
-  role BatchProviderRole
-  status BatchProviderStatus @default(INTERESTED)
-  note String?
-  minimumQuantity Int?
-  maximumQuantity Int?
-  expectedPriceMin Decimal? @db.Decimal(10, 2)
-  expectedPriceMax Decimal? @db.Decimal(10, 2)
-  sampleLeadDays Int?
+  id                 String              @id @default(cuid())
+  batchId            String
+  providerId         String
+  role               BatchProviderRole
+  status             BatchProviderStatus @default(INTERESTED)
+  note               String?
+  minimumQuantity    Int?
+  maximumQuantity    Int?
+  expectedPriceMin   Decimal?            @db.Decimal(10, 2)
+  expectedPriceMax   Decimal?            @db.Decimal(10, 2)
+  sampleLeadDays     Int?
   productionLeadDays Int?
 
-  batch IncubationBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  batch    IncubationBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  provider Provider        @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1136,34 +1276,34 @@ model IncubationBatchProvider {
 }
 
 model ProviderApplication {
-  id           String                    @id @default(cuid())
-  userId       String?
-  providerType ProviderType
-  companyName  String
-  contactName  String
-  phone        String?
-  email        String?
-  wechat       String?
-  city         String?
-  address      String?
-  logoUrl      String?
-  serviceArea  String?
-  responseTime String?
-  specialties  String[]                  @default([])
-  categories   String[]                  @default([])
-  patternMaking String?
-  sampleSupported Boolean?
+  id                    String                    @id @default(cuid())
+  userId                String?
+  providerType          ProviderType
+  companyName           String
+  contactName           String
+  phone                 String?
+  email                 String?
+  wechat                String?
+  city                  String?
+  address               String?
+  logoUrl               String?
+  serviceArea           String?
+  responseTime          String?
+  specialties           String[]                  @default([])
+  categories            String[]                  @default([])
+  patternMaking         String?
+  sampleSupported       Boolean?
   singleSampleSupported Boolean?
-  smallOrderSupported Boolean?
-  minimumOrder String?
-  leadTime     String?
-  priceRange   String?
-  monthlyCapacity String?
-  qualityControl String?
-  providerDetails Json?
-  description  String?
-  status       ProviderApplicationStatus @default(PENDING)
-  reviewNote   String?
+  smallOrderSupported   Boolean?
+  minimumOrder          String?
+  leadTime              String?
+  priceRange            String?
+  monthlyCapacity       String?
+  qualityControl        String?
+  providerDetails       Json?
+  description           String?
+  status                ProviderApplicationStatus @default(PENDING)
+  reviewNote            String?
 
   user User? @relation("ProviderApplicationUser", fields: [userId], references: [id], onDelete: SetNull)
 
@@ -1211,32 +1351,32 @@ model Fabric {
 }
 
 model ProviderShowcaseItem {
-  id             String                 @id @default(cuid())
-  providerId     String
-  type           ProviderShowcaseType
-  title          String
-  summary        String?
-  description    String?
-  coverImageUrl  String?
-  imageUrls      String[]               @default([])
-  category       String?
-  tags           String[]               @default([])
-  materials      String[]               @default([])
-  techniques     String[]               @default([])
-  quantityRange  String?
-  moqMin         Int?
-  leadTimeDays   Int?
-  capacityText   String?
-  status         ProviderShowcaseStatus @default(DRAFT)
-  reviewNote     String?
-  isFeatured     Boolean                @default(false)
-  publishedAt    DateTime?
-  reviewedAt     DateTime?
-  reviewedById   String?
+  id            String                 @id @default(cuid())
+  providerId    String
+  type          ProviderShowcaseType
+  title         String
+  summary       String?
+  description   String?
+  coverImageUrl String?
+  imageUrls     String[]               @default([])
+  category      String?
+  tags          String[]               @default([])
+  materials     String[]               @default([])
+  techniques    String[]               @default([])
+  quantityRange String?
+  moqMin        Int?
+  leadTimeDays  Int?
+  capacityText  String?
+  status        ProviderShowcaseStatus @default(DRAFT)
+  reviewNote    String?
+  isFeatured    Boolean                @default(false)
+  publishedAt   DateTime?
+  reviewedAt    DateTime?
+  reviewedById  String?
 
-  provider     Provider             @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  reviewedBy   User?                @relation("ProviderShowcaseReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  inquiries    CooperationRequest[]
+  provider   Provider             @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  reviewedBy User?                @relation("ProviderShowcaseReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  inquiries  CooperationRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1249,22 +1389,22 @@ model ProviderShowcaseItem {
 }
 
 model WorkFabricRecommendation {
-  id            String               @id @default(cuid())
-  workId        String
-  fabricId      String
-  providerId    String?
-  createdByUserId String?
-  reason        String?
-  recommendedBy String?
+  id                 String               @id @default(cuid())
+  workId             String
+  fabricId           String
+  providerId         String?
+  createdByUserId    String?
+  reason             String?
+  recommendedBy      String?
   sampleAvailability String?
-  moqText       String?
-  responseTime  String?
-  status        RecommendationStatus @default(PENDING)
+  moqText            String?
+  responseTime       String?
+  status             RecommendationStatus @default(PENDING)
 
-  work     Work      @relation(fields: [workId], references: [id], onDelete: Cascade)
-  fabric   Fabric    @relation(fields: [fabricId], references: [id], onDelete: Cascade)
-  provider Provider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
-  createdBy User?    @relation("WorkFabricRecommendationCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  work      Work      @relation(fields: [workId], references: [id], onDelete: Cascade)
+  fabric    Fabric    @relation(fields: [fabricId], references: [id], onDelete: Cascade)
+  provider  Provider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  createdBy User?     @relation("WorkFabricRecommendationCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1278,25 +1418,35 @@ model WorkFabricRecommendation {
 }
 
 model ProviderWorkProposal {
-  id             String                     @id @default(cuid())
-  workId         String
-  providerId     String
-  type           ProviderWorkProposalType
-  title          String
-  description    String?
-  estimatedPrice String?
-  estimatedTime  String?
-  moq            String?
-  attachments    String[]
-  status         ProviderWorkProposalStatus @default(PENDING)
+  id              String                     @id @default(cuid())
+  workId          String
+  projectId       String?
+  providerId      String
+  type            ProviderWorkProposalType
+  title           String
+  summary         String?
+  description     String?
+  estimatedPrice  String?
+  estimatedTime   String?
+  moq             String?
+  priceMin        Int?
+  priceMax        Int?
+  leadTimeDays    Int?
+  minimumQuantity Int?
+  validUntil      DateTime?
+  attachments     String[]
+  evidenceUrls    String[]
+  status          ProviderWorkProposalStatus @default(PENDING)
 
-  work     Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
-  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  work     Work                  @relation(fields: [workId], references: [id], onDelete: Cascade)
+  project  CollaborationProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  provider Provider              @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([workId])
+  @@index([projectId])
   @@index([providerId])
   @@index([type])
   @@index([status])
@@ -1318,10 +1468,10 @@ model Challenge {
   isFeatured   Boolean         @default(false)
   status       ChallengeStatus @default(DRAFT)
 
-  school  School?          @relation(fields: [schoolId], references: [id], onDelete: SetNull)
-  teacher Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  entries ChallengeEntry[]
-  works   ChallengeWork[]
+  school            School?           @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  teacher           Teacher?          @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  entries           ChallengeEntry[]
+  works             ChallengeWork[]
   incubationBatches IncubationBatch[]
 
   createdAt DateTime @default(now())
@@ -1719,66 +1869,234 @@ model VerificationRequest {
 }
 
 model CollaborationProject {
-  id                String                       @id @default(cuid())
-  title             String
-  slug              String?                      @unique
-  workId            String
-  designerId        String?
-  schoolId          String?
-  teacherId         String?
-  providerId        String?
-  fabricId          String?
-  presaleCampaignId String?
-  description       String?
-  status            CollaborationProjectStatus   @default(DRAFT)
-  priority          CollaborationProjectPriority @default(NORMAL)
-  targetQuantity    String?
-  estimatedBudget   String?
-  targetLaunchDate  DateTime?
-  internalNote      String?
-  createdById       String?
+  id                          String                           @id @default(cuid())
+  title                       String
+  slug                        String?                          @unique
+  workId                      String
+  designerId                  String?
+  ownerUserId                 String?
+  ownerProviderId             String?
+  schoolId                    String?
+  teacherId                   String?
+  providerId                  String?
+  fabricId                    String?
+  presaleCampaignId           String?
+  description                 String?
+  summary                     String?
+  status                      CollaborationProjectStatus       @default(DRAFT)
+  visibility                  CollaborationProjectVisibility   @default(PRIVATE)
+  priority                    CollaborationProjectPriority     @default(NORMAL)
+  targetPriceMin              Int?
+  targetPriceMax              Int?
+  targetQuantity              String?
+  estimatedBudget             String?
+  applicationDeadline         DateTime?
+  estimatedShipDate           DateTime?
+  responsibilityText          String?
+  designerAuthorizationStatus ProjectDesignAuthorizationStatus @default(PENDING)
+  reviewStatus                ReviewStatus                     @default(PENDING)
+  designerPreference          DesignerProjectPreference        @default(COLLECT_DEMAND)
+  targetLaunchDate            DateTime?
+  internalNote                String?
+  createdById                 String?
 
-  work            Work             @relation(fields: [workId], references: [id], onDelete: Cascade)
-  designer        User?            @relation("CollaborationProjectDesigner", fields: [designerId], references: [id], onDelete: SetNull)
-  school          School?          @relation(fields: [schoolId], references: [id], onDelete: SetNull)
-  teacher         Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  provider        Provider?        @relation(fields: [providerId], references: [id], onDelete: SetNull)
-  fabric          Fabric?          @relation(fields: [fabricId], references: [id], onDelete: SetNull)
-  presaleCampaign PresaleCampaign? @relation(fields: [presaleCampaignId], references: [id], onDelete: SetNull)
-  createdBy       User?            @relation("CollaborationProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  orders          ProjectOrder[]
-  reviews         Review[]
-  caseStudies     CaseStudy[]
+  work                  Work                         @relation(fields: [workId], references: [id], onDelete: Cascade)
+  designer              User?                        @relation("CollaborationProjectDesigner", fields: [designerId], references: [id], onDelete: SetNull)
+  ownerUser             User?                        @relation("CollaborationProjectOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  ownerProvider         Provider?                    @relation("CollaborationProjectOwnerProvider", fields: [ownerProviderId], references: [id], onDelete: SetNull)
+  school                School?                      @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  teacher               Teacher?                     @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  provider              Provider?                    @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  fabric                Fabric?                      @relation(fields: [fabricId], references: [id], onDelete: SetNull)
+  presaleCampaign       PresaleCampaign?             @relation(fields: [presaleCampaignId], references: [id], onDelete: SetNull)
+  createdBy             User?                        @relation("CollaborationProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  designAuthorizations  ProjectDesignAuthorization[]
+  milestones            ProjectMilestone[]
+  issues                ProjectIssue[]
+  products              ProjectProduct[]
+  providerWorkProposals ProviderWorkProposal[]
+  orders                ProjectOrder[]
+  reviews               Review[]
+  caseStudies           CaseStudy[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([workId])
   @@index([designerId])
+  @@index([ownerUserId])
+  @@index([ownerProviderId])
   @@index([schoolId])
   @@index([teacherId])
   @@index([providerId])
   @@index([fabricId])
   @@index([presaleCampaignId])
   @@index([status])
+  @@index([visibility])
+  @@index([reviewStatus])
+  @@index([designerAuthorizationStatus])
   @@index([priority])
 }
 
+model ProjectDesignAuthorization {
+  id                 String                           @id @default(cuid())
+  projectId          String
+  workId             String
+  designerUserId     String
+  ownerUserId        String
+  scope              String
+  royaltyDescription String?
+  status             ProjectDesignAuthorizationStatus @default(PENDING)
+  requestedAt        DateTime                         @default(now())
+  acceptedAt         DateTime?
+  revokedAt          DateTime?
+  termsVersion       String                           @default("v1")
+
+  project  CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  work     Work                 @relation(fields: [workId], references: [id], onDelete: Cascade)
+  designer User                 @relation("ProjectDesignAuthorizationDesigner", fields: [designerUserId], references: [id], onDelete: Cascade)
+  owner    User                 @relation("ProjectDesignAuthorizationOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId])
+  @@index([projectId])
+  @@index([workId])
+  @@index([designerUserId])
+  @@index([ownerUserId])
+  @@index([status])
+}
+
+model ProjectMilestone {
+  id              String                     @id @default(cuid())
+  projectId       String
+  title           String
+  stage           String
+  status          ProjectMilestoneStatus     @default(TODO)
+  dueAt           DateTime?
+  completedAt     DateTime?
+  note            String?
+  evidenceUrl     String?
+  visibility      ProjectMilestoneVisibility @default(PARTICIPANTS)
+  createdByUserId String?
+
+  project   CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy User?                @relation("ProjectMilestoneCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+  @@index([visibility])
+  @@index([createdByUserId])
+}
+
+model ProjectIssue {
+  id          String             @id @default(cuid())
+  projectId   String
+  reporterId  String
+  type        ProjectIssueType   @default(OTHER)
+  title       String
+  description String?
+  status      ProjectIssueStatus @default(OPEN)
+  adminNote   String?
+  resolvedAt  DateTime?
+
+  project  CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporter User                 @relation("ProjectIssueReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([reporterId])
+  @@index([type])
+  @@index([status])
+}
+
+model ProjectProduct {
+  id                  String               @id @default(cuid())
+  projectId           String
+  workId              String?
+  title               String
+  description         String?
+  materialDescription String?
+  careInstructions    String?
+  price               Int
+  currency            String               @default("CNY")
+  targetQuantity      Int?
+  preorderDeadline    DateTime?
+  estimatedShipDate   DateTime?
+  imageStage          String?
+  status              ProjectProductStatus @default(DRAFT)
+
+  project CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  work    Work?                @relation(fields: [workId], references: [id], onDelete: SetNull)
+  skus    ProjectSku[]
+  orders  ProjectOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([workId])
+  @@index([status])
+}
+
+model ProjectSku {
+  id            String  @id @default(cuid())
+  productId     String
+  size          String
+  color         String
+  skuCode       String?
+  priceOverride Int?
+  capacity      Int?
+  enabled       Boolean @default(true)
+
+  product ProjectProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orders  ProjectOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, size, color])
+  @@index([productId])
+  @@index([enabled])
+}
+
 model ProjectOrder {
-  id           String             @id @default(cuid())
-  projectId    String
-  workId       String?
-  buyerId      String?
-  providerId   String?
-  title        String
-  quantityNote String?
-  amountNote   String?
-  deliveryNote String?
-  status       ProjectOrderStatus @default(INTENT)
-  note         String?
+  id                      String                        @id @default(cuid())
+  projectId               String
+  workId                  String?
+  productId               String?
+  skuId                   String?
+  buyerId                 String?
+  providerId              String?
+  title                   String
+  quantity                Int                           @default(1)
+  unitPrice               Int?
+  totalAmount             Int?
+  currency                String                        @default("CNY")
+  quantityNote            String?
+  amountNote              String?
+  deliveryNote            String?
+  status                  ProjectOrderStatus            @default(INTENT)
+  paymentStatus           ProjectOrderPaymentStatus     @default(UNPAID)
+  fulfillmentStatus       ProjectOrderFulfillmentStatus @default(NOT_STARTED)
+  shippingAddressSnapshot Json?
+  buyerNote               String?
+  trackingCompany         String?
+  trackingNumber          String?
+  estimatedShipDate       DateTime?
+  exceptionNote           String?
+  note                    String?
 
   project  CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   work     Work?                @relation(fields: [workId], references: [id], onDelete: SetNull)
+  product  ProjectProduct?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  sku      ProjectSku?          @relation(fields: [skuId], references: [id], onDelete: SetNull)
   buyer    User?                @relation("ProjectOrderBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
   provider Provider?            @relation(fields: [providerId], references: [id], onDelete: SetNull)
 
@@ -1787,9 +2105,13 @@ model ProjectOrder {
 
   @@index([projectId])
   @@index([workId])
+  @@index([productId])
+  @@index([skuId])
   @@index([buyerId])
   @@index([providerId])
   @@index([status])
+  @@index([paymentStatus])
+  @@index([fulfillmentStatus])
 }
 
 model Review {
@@ -1915,27 +2237,27 @@ model SampleRequest {
 }
 
 model CooperationRequest {
-  id              String              @id @default(cuid())
-  userId          String
-  workId          String?
-  providerId      String?
-  fabricId        String?
-  showcaseItemId  String?
-  type            CooperationType
-  requestType     ProviderInquiryType @default(GENERAL)
-  contact         String
+  id                String              @id @default(cuid())
+  userId            String
+  workId            String?
+  providerId        String?
+  fabricId          String?
+  showcaseItemId    String?
+  type              CooperationType
+  requestType       ProviderInquiryType @default(GENERAL)
+  contact           String
   contactPreference String?
-  quantity        Int?
-  expectedDate    DateTime?
-  message         String?
-  budgetRange     String?
-  providerResponse String?
-  status          RequestStatus       @default(PENDING)
-  adminNote       String?
-  viewedAt        DateTime?
-  respondedAt     DateTime?
-  handledAt       DateTime?
-  handledById     String?
+  quantity          Int?
+  expectedDate      DateTime?
+  message           String?
+  budgetRange       String?
+  providerResponse  String?
+  status            RequestStatus       @default(PENDING)
+  adminNote         String?
+  viewedAt          DateTime?
+  respondedAt       DateTime?
+  handledAt         DateTime?
+  handledById       String?
 
   user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   work         Work?                 @relation(fields: [workId], references: [id], onDelete: SetNull)

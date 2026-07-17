@@ -1,9 +1,12 @@
 import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/LoginForm";
+import { isFeatureEnabled } from "@/lib/features";
 
 export const dynamic = "force-dynamic";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const identityEnabled = await isFeatureEnabled("feature.identity_v234");
+
   return (
     <Suspense
       fallback={
@@ -12,7 +15,7 @@ export default function LoginPage() {
         </main>
       }
     >
-      <LoginForm />
+      <LoginForm identityEnabled={identityEnabled} />
     </Suspense>
   );
 }

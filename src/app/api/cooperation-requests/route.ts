@@ -126,6 +126,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "你 24 小时内提交的供应商询盘较多，请稍后再试。" }, { status: 429 });
     }
 
+    const fallbackContact = data.contact || data.contactPreference || user.email || "未填写联系方式";
     const item = await prisma.cooperationRequest.create({
       data: {
         userId: user.id,
@@ -135,7 +136,7 @@ export async function POST(request: Request) {
         showcaseItemId: data.showcaseItemId || null,
         type: data.type,
         requestType: data.requestType,
-        contact: data.contact || data.contactPreference || user.email,
+        contact: fallbackContact,
         contactPreference: data.contactPreference || null,
         quantity: data.quantity || null,
         expectedDate: dateFromInput(data.expectedDate),
@@ -164,13 +165,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "作品不存在或暂不可提交合作意向。" }, { status: 404 });
   }
 
+  const fallbackContact = data.contact || data.contactPreference || user.email || "未填写联系方式";
   const item = await prisma.cooperationRequest.create({
     data: {
       userId: user.id,
       workId: work.id,
       type: data.type,
       requestType: data.requestType,
-      contact: data.contact || data.contactPreference || user.email,
+      contact: fallbackContact,
       contactPreference: data.contactPreference || null,
       quantity: data.quantity || null,
       expectedDate: dateFromInput(data.expectedDate),
