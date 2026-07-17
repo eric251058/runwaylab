@@ -459,16 +459,9 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
   const isOwner = Boolean(currentUser && currentUser.id === work.userId);
   const isAdminUser = currentUser?.role === "ADMIN";
   const currentProvider = await getProviderForUser(currentUser);
-  const canRecommendFabric = Boolean(
-    currentProvider &&
-      currentProvider.type === ProviderType.FABRIC_SUPPLIER &&
-      currentProvider.opportunityVisible &&
-      currentProvider.availabilityStatus !== ProviderAvailabilityStatus.PAUSED &&
-      !isOwner
-  );
+  const canRecommendFabric = false;
   const canSubmitProviderSupport = Boolean(
     currentProvider &&
-      (currentProvider.type === ProviderType.SAMPLE_STUDIO || currentProvider.type === ProviderType.FACTORY) &&
       currentProvider.opportunityVisible &&
       currentProvider.availabilityStatus !== ProviderAvailabilityStatus.PAUSED &&
       !isOwner
@@ -678,7 +671,7 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
             <FabricRecommendationDialog workId={work.id} workTitle={work.title} products={fabricRecommendationProducts} />
           ) : null}
 
-          {canSubmitProviderSupport && currentProvider && (currentProvider.type === ProviderType.SAMPLE_STUDIO || currentProvider.type === ProviderType.FACTORY) ? (
+          {canSubmitProviderSupport && currentProvider ? (
             <ProviderWorkSupportDialog workId={work.id} providerType={currentProvider.type} showcaseItems={providerSupportShowcases} />
           ) : null}
 

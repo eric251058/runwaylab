@@ -79,7 +79,7 @@ export default async function ProviderShowcaseDetailPage({ params }: ShowcaseDet
             <span className="rounded-full bg-paper px-4 py-2 text-sm font-semibold text-ink/55">{SUPPLY_PROVIDER_TYPE_LABELS[item.provider.type]}</span>
             {item.tags.slice(0, 6).map((tag) => <span key={tag} className="rounded-full bg-paper px-4 py-2 text-sm font-semibold text-ink/55">{tag}</span>)}
           </div>
-          <a href="#inquiry" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">发起合作询盘</a>
+          <a href="#inquiry" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">联系服务商</a>
         </section>
       </div>
 

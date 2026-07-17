@@ -48,6 +48,15 @@ export default async function MePage({ searchParams }: MePageProps) {
     redirect("/login?next=/me");
   }
 
+  const ownedProvider = await prisma.provider.findFirst({
+    where: { ownerId: user.id },
+    select: { id: true }
+  });
+
+  if (ownedProvider) {
+    redirect("/provider-center");
+  }
+
   const params = await searchParams;
   const activeTab = getActiveTab(params?.tab);
 

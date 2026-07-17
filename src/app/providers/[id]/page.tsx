@@ -90,7 +90,7 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
     : [];
   const publicUrl = providerPublicUrl(provider);
   const loginHref = `/login?next=${encodeURIComponent(`${publicUrl}#inquiry`)}`;
-  const inquiryTitle = isFactory ? "发起生产合作" : isSampleStudio ? "发起打样合作" : isFabricProvider ? "发起面料合作" : "发起合作询盘";
+  const inquiryTitle = "联系服务商";
   const inquiryDescription = isFactory
     ? "说明可承接数量、预计周期和作品阶段，本阶段不会生成订单。"
     : isSampleStudio
@@ -124,7 +124,7 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
             </div>
           ) : null}
           <div className="mt-5 flex flex-wrap gap-2">
-            <a href="#inquiry" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">发起合作</a>
+            <a href="#inquiry" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">联系服务商</a>
             <a href="#products" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看产品与案例</a>
             {isOwner ? <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">管理主页</Link> : null}
           </div>

@@ -306,7 +306,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
                   {countText ? <p className="mt-3 text-xs text-ink/42">{countText}</p> : null}
                   <div className="mt-5 grid gap-2 sm:grid-cols-2">
                     <Link href={providerPublicUrl(provider)} className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">查看详情</Link>
-                    <Link href={`${providerPublicUrl(provider)}#inquiry`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">联系合作</Link>
+                    <Link href={`${providerPublicUrl(provider)}#inquiry`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">联系服务商</Link>
                   </div>
                 </div>
               </article>

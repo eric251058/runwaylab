@@ -47,7 +47,7 @@ export function PersonaOnboardingForm({ options, currentPersona, compact = false
     <div className={`grid gap-3 ${compact ? "sm:grid-cols-2 lg:grid-cols-3" : "md:grid-cols-3"}`}>
       {options.map((option) => (
         <button
-          key={option.value}
+          key={`${option.value}-${option.label}`}
           type="button"
           onClick={() => savePersona(option)}
           disabled={isPending}

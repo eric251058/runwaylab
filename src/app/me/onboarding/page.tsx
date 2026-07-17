@@ -16,10 +16,10 @@ export default async function MeOnboardingPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12">
       <header className="mb-7">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Persona</p>
-        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">先选择你今天想做什么</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Start</p>
+        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">你来 RunwayLab 主要想做什么？</h1>
         <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58 md:text-base">
-          RunwayLab 会根据你的选择展示更合适的入口。这个选择只影响工作台展示，不影响后台权限，也可以之后修改。
+          先选一个主要目标。RunwayLab 会给你展示更合适的入口，你之后也可以修改。
         </p>
       </header>
 
@@ -34,7 +34,7 @@ export default async function MeOnboardingPage() {
 
       <div className="mt-6">
         <Link href="/me" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
-          返回我的页面
+          稍后选择
         </Link>
       </div>
     </div>

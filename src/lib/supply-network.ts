@@ -17,7 +17,8 @@ import {
 export const SUPPLY_PROVIDER_TYPES = [
   ProviderType.FABRIC_SUPPLIER,
   ProviderType.SAMPLE_STUDIO,
-  ProviderType.FACTORY
+  ProviderType.FACTORY,
+  ProviderType.OTHER
 ] as const;
 
 export const SUPPLY_PROVIDER_TYPE_LABELS: Record<ProviderType, string> = {
@@ -49,17 +50,20 @@ export const PROVIDER_SHOWCASE_STATUS_LABELS: Record<ProviderShowcaseStatus, str
 };
 
 export const PROVIDER_INQUIRY_TYPE_LABELS: Record<ProviderInquiryType, string> = {
-  GENERAL: "一般合作",
-  FABRIC_SAMPLE: "面料样卡",
-  SAMPLE_DEVELOPMENT: "打样开发",
+  GENERAL: "其他",
+  FABRIC_SAMPLE: "面料",
+  ACCESSORY: "辅料",
+  SAMPLE_DEVELOPMENT: "打样",
+  PROCESS: "工艺",
   SMALL_BATCH: "小单生产",
-  MASS_PRODUCTION: "大货生产"
+  MASS_PRODUCTION: "大货生产",
+  OTHER: "其他"
 };
 
 export const PROVIDER_INQUIRY_STATUS_LABELS: Record<RequestStatus, string> = {
   PENDING: "新询盘",
-  CONTACTED: "已读/已联系",
-  EVALUATED: "已评估",
+  CONTACTED: "已查看",
+  EVALUATED: "沟通中",
   QUOTED: "已回复",
   CLOSED: "已关闭",
   COMPLETED: "已完成"
@@ -124,14 +128,20 @@ export function getProviderTags(provider: Pick<Provider, "specialties" | "catego
     .slice(0, limit);
 }
 
-export function getProviderFitTags(provider: Pick<Provider, "type" | "acceptsSampling" | "acceptsSmallBatch" | "acceptsLargeOrder" | "minimumOrderQuantity" | "moqMin" | "categories" | "materials">) {
+export function getProviderFitTags(
+  provider: Pick<
+    Provider,
+    "type" | "acceptsSampling" | "acceptsSmallBatch" | "acceptsLargeOrder" | "minimumOrderQuantity" | "moqMin" | "categories" | "materials"
+  >
+) {
   const tags: string[] = [];
   if (provider.type === ProviderType.FABRIC_SUPPLIER) tags.push("面料匹配");
   if (provider.type === ProviderType.SAMPLE_STUDIO) tags.push("样衣打样");
   if (provider.type === ProviderType.FACTORY) tags.push("生产落地");
-  if (provider.acceptsSampling) tags.push("适合学生毕业设计");
-  if (provider.acceptsSmallBatch) tags.push("适合 50-200 件小单");
-  if (provider.acceptsLargeOrder) tags.push("适合品牌大货");
+  if (provider.type === ProviderType.OTHER) tags.push("专业服务");
+  if (provider.acceptsSampling) tags.push("适合学生作品验证");
+  if (provider.acceptsSmallBatch) tags.push("适合小单");
+  if (provider.acceptsLargeOrder) tags.push("适合大货");
   const moq = provider.moqMin ?? provider.minimumOrderQuantity;
   if (moq) tags.push(`MOQ ${moq}+`);
   if (provider.categories[0]) tags.push(`擅长${provider.categories[0]}`);
@@ -173,12 +183,15 @@ export function providerCompleteness(
     { label: "一句定位", ok: Boolean(cleanText(provider.tagline)) },
     { label: "公司/工作室介绍", ok: Boolean(cleanText(provider.description)) },
     { label: "城市", ok: Boolean(cleanText(provider.city)) },
-    { label: "擅长品类", ok: provider.categories.length > 0 || provider.specialties.length > 0 },
+    { label: "服务能力", ok: provider.categories.length > 0 || provider.specialties.length > 0 },
     { label: "至少三个能力标签", ok: [...provider.categories, ...provider.specialties, ...provider.materials, ...provider.techniques].length >= 3 },
     { label: "服务地区", ok: provider.serviceRegions.length > 0 },
     { label: "MOQ 或参考周期", ok: Boolean(provider.moqMin ?? provider.minimumOrderQuantity ?? provider.sampleLeadDays ?? provider.productionLeadDays) },
     { label: "至少一个产品或案例", ok: Boolean(provider.fabrics?.length || provider.showcaseItems?.length) },
-    { label: "联系方式或站内询盘", ok: provider.publicContactEnabled || Boolean(provider.contactEmail || provider.contactPhone || provider.wechat || provider.whatsapp || provider.website) }
+    {
+      label: "联系方式或站内询盘",
+      ok: provider.publicContactEnabled || Boolean(provider.contactEmail || provider.contactPhone || provider.wechat || provider.whatsapp || provider.website)
+    }
   ];
   const done = checks.filter((item) => item.ok).length;
   return {

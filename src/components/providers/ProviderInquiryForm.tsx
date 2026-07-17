@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { PROVIDER_INQUIRY_TYPE_LABELS } from "@/lib/supply-network";
+import { CONTACT_AUTH_OPTIONS, PROVIDER_INQUIRY_TYPE_COPY } from "@/lib/provider-experience";
 
 type WorkOption = {
   id: string;
@@ -21,7 +21,14 @@ type ProviderInquiryFormProps = {
   description?: string;
 };
 
-const inquiryTypes = Object.entries(PROVIDER_INQUIRY_TYPE_LABELS);
+const inquiryTypes = [
+  ["FABRIC_SAMPLE", PROVIDER_INQUIRY_TYPE_COPY.FABRIC_SAMPLE],
+  ["ACCESSORY", PROVIDER_INQUIRY_TYPE_COPY.ACCESSORY],
+  ["SAMPLE_DEVELOPMENT", PROVIDER_INQUIRY_TYPE_COPY.SAMPLE_DEVELOPMENT],
+  ["MASS_PRODUCTION", PROVIDER_INQUIRY_TYPE_COPY.MASS_PRODUCTION],
+  ["PROCESS", PROVIDER_INQUIRY_TYPE_COPY.PROCESS],
+  ["OTHER", PROVIDER_INQUIRY_TYPE_COPY.OTHER]
+] as const;
 
 export function ProviderInquiryForm({
   providerId,
@@ -30,9 +37,9 @@ export function ProviderInquiryForm({
   isLoggedIn,
   fabricId,
   showcaseItemId,
-  defaultRequestType = "GENERAL",
-  title = "发起合作询盘",
-  description = "请用一段清楚的话说明你需要面料、打样还是生产支持。24 小时内同一服务商最多提交 5 次。"
+  defaultRequestType = "FABRIC_SAMPLE",
+  title = "联系服务商",
+  description = "发送站内询盘，先说明你需要的服务。联系方式默认不公开。"
 }: ProviderInquiryFormProps) {
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState("");
@@ -42,9 +49,9 @@ export function ProviderInquiryForm({
     return (
       <div className="rounded-[8px] border border-black/8 bg-white p-4">
         <h3 className="text-lg font-semibold text-ink">{title}</h3>
-        <p className="mt-2 text-sm leading-6 text-ink/55">登录后可以关联自己的作品，向服务商提交结构化合作需求。</p>
+        <p className="mt-2 text-sm leading-6 text-ink/55">登录后可以向服务商发送站内询盘。</p>
         <Link href={loginHref} className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white sm:w-fit">
-          登录后发起合作
+          登录后联系服务商
         </Link>
       </div>
     );
@@ -58,11 +65,9 @@ export function ProviderInquiryForm({
       fabricId,
       showcaseItemId,
       workId: formData.get("workId")?.toString() || null,
-      requestType: formData.get("requestType")?.toString() || "GENERAL",
-      quantity: formData.get("quantity")?.toString() || null,
-      budgetRange: formData.get("budgetRange")?.toString() || null,
+      requestType: formData.get("requestType")?.toString() || "OTHER",
       expectedDate: formData.get("expectedDate")?.toString() || null,
-      contactPreference: formData.get("contactPreference")?.toString() || null,
+      contactPreference: formData.get("contactPreference")?.toString() || "SITE_ONLY",
       message: formData.get("message")?.toString() || ""
     };
 
@@ -74,10 +79,10 @@ export function ProviderInquiryForm({
       });
       const result = await response.json().catch(() => null);
       if (!response.ok) {
-        setMessage(result?.message || "提交失败，请稍后重试");
+        setMessage(result?.message || "发送失败，请稍后再试。");
         return;
       }
-      setSuccess("合作需求已发送给服务商。服务商会在工作台收到通知，建议在 48 小时内处理。你可以在“我的合作需求”查看进度。");
+      setSuccess(result?.message || "已发送。服务商回复后，我们会通知你。");
     });
   }
 
@@ -89,29 +94,44 @@ export function ProviderInquiryForm({
       </div>
       {message ? <p className="rounded-[6px] bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p> : null}
       {success ? <p className="rounded-[6px] bg-green-50 px-3 py-2 text-sm text-green-700">{success}</p> : null}
-      <select name="workId" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm">
-        <option value="">不关联作品</option>
-        {workOptions.map((work) => (
-          <option key={work.id} value={work.id}>{work.title}</option>
-        ))}
-      </select>
       <select name="requestType" defaultValue={defaultRequestType} className="h-12 rounded-[6px] border border-black/10 px-3 text-sm">
         {inquiryTypes.map(([value, label]) => (
-          <option key={value} value={value}>{label}</option>
+          <option key={value} value={value}>
+            {label}
+          </option>
         ))}
       </select>
-      <input name="quantity" inputMode="numeric" placeholder="预计数量，可选" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" />
-      <textarea name="message" required maxLength={2000} placeholder="详细说明需求、作品阶段、预期周期和希望服务商回复的问题。" className="min-h-32 rounded-[6px] border border-black/10 px-3 py-3 text-sm" />
-      <details className="rounded-[8px] bg-paper p-3">
-        <summary className="cursor-pointer text-sm font-semibold text-ink">补充更多信息（可选）</summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <input name="budgetRange" placeholder="预算范围，可选" className="h-12 rounded-[6px] border border-black/10 bg-white px-3 text-sm" />
-          <input name="expectedDate" type="date" className="h-12 rounded-[6px] border border-black/10 bg-white px-3 text-sm" />
-          <input name="contactPreference" placeholder="联系方式偏好，可选" className="h-12 rounded-[6px] border border-black/10 bg-white px-3 text-sm sm:col-span-2" />
+      <textarea
+        name="message"
+        required
+        maxLength={2000}
+        placeholder="说明你想咨询的服务、作品阶段、预计用途或希望服务商回复的问题。"
+        className="min-h-32 rounded-[6px] border border-black/10 px-3 py-3 text-sm"
+      />
+      {workOptions.length ? (
+        <select name="workId" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm">
+          <option value="">不关联作品</option>
+          {workOptions.map((work) => (
+            <option key={work.id} value={work.id}>
+              {work.title}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      <input name="expectedDate" type="date" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" />
+      <fieldset className="rounded-[8px] bg-paper p-3">
+        <legend className="text-sm font-semibold text-ink">联系方式授权</legend>
+        <div className="mt-2 grid gap-2">
+          {CONTACT_AUTH_OPTIONS.map((option) => (
+            <label key={option.value} className="flex items-center gap-2 rounded-[6px] bg-white px-3 py-2 text-sm text-ink/65">
+              <input name="contactPreference" type="radio" value={option.value} defaultChecked={option.value === "SITE_ONLY"} />
+              {option.label}
+            </label>
+          ))}
         </div>
-      </details>
+      </fieldset>
       <button disabled={isPending} className="h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50">
-        {isPending ? "提交中..." : "提交合作询盘"}
+        {isPending ? "发送中..." : "发送询盘"}
       </button>
     </form>
   );

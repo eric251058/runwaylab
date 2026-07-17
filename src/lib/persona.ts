@@ -32,22 +32,28 @@ export const USER_PERSONA_OPTIONS: Array<{ value: UserPersona; label: string; de
 
 export const FIRST_GOAL_OPTIONS: Array<{ value: UserPersona; label: string; description: string; nextPath: string }> = [
   {
-    value: UserPersona.CONSUMER,
-    label: "发现并支持原创设计",
-    description: "浏览作品、收藏喜欢的设计，并提交不付款的预售或想买意向。",
-    nextPath: "/works"
-  },
-  {
     value: UserPersona.DESIGNER,
-    label: "发布我的设计作品",
-    description: "上传作品，获得老师推荐、面料匹配、打样方案和孵化机会。",
+    label: "发布设计作品",
+    description: "上传作品，获得老师推荐、面料匹配、打样方案和预售验证。",
     nextPath: "/publish"
   },
   {
+    value: UserPersona.DESIGNER,
+    label: "寻找面料与生产服务",
+    description: "围绕自己的作品寻找面料、打样、工艺和生产支持。",
+    nextPath: "/providers"
+  },
+  {
     value: UserPersona.FABRIC_SUPPLIER,
-    label: "提供面料 / 打样 / 生产服务",
-    description: "先申请服务商入驻，再参与优秀作品的产业协作。",
+    label: "提供面料、打样或生产服务",
+    description: "先创建服务商主页，再参与优秀作品的产业协作。",
     nextPath: "/providers/apply"
+  },
+  {
+    value: UserPersona.CONSUMER,
+    label: "先随便看看",
+    description: "浏览作品、榜单、预售验证和服务商资源。",
+    nextPath: "/works"
   }
 ];
 

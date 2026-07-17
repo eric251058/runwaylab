@@ -168,7 +168,10 @@ export default async function MeDashboardPage() {
     prisma.providerWorkProposal.count({ where: { work: { userId: currentUser.id } } }),
     prisma.provider.findMany({
       where: {
-        OR: [{ contactEmail: currentUser.email }, { contactName: currentUser.nickname }]
+        OR: [
+          ...(currentUser.email ? [{ contactEmail: currentUser.email }] : []),
+          { contactName: currentUser.nickname }
+        ]
       },
       include: { _count: { select: { fabrics: true, workProposals: true, fabricRecommendations: true } } },
       orderBy: [{ isVerified: "desc" }, { createdAt: "desc" }]
@@ -286,6 +289,7 @@ export default async function MeDashboardPage() {
             <div className="grid gap-3 md:grid-cols-3">
               <ActionCard title="发布新作品" description="上传你的设计作品，进入展示、热度和孵化流程。" href="/publish" />
               <ActionCard title="孵化进度" description="查看面料推荐、服务商方案、预售验证和采购意向。" href="/me/incubation" />
+              <ActionCard title="我的询盘" description="查看你发给服务商的需求、回复和联系方式授权。" href="/me/inquiries" />
               <ActionCard title="预售验证" description="查看正在验证的作品和市场意向。" href="/presale" />
             </div>
           </>

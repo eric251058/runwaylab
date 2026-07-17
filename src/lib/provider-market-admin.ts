@@ -65,7 +65,7 @@ const providerApplicationSchema = z.object({
   logoUrl: z.string().trim().max(500).optional().nullable(),
   serviceArea: z.string().trim().max(120).optional().nullable(),
   responseTime: z.string().trim().max(80).optional().nullable(),
-  description: z.string().trim().min(20, "简介至少 20 个字").max(500, "简介最多 500 个字"),
+  description: z.string().trim().max(120, "一句话介绍最多 120 个字").optional().nullable(),
   patternMaking: z.string().trim().max(40).optional().nullable(),
   sampleSupported: z.boolean().optional().nullable(),
   singleSampleSupported: z.boolean().optional().nullable(),
