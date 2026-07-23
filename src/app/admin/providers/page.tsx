@@ -124,7 +124,8 @@ export default async function AdminProvidersPage({ searchParams }: AdminProvider
               {checkbox("acceptsSmallBatch", "接小单")}
               {checkbox("acceptsLargeOrder", "接大货")}
               {checkbox("opportunityVisible", "公开展示", true)}
-              {checkbox("publicContactEnabled", "公开联系方式")}
+              {checkbox("publicContactEnabled", "允许登录用户发起站内联系")}
+              <p className="basis-full text-xs leading-5 text-ink/45">公开页面不会直接展示完整手机号、邮箱、微信或 WhatsApp；完整联系方式仅在后台和授权询盘上下文查看。</p>
             </div>
             <button className="h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white md:col-span-4">新增服务商</button>
           </form>
@@ -169,7 +170,8 @@ export default async function AdminProvidersPage({ searchParams }: AdminProvider
                     {checkbox("acceptsSmallBatch", "接小单", provider.acceptsSmallBatch)}
                     {checkbox("acceptsLargeOrder", "接大货", provider.acceptsLargeOrder)}
                     {checkbox("opportunityVisible", "公开展示", provider.opportunityVisible)}
-                    {checkbox("publicContactEnabled", "公开联系方式", provider.publicContactEnabled)}
+                    {checkbox("publicContactEnabled", "允许登录用户发起站内联系", provider.publicContactEnabled)}
+                    <p className="basis-full text-xs leading-5 text-ink/45">公开页面不会直接展示完整手机号、邮箱、微信或 WhatsApp；完整联系方式仅在后台和授权询盘上下文查看。</p>
                   </div>
                   <div className="text-xs leading-5 text-ink/45 md:col-span-3">
                     完整度 {completeness.percent}% / 面料 {provider.fabrics.length} / 案例 {provider.showcaseItems.length} / 新询盘 {newInquiryCount} / 归属 {provider.owner?.email ?? provider.contactEmail ?? "未关联"}

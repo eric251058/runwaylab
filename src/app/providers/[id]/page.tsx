@@ -12,8 +12,9 @@ import {
   SUPPLY_PROVIDER_TYPE_LABELS,
   getProviderFitTags,
   getProviderTags,
+  isAdminUser,
+  isProviderOwner,
   listText,
-  providerBelongsToUser,
   providerDisplayImage,
   providerPublicUrl,
   publicProviderWhere
@@ -23,6 +24,7 @@ export const dynamic = "force-dynamic";
 
 type ProviderDetailPageProps = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function infoItem(label: string, value?: string | number | null) {
@@ -40,8 +42,14 @@ function heroFact(label: string, value?: string | number | null) {
   return label ? `${label} ${value}` : String(value);
 }
 
-export default async function ProviderDetailPage({ params }: ProviderDetailPageProps) {
+function searchValue(params: Record<string, string | string[] | undefined> | undefined, key: string) {
+  const value = params?.[key];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function ProviderDetailPage({ params, searchParams }: ProviderDetailPageProps) {
   const { id } = await params;
+  const query = await searchParams;
   const user = await getCurrentUser();
   const provider = await prisma.provider.findFirst({
     where: {
@@ -65,8 +73,11 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
 
   if (!provider) notFound();
 
-  const isOwner = providerBelongsToUser(provider, user);
-  const contactVisible = Boolean(user && provider.publicContactEnabled);
+  const isAdmin = isAdminUser(user);
+  const isOwner = isProviderOwner(provider, user);
+  const isVisitorPreview = isOwner && searchValue(query, "preview") === "visitor";
+  const showOwnerControls = isOwner && !isVisitorPreview;
+  const contactEnabled = provider.publicContactEnabled;
   const heroImage = providerDisplayImage(provider);
   const isFabricProvider = provider.type === ProviderType.FABRIC_SUPPLIER;
   const isSampleStudio = provider.type === ProviderType.SAMPLE_STUDIO;
@@ -91,14 +102,16 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
   const publicUrl = providerPublicUrl(provider);
   const loginHref = `/login?next=${encodeURIComponent(`${publicUrl}#inquiry`)}`;
   const inquiryTitle = "联系服务商";
-  const inquiryDescription = isFactory
-    ? "说明可承接数量、预计周期和作品阶段，本阶段不会生成订单。"
-    : isSampleStudio
-      ? "说明需要制版、样衣或修改的内容，本阶段不会生成订单。"
-      : "说明你需要的面料方向、样布或合作需求，本阶段不会交换私人联系方式。";
+  const inquiryDescription = "通过站内询盘说明作品、面料或合作需求。联系方式默认不会公开，双方确认后再交换。";
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
+      {isVisitorPreview ? (
+        <div className="mb-5 flex flex-col gap-3 rounded-[8px] border border-black/8 bg-white p-4 text-sm text-ink/65 md:flex-row md:items-center md:justify-between">
+          <span className="font-semibold text-ink">正在预览访客视角</span>
+          <Link href={publicUrl} className="text-sm font-semibold text-ink/60 underline underline-offset-4 hover:text-ink">退出预览</Link>
+        </div>
+      ) : null}
       <header className="grid gap-6 rounded-[8px] border border-black/8 bg-white p-4 md:grid-cols-[0.9fr_1.1fr] md:p-6">
         <SafeImage
           src={heroImage}
@@ -124,12 +137,32 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
             </div>
           ) : null}
           <div className="mt-5 flex flex-wrap gap-2">
-            <a href="#inquiry" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">联系服务商</a>
-            <a href="#products" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看产品与案例</a>
-            {isOwner ? <Link href="/provider-center" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">管理主页</Link> : null}
+            {showOwnerControls ? (
+              <>
+                <Link href="/provider-center/profile" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">编辑服务商主页</Link>
+                <Link href="/provider-center/fabrics" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">管理面料产品</Link>
+                <Link href="/provider-center/showcase" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">管理案例</Link>
+                <Link href="/provider-center/inquiries" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看收到的询盘</Link>
+                <Link href="/provider-center/recommendations" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看发出的推荐</Link>
+                <Link href={`${publicUrl}?preview=visitor`} className="inline-flex h-11 items-center justify-center rounded-full px-4 text-sm font-semibold text-ink/60 hover:bg-paper hover:text-ink">预览访客视角</Link>
+              </>
+            ) : (
+              <>
+                {contactEnabled ? <a href="#inquiry" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">发送站内询盘</a> : null}
+                <a href="#products" className={`inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold ${contactEnabled ? "border border-black/10 text-ink" : "bg-ink text-white"}`}>查看产品与案例</a>
+                {isAdmin ? <Link href="/admin/providers" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">后台管理此服务商</Link> : null}
+              </>
+            )}
           </div>
         </div>
       </header>
+
+      {showOwnerControls ? (
+        <section className="mt-6 rounded-[8px] border border-black/8 bg-white p-5">
+          <h2 className="text-2xl font-semibold text-ink">服务商主页管理</h2>
+          <p className="mt-2 text-sm leading-6 text-ink/58">这是你的公开主页。访客不会看到管理入口，也不能在这里获得你的完整联系方式。</p>
+        </section>
+      ) : null}
 
       <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {infoItem(isFabricProvider ? "主营面料" : isSampleStudio ? "擅长品类" : "主营品类", listText(provider.materials.length && isFabricProvider ? provider.materials : provider.categories.length ? provider.categories : provider.specialties, ""))}
@@ -195,32 +228,27 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
         )}
       </section>
 
-      <section id="inquiry" className="mt-10 grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-        <div className="rounded-[8px] border border-black/8 bg-white p-5">
-          <h2 className="text-2xl font-semibold text-ink">{isFactory ? "发起生产合作" : isSampleStudio ? "发起打样合作" : "联系与合作"}</h2>
-          <p className="mt-3 text-sm leading-6 text-ink/58">提交合作需求后，服务商会根据作品和需求判断是否适合继续沟通。</p>
-          {contactVisible ? (
-            <div className="mt-4 space-y-2 text-sm text-ink/60">
-              {provider.contactEmail ? <p>邮箱：{provider.contactEmail}</p> : null}
-              {provider.contactPhone ? <p>电话：{provider.contactPhone}</p> : null}
-              {provider.wechat ? <p>微信：{provider.wechat}</p> : null}
-              {provider.whatsapp ? <p>WhatsApp：{provider.whatsapp}</p> : null}
-              {provider.website ? <p>网站：<a className="underline" href={provider.website}>{provider.website}</a></p> : null}
-            </div>
+      {!showOwnerControls ? (
+        <section id="inquiry" className="mt-10">
+          {contactEnabled ? (
+            <ProviderInquiryForm
+              providerId={provider.id}
+              workOptions={workOptions}
+              loginHref={loginHref}
+              isLoggedIn={Boolean(user)}
+              defaultRequestType={providerInquiryTypeForProvider(provider.type)}
+              title={inquiryTitle}
+              description={inquiryDescription}
+              disabledReason={isVisitorPreview ? "预览模式下不能向自己发送询盘。" : undefined}
+            />
           ) : (
-            <p className="mt-4 rounded-[6px] bg-paper p-3 text-sm leading-6 text-ink/55">私人联系方式未公开。登录后可提交站内询盘，服务商会在工作台处理。</p>
+            <div className="rounded-[8px] border border-black/8 bg-white p-5">
+              <h2 className="text-2xl font-semibold text-ink">联系服务商</h2>
+              <p className="mt-3 text-sm leading-6 text-ink/58">该服务商暂未开启站内联系。你仍可以先查看公开产品与案例。</p>
+            </div>
           )}
-        </div>
-        <ProviderInquiryForm
-          providerId={provider.id}
-          workOptions={workOptions}
-          loginHref={loginHref}
-          isLoggedIn={Boolean(user)}
-          defaultRequestType={providerInquiryTypeForProvider(provider.type)}
-          title={inquiryTitle}
-          description={inquiryDescription}
-        />
-      </section>
+        </section>
+      ) : null}
     </div>
   );
 }

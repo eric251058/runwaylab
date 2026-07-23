@@ -8,6 +8,9 @@ type AuthUser = {
   id: string;
   nickname: string;
   email?: string | null;
+  displayName?: string | null;
+  providerName?: string | null;
+  maskedAccount?: string | null;
   role: string;
   status: string;
   persona?: string | null;
@@ -61,6 +64,7 @@ export function AuthNav() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [ready, setReady] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -84,14 +88,28 @@ export function AuthNav() {
   if (!isCoveredRoute(pathname) || !ready) return null;
 
   async function logout() {
+    if (loggingOut) return;
+    setLogoutError("");
     setLoggingOut(true);
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
-    router.push("/login");
-    router.refresh();
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) {
+        throw new Error("Logout request failed");
+      }
+      router.push("/login");
+      router.refresh();
+    } catch {
+      setLoggingOut(false);
+      setLogoutError("退出失败，请稍后再试。");
+    }
   }
 
   const providerMode = isProviderUser(user);
   const items = navItems(providerMode);
+  const accountLabel = user?.displayName || user?.providerName || user?.maskedAccount || "账号";
+  const logoutLabel = loggingOut ? "退出中…" : "退出登录";
+  const menuItemClass = "rounded-[8px] px-3 py-2 text-left text-ink/70 transition hover:bg-paper hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:pointer-events-none disabled:text-ink/35 disabled:opacity-60";
+  const logoutFeedback = logoutError ? <p className="px-3 py-1 text-xs leading-5 text-red-600" aria-live="polite">{logoutError}</p> : null;
 
   return (
     <>
@@ -119,7 +137,7 @@ export function AuthNav() {
               providerMode ? (
                 <details className="group relative">
                   <summary className="list-none rounded-full px-3 py-2 transition hover:bg-paper [&::-webkit-details-marker]:hidden">
-                    {user.nickname || "账号"}
+                    {accountLabel}
                   </summary>
                   <div className="absolute right-0 mt-2 grid min-w-40 gap-1 rounded-[12px] border border-black/8 bg-white p-2 shadow-[0_18px_50px_rgba(16,16,16,0.10)]">
                     <Link href="/me/profile" className="rounded-[8px] px-3 py-2 text-ink/65 hover:bg-paper hover:text-ink">
@@ -134,10 +152,11 @@ export function AuthNav() {
                       type="button"
                       onClick={logout}
                       disabled={loggingOut}
-                      className="rounded-[8px] px-3 py-2 text-left text-ink/50 hover:bg-paper hover:text-ink disabled:opacity-50"
+                      className={menuItemClass}
                     >
-                      退出登录
+                      {logoutLabel}
                     </button>
+                    {logoutFeedback}
                   </div>
                 </details>
               ) : (
@@ -146,7 +165,7 @@ export function AuthNav() {
                     我的
                   </Link>
                   <details className="group relative">
-                    <summary className="list-none rounded-full px-3 py-2 transition hover:bg-paper [&::-webkit-details-marker]:hidden">账号</summary>
+                    <summary className="list-none rounded-full px-3 py-2 transition hover:bg-paper [&::-webkit-details-marker]:hidden">{accountLabel}</summary>
                     <div className="absolute right-0 mt-2 grid min-w-40 gap-1 rounded-[12px] border border-black/8 bg-white p-2 shadow-[0_18px_50px_rgba(16,16,16,0.10)]">
                       <Link href="/me/dashboard" className="rounded-[8px] px-3 py-2 text-ink/65 hover:bg-paper hover:text-ink">
                         个人工作台
@@ -163,10 +182,11 @@ export function AuthNav() {
                         type="button"
                         onClick={logout}
                         disabled={loggingOut}
-                        className="rounded-[8px] px-3 py-2 text-left text-ink/50 hover:bg-paper hover:text-ink disabled:opacity-50"
+                        className={menuItemClass}
                       >
-                        退出登录
+                        {logoutLabel}
                       </button>
+                      {logoutFeedback}
                     </div>
                   </details>
                 </>
@@ -185,9 +205,10 @@ export function AuthNav() {
             <Link href={providerMode ? "/provider-center" : "/me"} className="rounded-full px-3 py-2 transition hover:bg-paper">
               {providerMode ? "工作台" : "我的"}
             </Link>
-            <button type="button" onClick={logout} disabled={loggingOut} className="rounded-full px-3 py-2 text-ink/55 transition hover:bg-paper hover:text-ink disabled:opacity-50">
-              退出
+            <button type="button" onClick={logout} disabled={loggingOut} className="rounded-full px-3 py-2 text-ink/70 transition hover:bg-paper hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:pointer-events-none disabled:text-ink/35 disabled:opacity-60">
+              {loggingOut ? "退出中…" : "退出"}
             </button>
+            {logoutError ? <span className="sr-only" aria-live="polite">{logoutError}</span> : null}
           </>
         ) : (
           <Link href="/login" className="rounded-full px-3 py-2 transition hover:bg-paper">

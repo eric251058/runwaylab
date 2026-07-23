@@ -1,4 +1,4 @@
-import { Prisma, ProviderStatus, UserRole, UserStatus, type User } from "@prisma/client";
+import { Prisma, ProviderStatus, UserStatus, type User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 type ProviderAccessUser = Pick<User, "id" | "email" | "role" | "status"> | null | undefined;
@@ -6,7 +6,8 @@ type ProviderAccessUser = Pick<User, "id" | "email" | "role" | "status"> | null 
 function userProviderWhere(user: Pick<User, "id" | "email">) {
   const conditions: Prisma.ProviderWhereInput[] = [{ ownerId: user.id }];
   if (user.email) {
-    conditions.push({ contactEmail: user.email });
+    // Legacy fallback for providers created before ownerId binding. This is an exact normalized email match, not a role permission.
+    conditions.push({ contactEmail: { equals: user.email.trim().toLowerCase(), mode: Prisma.QueryMode.insensitive } });
   }
 
   return {
@@ -28,12 +29,6 @@ export async function getProviderForUser(user: ProviderAccessUser) {
 
 export async function getAnyProviderForUser(user: ProviderAccessUser) {
   if (!user?.id || user.status !== UserStatus.ACTIVE) return null;
-
-  if (user.role === UserRole.ADMIN) {
-    return prisma.provider.findFirst({
-      orderBy: [{ updatedAt: "desc" }]
-    });
-  }
 
   return prisma.provider.findFirst({
     where: userProviderWhere(user),

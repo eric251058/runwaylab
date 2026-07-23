@@ -19,6 +19,7 @@ type ProviderInquiryFormProps = {
   defaultRequestType?: string;
   title?: string;
   description?: string;
+  disabledReason?: string;
 };
 
 const inquiryTypes = [
@@ -39,7 +40,8 @@ export function ProviderInquiryForm({
   showcaseItemId,
   defaultRequestType = "FABRIC_SAMPLE",
   title = "联系服务商",
-  description = "发送站内询盘，先说明你需要的服务。联系方式默认不公开。"
+  description = "发送站内询盘，先说明你需要的服务。联系方式默认不公开。",
+  disabledReason
 }: ProviderInquiryFormProps) {
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState("");
@@ -60,6 +62,10 @@ export function ProviderInquiryForm({
   function onSubmit(formData: FormData) {
     setMessage("");
     setSuccess("");
+    if (disabledReason) {
+      setMessage(disabledReason);
+      return;
+    }
     const payload = {
       providerId,
       fabricId,
@@ -131,7 +137,7 @@ export function ProviderInquiryForm({
         </div>
       </fieldset>
       <button disabled={isPending} className="h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50">
-        {isPending ? "发送中..." : "发送询盘"}
+        {isPending ? "发送中..." : disabledReason ? "预览状态，不能发送" : "发送站内询盘"}
       </button>
     </form>
   );

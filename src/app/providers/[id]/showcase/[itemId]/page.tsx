@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import {
   PROVIDER_SHOWCASE_TYPE_LABELS,
   SUPPLY_PROVIDER_TYPE_LABELS,
+  isAdminUser,
+  isProviderOwner,
   listText,
   providerPublicUrl,
   publicProviderWhere,
@@ -60,6 +62,9 @@ export default async function ProviderShowcaseDetailPage({ params }: ShowcaseDet
   const loginHref = `/login?next=${encodeURIComponent(`${providerUrl}/showcase/${item.id}#inquiry`)}`;
   const cover = visibleImage(item.coverImageUrl);
   const images = [item.coverImageUrl, ...item.imageUrls].map(visibleImage).filter(Boolean) as string[];
+  const isOwner = isProviderOwner(item.provider, user);
+  const isAdmin = isAdminUser(user);
+  const contactEnabled = item.provider.publicContactEnabled;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
@@ -79,7 +84,21 @@ export default async function ProviderShowcaseDetailPage({ params }: ShowcaseDet
             <span className="rounded-full bg-paper px-4 py-2 text-sm font-semibold text-ink/55">{SUPPLY_PROVIDER_TYPE_LABELS[item.provider.type]}</span>
             {item.tags.slice(0, 6).map((tag) => <span key={tag} className="rounded-full bg-paper px-4 py-2 text-sm font-semibold text-ink/55">{tag}</span>)}
           </div>
-          <a href="#inquiry" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">联系服务商</a>
+          <div className="mt-6 flex flex-wrap gap-2">
+            {isOwner ? (
+              <>
+                <Link href={`/provider-center/showcase/${item.id}/edit`} className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">编辑案例</Link>
+                <Link href="/provider-center/showcase" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">返回案例管理</Link>
+                <Link href="/provider-center/inquiries" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看收到的询盘</Link>
+                <Link href={providerUrl} className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看服务商主页</Link>
+              </>
+            ) : (
+              <>
+                {contactEnabled ? <a href="#inquiry" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">发送站内询盘</a> : null}
+                {isAdmin ? <Link href="/admin/providers" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">后台管理此服务商</Link> : null}
+              </>
+            )}
+          </div>
         </section>
       </div>
 
@@ -107,9 +126,26 @@ export default async function ProviderShowcaseDetailPage({ params }: ShowcaseDet
         </section>
       ) : null}
 
-      <section id="inquiry" className="mt-10">
-        <ProviderInquiryForm providerId={item.providerId} showcaseItemId={item.id} workOptions={workOptions} loginHref={loginHref} isLoggedIn={Boolean(user)} />
-      </section>
+      {!isOwner ? (
+        <section id="inquiry" className="mt-10">
+          {contactEnabled ? (
+            <ProviderInquiryForm
+              providerId={item.providerId}
+              showcaseItemId={item.id}
+              workOptions={workOptions}
+              loginHref={loginHref}
+              isLoggedIn={Boolean(user)}
+              title="联系服务商"
+              description="通过站内询盘说明作品、面料或合作需求。联系方式默认不会公开，双方确认后再交换。"
+            />
+          ) : (
+            <div className="rounded-[8px] border border-black/8 bg-white p-5">
+              <h2 className="text-2xl font-semibold text-ink">联系服务商</h2>
+              <p className="mt-3 text-sm leading-6 text-ink/58">该服务商暂未开启站内联系。你仍可以先查看公开案例。</p>
+            </div>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

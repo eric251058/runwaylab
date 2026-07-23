@@ -118,7 +118,7 @@ export default async function ProviderCenterProfilePage() {
           <div className="md:col-span-2">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">STEP 4</p>
             <h2 className="mt-2 text-xl font-semibold text-ink">联系方式</h2>
-            <p className="mt-1 text-sm text-ink/52">联系方式只对登录用户展示，也可以仅开启站内询盘。</p>
+            <p className="mt-1 text-sm leading-6 text-ink/52">公开页面不会直接展示完整手机号、邮箱、微信或 WhatsApp。双方可先通过站内询盘沟通，并在明确授权后交换联系方式。</p>
           </div>
           <input name="contactName" defaultValue={provider.contactName ?? ""} placeholder="联系人" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" disabled={suspended} />
           <input name="contactPhone" defaultValue={provider.contactPhone ?? ""} placeholder="电话" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" disabled={suspended} />
@@ -126,7 +126,7 @@ export default async function ProviderCenterProfilePage() {
           <input name="wechat" defaultValue={provider.wechat ?? ""} placeholder="微信" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" disabled={suspended} />
           <input name="whatsapp" defaultValue={provider.whatsapp ?? ""} placeholder="WhatsApp" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" disabled={suspended} />
           <input name="website" defaultValue={provider.website ?? ""} placeholder="网站" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" disabled={suspended} />
-          <label className="flex items-center gap-2 text-sm md:col-span-2"><input name="publicContactEnabled" type="checkbox" defaultChecked={provider.publicContactEnabled} disabled={suspended} />登录用户可见联系方式</label>
+          <label className="flex items-center gap-2 text-sm md:col-span-2"><input name="publicContactEnabled" type="checkbox" defaultChecked={provider.publicContactEnabled} disabled={suspended} />允许登录用户发起站内联系</label>
           <button disabled={suspended} className="h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50 md:col-span-2">保存主页资料</button>
         </section>
       </form>

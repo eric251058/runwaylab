@@ -82,12 +82,14 @@ export async function POST(request: Request) {
         id: true,
         name: true,
         ownerId: true,
-        contactEmail: true
+        contactEmail: true,
+        publicContactEnabled: true
       }
     });
 
     if (!provider) return jsonError("服务商不存在或暂不可联系。", 404);
     if (providerBelongsToUser(provider, user)) return jsonError("不能给自己的服务商主页发送询盘。", 403);
+    if (!provider.publicContactEnabled) return jsonError("该服务商暂未开启站内联系。", 403);
 
     if (data.workId) {
       const ownWork = await prisma.work.findFirst({
