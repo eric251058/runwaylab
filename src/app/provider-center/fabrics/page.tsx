@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FabricStatus, ProviderType } from "@prisma/client";
+import { LifecycleActionButton } from "@/components/lifecycle/LifecycleActionButton";
+import { updateProviderFabricLifecycle } from "@/lib/provider-center-actions";
 import { getProviderCenterContext } from "@/lib/provider-center-context";
 import { prisma } from "@/lib/prisma";
 
@@ -87,7 +89,7 @@ export default async function ProviderCenterFabricsPage({ searchParams }: Provid
               <span>分类 / 属性</span>
               <span>公开状态</span>
               <span>更新时间</span>
-              <span>编辑</span>
+              <span>操作</span>
             </div>
             {fabrics.map((fabric) => (
               <div key={fabric.id} className="grid grid-cols-[112px_1.4fr_1fr_110px_110px_92px] items-center gap-4 border-b border-black/6 px-4 py-4 last:border-b-0">
@@ -99,7 +101,29 @@ export default async function ProviderCenterFabricsPage({ searchParams }: Provid
                 <p className="truncate text-sm text-ink/55">{compactMeta([fabric.usage, fabric.composition, fabric.weight]) || "未填写"}</p>
                 <span className="text-sm font-semibold text-ink/55">{fabricStatusLabels[fabric.status]}</span>
                 <span className="text-sm text-ink/45">{formatDate(fabric.updatedAt)}</span>
-                <Link href={`/provider-center/fabrics/${fabric.id}/edit`} className="text-sm font-semibold text-ink underline-offset-4 hover:underline">编辑</Link>
+                <div className="grid gap-2">
+                  <Link href={`/provider-center/fabrics/${fabric.id}/edit`} className="text-sm font-semibold text-ink underline-offset-4 hover:underline">编辑</Link>
+                  {fabric.status === FabricStatus.ACTIVE ? (
+                    <form action={updateProviderFabricLifecycle}>
+                      <input type="hidden" name="id" value={fabric.id} />
+                      <input type="hidden" name="action" value="offline" />
+                      <LifecycleActionButton label="下架面料" title="下架面料" description={`对象：${fabric.name}`} consequence="下架后不会出现在公开面料库，历史推荐、询盘和项目记录会保留。此操作可恢复。" confirmLabel="下架面料" />
+                    </form>
+                  ) : (
+                    <form action={updateProviderFabricLifecycle}>
+                      <input type="hidden" name="id" value={fabric.id} />
+                      <input type="hidden" name="action" value="restore" />
+                      <LifecycleActionButton label="恢复展示" title="恢复展示" description={`对象：${fabric.name}`} consequence="恢复后面料会重新进入公开面料库。请确认图片、参数和联系方式仍然准确。" confirmLabel="恢复展示" />
+                    </form>
+                  )}
+                  {fabric.status !== FabricStatus.ACTIVE ? (
+                    <form action={updateProviderFabricLifecycle}>
+                      <input type="hidden" name="id" value={fabric.id} />
+                      <input type="hidden" name="action" value="delete" />
+                      <LifecycleActionButton variant="destructive" label="删除草稿" title="删除草稿" description={`对象：${fabric.name}`} consequence="系统会先检查推荐、询盘和项目依赖；存在业务记录时不会永久删除。" confirmLabel="删除草稿" />
+                    </form>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>
@@ -114,6 +138,21 @@ export default async function ProviderCenterFabricsPage({ searchParams }: Provid
               <div className="mt-4 flex gap-2">
                 <Link href={`/fabrics/${fabric.slug ?? fabric.id}`} className="rounded-full border border-black/10 px-4 py-2 text-sm font-semibold text-ink">查看公开页面</Link>
                 <Link href={`/provider-center/fabrics/${fabric.id}/edit`} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">编辑</Link>
+              </div>
+              <div className="mt-3 grid gap-2">
+                {fabric.status === FabricStatus.ACTIVE ? (
+                  <form action={updateProviderFabricLifecycle}>
+                    <input type="hidden" name="id" value={fabric.id} />
+                    <input type="hidden" name="action" value="offline" />
+                    <LifecycleActionButton label="下架面料" title="下架面料" description={`对象：${fabric.name}`} consequence="下架后不会出现在公开面料库，历史记录会保留。此操作可恢复。" confirmLabel="下架面料" />
+                  </form>
+                ) : (
+                  <form action={updateProviderFabricLifecycle}>
+                    <input type="hidden" name="id" value={fabric.id} />
+                    <input type="hidden" name="action" value="restore" />
+                    <LifecycleActionButton label="恢复展示" title="恢复展示" description={`对象：${fabric.name}`} consequence="恢复后面料会重新进入公开面料库。" confirmLabel="恢复展示" />
+                  </form>
+                )}
               </div>
             </article>
           ))}

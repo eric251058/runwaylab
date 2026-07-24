@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ProviderShowcaseStatus } from "@prisma/client";
+import { LifecycleActionButton } from "@/components/lifecycle/LifecycleActionButton";
 import { SafeImage } from "@/components/media/SafeImage";
+import { updateProviderShowcaseLifecycle } from "@/lib/provider-center-actions";
 import { getProviderCenterContext } from "@/lib/provider-center-context";
 import { prisma } from "@/lib/prisma";
 import { PROVIDER_SHOWCASE_STATUS_LABELS, PROVIDER_SHOWCASE_TYPE_LABELS } from "@/lib/supply-network";
@@ -48,6 +51,29 @@ export default async function ProviderCenterShowcasePage() {
                 <div className="mt-4 flex gap-2">
                   {item.status === "PUBLISHED" ? <Link href={`/providers/${provider.slug ?? provider.id}/showcase/${item.id}`} className="rounded-full border border-black/10 px-4 py-2 text-sm font-semibold text-ink">公开页</Link> : null}
                   <Link href={`/provider-center/showcase/${item.id}/edit`} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">编辑</Link>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {item.status === ProviderShowcaseStatus.PUBLISHED ? (
+                    <form action={updateProviderShowcaseLifecycle}>
+                      <input type="hidden" name="id" value={item.id} />
+                      <input type="hidden" name="action" value="offline" />
+                      <LifecycleActionButton label="下架案例" title="下架案例" description={`对象：${item.title}`} consequence="下架后访客不能通过公开列表或旧链接看到该案例，历史询盘会保留。此操作可重新提交。" confirmLabel="下架案例" />
+                    </form>
+                  ) : null}
+                  {item.status === ProviderShowcaseStatus.ARCHIVED ? (
+                    <form action={updateProviderShowcaseLifecycle}>
+                      <input type="hidden" name="id" value={item.id} />
+                      <input type="hidden" name="action" value="resubmit" />
+                      <LifecycleActionButton label="重新提交" title="重新提交案例" description={`对象：${item.title}`} consequence="当前 schema 不记录下架前发布状态；重新提交会回到平台审核流程。" confirmLabel="重新提交" />
+                    </form>
+                  ) : null}
+                  {item.status !== ProviderShowcaseStatus.PUBLISHED && item.status !== ProviderShowcaseStatus.ARCHIVED ? (
+                    <form action={updateProviderShowcaseLifecycle}>
+                      <input type="hidden" name="id" value={item.id} />
+                      <input type="hidden" name="action" value="delete" />
+                      <LifecycleActionButton variant="destructive" label="删除草稿" title="删除草稿" description={`对象：${item.title}`} consequence="系统会先检查询盘依赖；存在业务记录时不会永久删除。" confirmLabel="删除草稿" />
+                    </form>
+                  ) : null}
                 </div>
               </article>
             );

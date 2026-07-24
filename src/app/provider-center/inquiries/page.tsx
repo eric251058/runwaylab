@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RequestStatus } from "@prisma/client";
+import { LifecycleActionButton } from "@/components/lifecycle/LifecycleActionButton";
 import { InquiryReplyForm } from "@/components/providers/InquiryReplyForm";
 import { updateProviderInquiry } from "@/lib/provider-center-actions";
 import { getProviderCenterContext } from "@/lib/provider-center-context";
@@ -174,22 +175,30 @@ export default async function ProviderCenterInquiriesPage() {
                       </div>
                     </details>
                   </div>
-                  <form action={updateProviderInquiry} className="grid gap-2 lg:w-72">
-                    <input type="hidden" name="id" value={inquiry.id} />
-                    <input type="hidden" name="providerResponse" value={inquiry.providerResponse ?? ""} />
-                    <button name="status" value={RequestStatus.CONTACTED} className="h-10 rounded-full border border-black/10 px-3 text-xs font-semibold">
-                      标记已查看
-                    </button>
-                    <button name="status" value={RequestStatus.EVALUATED} className="h-10 rounded-full border border-black/10 px-3 text-xs font-semibold">
-                      标记感兴趣
-                    </button>
-                    <button name="status" value={RequestStatus.CLOSED} className="h-10 rounded-full border border-black/10 px-3 text-xs font-semibold">
-                      暂不合适
-                    </button>
-                    <button name="status" value={RequestStatus.COMPLETED} className="h-10 rounded-full bg-ink px-3 text-xs font-semibold text-white">
-                      已结束
-                    </button>
-                  </form>
+                  <div className="grid gap-2 lg:w-72">
+                    {[RequestStatus.CONTACTED, RequestStatus.EVALUATED].map((status) => (
+                      <form key={status} action={updateProviderInquiry}>
+                        <input type="hidden" name="id" value={inquiry.id} />
+                        <input type="hidden" name="providerResponse" value={inquiry.providerResponse ?? ""} />
+                        <input type="hidden" name="status" value={status} />
+                        <button disabled={disabled} className="h-10 w-full rounded-full border border-black/10 px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:bg-paper disabled:text-ink/35">
+                          {status === RequestStatus.CONTACTED ? "标记已查看" : "标记感兴趣"}
+                        </button>
+                      </form>
+                    ))}
+                    <form action={updateProviderInquiry}>
+                      <input type="hidden" name="id" value={inquiry.id} />
+                      <input type="hidden" name="providerResponse" value={inquiry.providerResponse ?? ""} />
+                      <input type="hidden" name="status" value={RequestStatus.CLOSED} />
+                      <LifecycleActionButton disabled={disabled} disabledReason="该询盘已结束，不能再次关闭。" label="关闭询盘" title="关闭询盘" description={`对象：${inquiry.user.nickname} 的询盘`} consequence="关闭后双方不能继续回复，完整沟通记录会保留。" confirmLabel="关闭询盘" />
+                    </form>
+                    <form action={updateProviderInquiry}>
+                      <input type="hidden" name="id" value={inquiry.id} />
+                      <input type="hidden" name="providerResponse" value={inquiry.providerResponse ?? ""} />
+                      <input type="hidden" name="status" value={RequestStatus.COMPLETED} />
+                      <LifecycleActionButton variant="primary" disabled={disabled} disabledReason="该询盘已结束。" label="完成合作" title="完成合作" description={`对象：${inquiry.user.nickname} 的询盘`} consequence="完成后双方不能继续回复，页面会保留完整历史记录。" confirmLabel="完成合作" />
+                    </form>
+                  </div>
                 </div>
               </article>
             );

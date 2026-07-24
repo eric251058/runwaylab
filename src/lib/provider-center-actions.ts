@@ -14,6 +14,19 @@ import {
 } from "@prisma/client";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
+import {
+  canHardDeleteFabric,
+  canHardDeleteShowcase,
+  canOfflineFabric,
+  canOfflineShowcase,
+  canProviderTransitionInquiry,
+  canResubmitShowcase,
+  canRestoreFabric,
+  getFabricDeleteDependencies,
+  getShowcaseDeleteDependencies,
+  hasDependencies,
+  publicDependencySummary
+} from "@/lib/content-lifecycle";
 import { isAdmin } from "@/lib/permissions";
 import { getAnyProviderForUser } from "@/lib/provider-access";
 import { providerShowcaseTypeForProvider } from "@/lib/provider-onboarding";
@@ -382,6 +395,41 @@ export async function saveProviderCenterFabric(_state: ProviderFabricFormState, 
   redirect("/provider-center/fabrics?saved=1");
 }
 
+export async function updateProviderFabricLifecycle(formData: FormData) {
+  const { provider } = await requireProviderForWrite();
+  const id = textValue(formData, "id");
+  const action = textValue(formData, "action");
+  if (!id || !action) throw new Error("缺少面料操作参数");
+
+  const fabric = await prisma.fabric.findUnique({
+    where: { id },
+    select: { id: true, providerId: true, status: true, slug: true }
+  });
+  if (!fabric || fabric.providerId !== provider.id) throw new Error("没有权限管理该面料");
+
+  if (action === "offline") {
+    if (!canOfflineFabric(fabric)) throw new Error("当前面料不能下架");
+    await prisma.fabric.update({ where: { id }, data: { status: FabricStatus.INACTIVE, isFeatured: false } });
+  } else if (action === "restore") {
+    if (!canRestoreFabric(fabric)) throw new Error("当前面料不能恢复展示");
+    await prisma.fabric.update({ where: { id }, data: { status: FabricStatus.ACTIVE } });
+  } else if (action === "delete") {
+    const dependencies = await getFabricDeleteDependencies(id);
+    if (!canHardDeleteFabric(fabric, dependencies)) {
+      const detail = JSON.stringify(publicDependencySummary(dependencies));
+      throw new Error(hasDependencies(dependencies) ? `该面料已经产生推荐、询盘或项目记录，不能永久删除。依赖：${detail}` : "只有未公开且无业务记录的面料草稿可以永久删除。");
+    }
+    await prisma.fabric.delete({ where: { id } });
+  } else {
+    throw new Error("不支持的面料操作");
+  }
+
+  revalidatePath("/provider-center/fabrics");
+  revalidatePath("/fabrics");
+  revalidatePath(`/providers/${provider.slug ?? provider.id}`);
+  if (fabric.slug) revalidatePath(`/fabrics/${fabric.slug}`);
+}
+
 const showcaseSchema = z.object({
   type: z.nativeEnum(ProviderShowcaseType),
   title: z.string().trim().min(1, "案例标题不能为空").max(100),
@@ -438,6 +486,45 @@ export async function saveProviderShowcaseItem(formData: FormData) {
   redirect("/provider-center/showcase");
 }
 
+export async function updateProviderShowcaseLifecycle(formData: FormData) {
+  const { provider } = await requireProviderForWrite();
+  const id = textValue(formData, "id");
+  const action = textValue(formData, "action");
+  if (!id || !action) throw new Error("缺少案例操作参数");
+
+  const item = await prisma.providerShowcaseItem.findUnique({
+    where: { id },
+    select: { id: true, providerId: true, status: true }
+  });
+  if (!item || item.providerId !== provider.id) throw new Error("没有权限管理该案例");
+
+  if (action === "offline") {
+    if (!canOfflineShowcase(item)) throw new Error("当前案例不能下架");
+    await prisma.providerShowcaseItem.update({
+      where: { id },
+      data: { status: ProviderShowcaseStatus.ARCHIVED, isFeatured: false, publishedAt: null }
+    });
+  } else if (action === "resubmit") {
+    if (!canResubmitShowcase(item)) throw new Error("当前案例不能重新提交");
+    await prisma.providerShowcaseItem.update({
+      where: { id },
+      data: { status: ProviderShowcaseStatus.PENDING_REVIEW, reviewNote: null }
+    });
+  } else if (action === "delete") {
+    const dependencies = await getShowcaseDeleteDependencies(id);
+    if (!canHardDeleteShowcase(item, dependencies)) {
+      const detail = JSON.stringify(publicDependencySummary(dependencies));
+      throw new Error(hasDependencies(dependencies) ? `该案例已经产生询盘或业务记录，不能永久删除。依赖：${detail}` : "只有未公开且无业务记录的案例草稿可以永久删除。");
+    }
+    await prisma.providerShowcaseItem.delete({ where: { id } });
+  } else {
+    throw new Error("不支持的案例操作");
+  }
+
+  revalidatePath("/provider-center/showcase");
+  revalidatePath(`/providers/${provider.slug ?? provider.id}`);
+}
+
 export async function reviewProviderShowcaseItem(formData: FormData) {
   const user = await getCurrentUser();
   if (!isAdmin(user)) throw new Error("没有后台权限");
@@ -486,6 +573,7 @@ export async function updateProviderInquiry(formData: FormData) {
 
   const status = (textValue(formData, "status") ?? RequestStatus.CONTACTED) as RequestStatus;
   if (!Object.values(RequestStatus).includes(status)) throw new Error("询盘状态不合法");
+  if (!canProviderTransitionInquiry(inquiry.status, status)) throw new Error("该询盘状态不能这样变更；已关闭或已完成的询盘会保留历史记录。");
   const now = new Date();
 
   await prisma.cooperationRequest.update({

@@ -162,6 +162,7 @@ export default async function MePage({ searchParams }: MePageProps) {
     id: work.id,
     title: work.title,
     reviewStatus: work.reviewStatus,
+    contentStatus: work.contentStatus,
     rejectReason: work.rejectReason,
     createdAt: work.createdAt.toISOString(),
     isOpenCoop: work.isOpenCoop,

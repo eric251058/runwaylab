@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RequestStatus } from "@prisma/client";
+import { LifecycleActionButton } from "@/components/lifecycle/LifecycleActionButton";
 import { ContactAuthorizationControl } from "@/components/providers/ContactAuthorizationControl";
 import { InquiryReplyForm } from "@/components/providers/InquiryReplyForm";
 import { getCurrentUser } from "@/lib/auth/session";
+import { updateDesignerInquiryLifecycle } from "@/lib/inquiry-lifecycle-actions";
 import { prisma } from "@/lib/prisma";
 import { PROVIDER_INQUIRY_STATUS_LABELS, PROVIDER_INQUIRY_TYPE_LABELS, providerPublicUrl } from "@/lib/supply-network";
 
@@ -114,6 +116,25 @@ export default async function MyInquiriesPage() {
                     <InquiryReplyForm inquiryId={inquiry.id} placeholder="补充作品阶段、数量、时间或其他说明。" buttonLabel="补充信息" disabled={disabled} />
                   </div>
                 </details>
+                {!disabled ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {inquiry.status === RequestStatus.PENDING && inquiry.replies.length === 0 ? (
+                      <form action={updateDesignerInquiryLifecycle}>
+                        <input type="hidden" name="id" value={inquiry.id} />
+                        <input type="hidden" name="action" value="withdraw" />
+                        <LifecycleActionButton variant="destructive" label="撤回询盘" title="撤回询盘" description={`对象：${inquiry.provider?.name ?? "服务商询盘"}`} consequence="服务商尚未回复，撤回后双方不能继续回复，历史记录仍会保留。" confirmLabel="撤回询盘" />
+                      </form>
+                    ) : (
+                      <form action={updateDesignerInquiryLifecycle}>
+                        <input type="hidden" name="id" value={inquiry.id} />
+                        <input type="hidden" name="action" value="close" />
+                        <LifecycleActionButton label="关闭询盘" title="关闭询盘" description={`对象：${inquiry.provider?.name ?? "服务商询盘"}`} consequence="关闭后双方不能继续回复，完整沟通记录会保留。" confirmLabel="关闭询盘" />
+                      </form>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-3 rounded-[6px] bg-paper p-3 text-sm text-ink/50">该询盘已结束，历史记录已保留。</p>
+                )}
               </article>
             );
           })}
