@@ -4,6 +4,7 @@ import { FabricStatus, Prisma, ProviderAvailabilityStatus, ProviderType, Recomme
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createNotificationSafe } from "@/lib/fabric-recommendations";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { getProviderForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
 import { apiError, forbidden, tooManyRequests, unauthenticated } from "@/lib/security/api-response";
@@ -134,6 +135,8 @@ export async function POST(request: Request, context: RouteContext) {
 
     await createNotificationSafe({
       userId: work.userId,
+      actorId: user.id,
+      eventType: NOTIFICATION_EVENTS.FABRIC_RECOMMENDED,
       title: "有服务商推荐面料",
       content: `${provider!.name} 向作品《${work.title}》推荐了面料「${fabric.name}」。`,
       linkUrl: `/works/${work.id}`

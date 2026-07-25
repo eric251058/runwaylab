@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createNotificationSafe } from "@/lib/fabric-recommendations";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = {
@@ -47,6 +48,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   await createNotificationSafe({
     userId: inquiry.provider?.ownerId,
+    actorId: user.id,
+    eventType: NOTIFICATION_EVENTS.REQUEST_HANDLED,
     title: "询盘联系方式授权已更新",
     content: `${user.nickname} 更新了询盘的联系方式授权。`,
     linkUrl: "/provider-center/inquiries"

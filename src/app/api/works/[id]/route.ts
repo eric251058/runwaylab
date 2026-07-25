@@ -8,6 +8,7 @@ import {
   getWorkDeleteDependencies,
   lifecycleConflict
 } from "@/lib/content-lifecycle";
+import { createNotificationSafe, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { canEditWork } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { pendingVisibleState } from "@/lib/works/mutations";
@@ -52,6 +53,16 @@ export async function PATCH(request: Request, context: WorkRouteContext) {
           contentStatus: ContentStatus.OFFLINE
         }
       });
+      if (user.role === "ADMIN" && updated.userId !== user.id) {
+        await createNotificationSafe({
+          recipientId: updated.userId,
+          actorId: user.id,
+          eventType: NOTIFICATION_EVENTS.WORK_OFFLINED,
+          title: "作品已下架",
+          body: `你的作品《${updated.title}》已被平台下架，可在作品管理中查看状态。`,
+          targetUrl: "/me?tab=works"
+        });
+      }
       return NextResponse.json({ ok: true, action: "offline", work: updated });
     }
 

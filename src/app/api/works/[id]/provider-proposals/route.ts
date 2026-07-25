@@ -4,6 +4,7 @@ import { ProviderAvailabilityStatus, ProviderWorkProposalStatus, ProviderWorkPro
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createNotificationSafe } from "@/lib/fabric-recommendations";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { getProviderForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
 import { apiError, forbidden, tooManyRequests, unauthenticated } from "@/lib/security/api-response";
@@ -108,6 +109,8 @@ export async function POST(request: Request, context: RouteContext) {
 
   await createNotificationSafe({
     userId: work.userId,
+    actorId: user.id,
+    eventType: NOTIFICATION_EVENTS.PROVIDER_PROPOSAL_RECEIVED,
     title: "有服务商推荐产品或服务",
     content: `${provider.name} 向作品《${work.title}》提交了${typeLabel(parsed.data.recommendationType)}。`,
     linkUrl: `/works/${work.id}`

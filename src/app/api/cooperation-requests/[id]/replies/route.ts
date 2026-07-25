@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { RequestStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createNotificationSafe } from "@/lib/fabric-recommendations";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { cleanReplyContent } from "@/lib/provider-experience";
 import { prisma } from "@/lib/prisma";
 import { providerBelongsToUser } from "@/lib/supply-network";
@@ -101,6 +102,8 @@ export async function POST(request: Request, context: RouteContext) {
   if (side === "PROVIDER") {
     await createNotificationSafe({
       userId: inquiry.userId,
+      actorId: user.id,
+      eventType: NOTIFICATION_EVENTS.INQUIRY_REPLIED,
       title: "服务商已回复询盘",
       content: `${inquiry.provider?.name ?? "服务商"} 回复了你的询盘。`,
       linkUrl: "/me/inquiries"
@@ -108,6 +111,8 @@ export async function POST(request: Request, context: RouteContext) {
   } else {
     await createNotificationSafe({
       userId: inquiry.provider?.ownerId,
+      actorId: user.id,
+      eventType: NOTIFICATION_EVENTS.INQUIRY_REPLIED,
       title: "设计师补充了询盘",
       content: `${inquiry.user.nickname} 补充了询盘信息。`,
       linkUrl: "/provider-center/inquiries"

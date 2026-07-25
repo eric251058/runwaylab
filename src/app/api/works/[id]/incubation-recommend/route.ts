@@ -1,6 +1,7 @@
 import { IncubationApplicationStatus, IncubationSource, IncubationStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import { createNotificationSafe, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { tooManyRequests } from "@/lib/security/api-response";
 import { checkRateLimit } from "@/lib/security/rate-limit";
@@ -40,7 +41,8 @@ export async function POST(_request: Request, context: RouteContext) {
     },
     select: {
       ...publicQualityWorkCheckSelect,
-      userId: true
+      userId: true,
+      title: true
     }
   });
 
@@ -145,6 +147,18 @@ export async function POST(_request: Request, context: RouteContext) {
       incubationStatus: updated.incubationStatus
     };
   });
+
+  if (!result.alreadyRecommended) {
+    await createNotificationSafe({
+      recipientId: work.userId,
+      actorId: user.id,
+      eventType: NOTIFICATION_EVENTS.INCUBATION_RECOMMENDED,
+      title: "有人推荐你的作品进入孵化",
+      body: `${user.nickname} 推荐作品《${work.title}》进入孵化观察。`,
+      targetUrl: "/me/incubation",
+      dedupe: false
+    });
+  }
 
   return NextResponse.json(result);
 }

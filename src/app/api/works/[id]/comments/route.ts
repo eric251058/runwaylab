@@ -2,6 +2,7 @@ import { ContentStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
+import { createNotificationSafe, NOTIFICATION_EVENTS, safeNotificationSummary } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimits } from "@/lib/security/rate-limit";
 import { tooManyRequests } from "@/lib/security/api-response";
@@ -45,7 +46,10 @@ export async function POST(request: Request, context: RouteContext) {
       id,
       ...publicWorkWhere
     },
-    select: publicQualityWorkCheckSelect
+    select: {
+      ...publicQualityWorkCheckSelect,
+      userId: true
+    }
   });
 
   if (!isPublicWorkAccessible(work)) {
@@ -87,6 +91,16 @@ export async function POST(request: Request, context: RouteContext) {
       },
       commentCount: updated.commentCount
     };
+  });
+
+  await createNotificationSafe({
+    recipientId: work.userId,
+    actorId: user.id,
+    eventType: NOTIFICATION_EVENTS.COMMENT_CREATED,
+    title: "有人评论了你的作品",
+    body: safeNotificationSummary(parsed.data.content, 160),
+    targetUrl: `/works/${work.id}`,
+    dedupe: false
   });
 
   return NextResponse.json(result, { status: 201 });

@@ -4,6 +4,7 @@ import { ProviderType, RecommendationStatus } from "@prisma/client";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createNotificationSafe } from "@/lib/fabric-recommendations";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { getProviderForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
 import { apiError, forbidden, unauthenticated } from "@/lib/security/api-response";
@@ -114,6 +115,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   await createNotificationSafe({
     userId: recommendation.createdByUserId ?? recommendation.provider?.ownerId,
+    actorId: user.id,
+    eventType: NOTIFICATION_EVENTS.PROVIDER_PROPOSAL_UPDATED,
     title: copy.title,
     content: `${copy.content} 作品：《${recommendation.work.title}》，面料：${recommendation.fabric.name}。`,
     linkUrl: "/provider-center/recommendations"

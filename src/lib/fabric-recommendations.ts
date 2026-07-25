@@ -1,5 +1,9 @@
-import { NotificationType, type Fabric, type Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import type { Fabric, Prisma } from "@prisma/client";
+import {
+  createNotificationSafe as createUnifiedNotificationSafe,
+  NOTIFICATION_EVENTS,
+  type NotificationEventType
+} from "@/lib/notifications";
 export {
   FABRIC_RECOMMENDATION_STATUS_LABELS,
   recommendationConditionText,
@@ -59,28 +63,23 @@ export async function createNotificationSafe({
   userId,
   title,
   content,
-  linkUrl
+  linkUrl,
+  eventType = NOTIFICATION_EVENTS.REQUEST_HANDLED,
+  actorId
 }: {
   userId?: string | null;
   title: string;
   content: string;
   linkUrl?: string;
+  eventType?: NotificationEventType;
+  actorId?: string | null;
 }) {
-  if (!userId) return;
-
-  await prisma.notification
-    .create({
-      data: {
-        userId,
-        type: NotificationType.REQUEST_HANDLED,
-        title,
-        content,
-        linkUrl
-      }
-    })
-    .catch((error) => {
-      console.error("Notification creation failed", {
-        errorType: error instanceof Error ? error.name : typeof error
-      });
-    });
+  await createUnifiedNotificationSafe({
+    recipientId: userId,
+    actorId,
+    eventType,
+    title,
+    body: content,
+    targetUrl: linkUrl
+  });
 }

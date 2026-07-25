@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ContentStatus, IncubationApplicationStatus, IncubationSource, IncubationStatus, ReviewStatus } from "@prisma/client";
 import { requireAdminUser } from "@/lib/auth/guards";
+import { createNotificationSafe, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
 const adminWorkActionSchema = z.discriminatedUnion("action", [
@@ -125,6 +126,50 @@ export async function PATCH(request: Request, context: AdminWorkRouteContext) {
 
     return targetWork;
   });
+
+  if (action.action === "approve") {
+    await createNotificationSafe({
+      recipientId: work.userId,
+      actorId: admin.id,
+      eventType: NOTIFICATION_EVENTS.WORK_APPROVED,
+      title: "作品审核通过",
+      body: `你的作品《${work.title}》已通过审核并公开展示。`,
+      targetUrl: `/works/${work.id}`
+    });
+  }
+
+  if (action.action === "reject") {
+    await createNotificationSafe({
+      recipientId: work.userId,
+      actorId: admin.id,
+      eventType: NOTIFICATION_EVENTS.WORK_REJECTED,
+      title: "作品审核未通过",
+      body: `你的作品《${work.title}》未通过审核：${action.rejectReason}`,
+      targetUrl: "/me?tab=works"
+    });
+  }
+
+  if (action.action === "offline") {
+    await createNotificationSafe({
+      recipientId: work.userId,
+      actorId: admin.id,
+      eventType: NOTIFICATION_EVENTS.WORK_OFFLINED,
+      title: "作品已下架",
+      body: `你的作品《${work.title}》已被平台下架，可在作品管理中查看状态。`,
+      targetUrl: "/me/works"
+    });
+  }
+
+  if (action.action === "incubationCandidate") {
+    await createNotificationSafe({
+      recipientId: work.userId,
+      actorId: admin.id,
+      eventType: NOTIFICATION_EVENTS.INCUBATION_CANDIDATE,
+      title: "作品进入孵化候选",
+      body: `你的作品《${work.title}》已进入孵化候选池。`,
+      targetUrl: "/me/incubation"
+    });
+  }
 
   return NextResponse.json({ work });
 }

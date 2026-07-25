@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createNotificationSafe } from "@/lib/fabric-recommendations";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { inquiryTypeFromInput } from "@/lib/provider-experience";
 import { prisma } from "@/lib/prisma";
 import { tooManyRequests } from "@/lib/security/api-response";
@@ -152,6 +153,8 @@ export async function POST(request: Request) {
 
     await createNotificationSafe({
       userId: provider.ownerId,
+      actorId: user.id,
+      eventType: NOTIFICATION_EVENTS.INQUIRY_RECEIVED,
       title: "收到新的服务询盘",
       content: `${user.nickname} 向 ${provider.name} 发送了新的询盘。`,
       linkUrl: "/provider-center/inquiries"
