@@ -8,7 +8,7 @@ type WorkStatusBadgeProps = {
 
 const toneClass: Record<WorkStatusBadgeProps["kind"], string> = {
   featured: "border-ink bg-ink text-white",
-  editorPick: "border-accent bg-accent text-ink",
+  editorPick: "border-black/10 bg-white/85 text-ink/55",
   openCoop: "border-ink/15 bg-white/85 text-ink",
   incubatable: "border-lime-300 bg-lime-100 text-ink",
   challenge: "border-blue-200 bg-blue-50 text-blue-950",
@@ -31,7 +31,7 @@ export function getWorkBadges(
 ) {
   const badges: Array<{ kind: WorkStatusBadgeProps["kind"]; label: string }> = [];
 
-  if (work.isEditorPick) badges.push({ kind: "editorPick", label: "编辑推荐" });
+  if (work.isEditorPick) badges.push({ kind: "editorPick", label: "精选" });
   if (work.isFeatured) badges.push({ kind: "featured", label: "精选" });
   if (work.isOpenCoop) badges.push({ kind: "openCoop", label: "开放合作" });
   if (work.wantsIncubation || work.incubationStatus === IncubationStatus.CANDIDATE) badges.push({ kind: "incubatable", label: "可孵化" });
