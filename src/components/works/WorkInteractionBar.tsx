@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bookmark, Heart, MessageCircle, Share2, Sparkles, SwatchBook, WandSparkles } from "lucide-react";
+import { WorkSharePanel } from "@/components/works/WorkSharePanel";
+import type { WorkShareInfo } from "@/lib/work-share";
 
 type WorkComment = {
   id: string;
@@ -26,6 +28,7 @@ type WorkInteractionBarProps = {
   shareCount: number;
   incubationRecommendCount: number;
   comments: WorkComment[];
+  shareInfo: WorkShareInfo;
 };
 
 const cooperationTypes = [
@@ -51,7 +54,8 @@ export function WorkInteractionBar({
   commentCount,
   shareCount,
   incubationRecommendCount,
-  comments: initialComments
+  comments: initialComments,
+  shareInfo
 }: WorkInteractionBarProps) {
   const router = useRouter();
   const [liked, setLiked] = useState(initialLiked);
@@ -75,6 +79,7 @@ export function WorkInteractionBar({
   });
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const loginUrl = useMemo(() => `/login?next=/works/${workId}`, [workId]);
 
@@ -191,66 +196,66 @@ export function WorkInteractionBar({
 
   return (
     <aside className="space-y-3 rounded-[6px] bg-white p-3 shadow-[0_12px_34px_rgba(16,16,16,0.08)] md:space-y-4 md:p-4 md:shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+      <div className="flex flex-wrap gap-2">
         <button
           type="button"
           disabled={busy === "like"}
           onClick={toggleLike}
-          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-[5px] border text-xs font-medium transition disabled:opacity-50 md:min-h-16 ${
-            liked ? "border-red-200 bg-red-50 text-red-700" : "border-black/8 bg-paper/60 text-ink hover:border-ink/30 hover:bg-white"
+          className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition disabled:opacity-50 ${
+            liked ? "bg-red-50 text-red-700" : "text-ink/65 hover:bg-paper"
           }`}
+          aria-label={liked ? "取消点赞" : "点赞"}
+          aria-pressed={liked}
         >
           <Heart size={17} fill={liked ? "currentColor" : "none"} />
-          <span>{liked ? "已点赞" : "点赞"}</span>
-          <span className="text-[10px] opacity-65">{countText(counts.likeCount)}</span>
+          <span>{liked ? "已点赞" : "点赞"} {countText(counts.likeCount)}</span>
         </button>
 
         <button
           type="button"
           disabled={busy === "favorite"}
           onClick={toggleFavorite}
-          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-[5px] border text-xs font-medium transition disabled:opacity-50 md:min-h-16 ${
-            favorited ? "border-amber-200 bg-amber-50 text-amber-800" : "border-black/8 bg-paper/60 text-ink hover:border-ink/30 hover:bg-white"
+          className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition disabled:opacity-50 ${
+            favorited ? "bg-amber-50 text-amber-800" : "text-ink/65 hover:bg-paper"
           }`}
+          aria-label={favorited ? "取消收藏" : "收藏"}
+          aria-pressed={favorited}
         >
           <Bookmark size={17} fill={favorited ? "currentColor" : "none"} />
-          <span>{favorited ? "已收藏" : "收藏"}</span>
-          <span className="text-[10px] opacity-65">{countText(counts.favoriteCount)}</span>
+          <span>{favorited ? "已收藏" : "收藏"} {countText(counts.favoriteCount)}</span>
         </button>
 
         <a
           href="#comments"
-          className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-[5px] border border-black/8 bg-paper/60 text-xs font-medium text-ink transition hover:border-ink/30 hover:bg-white md:min-h-16"
+          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink/65 transition hover:bg-paper"
+          aria-label="查看评论"
         >
           <MessageCircle size={17} />
-          <span>评论</span>
-          <span className="text-[10px] text-ink/45">{countText(counts.commentCount)}</span>
+          <span>评论 {countText(counts.commentCount)}</span>
         </a>
 
         <button
           type="button"
-          onClick={() => {
-            navigator.clipboard?.writeText(window.location.href).catch(() => undefined);
-            setMessage("作品链接已复制。");
-          }}
-          className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-[5px] border border-black/8 bg-paper/60 text-xs font-medium text-ink transition hover:border-ink/30 hover:bg-white md:min-h-16"
+          onClick={() => setShareOpen(true)}
+          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink/65 transition hover:bg-paper"
+          aria-label="分享作品"
         >
           <Share2 size={17} />
-          <span>分享</span>
-          <span className="text-[10px] text-ink/45">{countText(counts.shareCount)}</span>
+          <span>分享 {countText(counts.shareCount)}</span>
         </button>
 
         <button
           type="button"
           disabled={busy === "incubation" || incubationRecommended}
           onClick={recommendIncubation}
-          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-[5px] border text-xs font-medium transition disabled:opacity-75 md:min-h-16 ${
-            incubationRecommended ? "border-lime-200 bg-lime-50 text-lime-800" : "border-black/8 bg-paper/60 text-ink hover:border-ink/30 hover:bg-white"
+          className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition disabled:opacity-75 ${
+            incubationRecommended ? "bg-lime-50 text-lime-800" : "text-ink/65 hover:bg-paper"
           }`}
+          aria-label={incubationRecommended ? "已推荐孵化" : "推荐孵化"}
+          aria-pressed={incubationRecommended}
         >
           <Sparkles size={17} />
-          <span>{incubationRecommended ? "已推荐孵化" : "推荐孵化"}</span>
-          <span className="text-[10px] opacity-65">{countText(counts.incubationRecommendCount)}</span>
+          <span>{incubationRecommended ? "已推荐孵化" : "推荐孵化"} {countText(counts.incubationRecommendCount)}</span>
         </button>
       </div>
 
@@ -364,6 +369,7 @@ export function WorkInteractionBar({
           )}
         </div>
       </section>
+      <WorkSharePanel work={shareInfo} open={shareOpen} onClose={() => setShareOpen(false)} />
     </aside>
   );
 }

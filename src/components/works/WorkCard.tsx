@@ -8,6 +8,8 @@ export type WorkCardLike = {
   id: string;
   title: string;
   description: string;
+  category?: string | null;
+  styleTags?: string[];
   images: WorkImageLike[];
   user: {
     nickname: string;
@@ -121,6 +123,12 @@ export function WorkCard({ work, index = 0, compact = false }: WorkCardProps) {
       <WorkQuickActions
         workId={work.id}
         title={work.title}
+        description={work.description}
+        designerName={work.user.nickname}
+        schoolName={resourceLine}
+        imageUrl={typeof work.images[0] === "string" ? work.images[0] : work.images[0]?.imageUrl}
+        styleTags={"styleTags" in work ? work.styleTags as string[] : []}
+        category={"category" in work ? work.category as string : null}
         initialLikeCount={work.likeCount}
         initialFavoriteCount={work.favoriteCount}
         initialLiked={work.likedByCurrentUser}

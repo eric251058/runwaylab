@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { CaseStudyStatus, FabricStatus, OpportunityStage } from "@prisma/client";
-import { WorkCard } from "@/components/works/WorkCard";
+import { CaseStudyStatus, ContentStatus, FabricStatus, OpportunityStage } from "@prisma/client";
+import { HomeFeed, type FeedCommentPreview, type HomeFeedWork } from "@/components/works/HomeFeed";
 import { visualFor } from "@/components/works/work-visuals";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { publicProviderWhere, SUPPLY_PROVIDER_TYPE_LABELS } from "@/lib/supply-network";
 import { isPublicQualityWork } from "@/lib/works/rules";
-import { attachWorkCardInteractionState, getPublicQualityWorkIds, type WorkCardData } from "@/lib/works/queries";
+import { attachWorkCardInteractionState, getPublicQualityWorkIds } from "@/lib/works/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +33,6 @@ const workInclude = {
   }
 };
 
-function asWorkCard(work: Awaited<ReturnType<typeof getHomeWorks>>[number]) {
-  return work as unknown as WorkCardData;
-}
-
 async function getHomeWorks() {
   const qualityWorkIds = await getPublicQualityWorkIds();
   if (!qualityWorkIds.length) return [];
@@ -49,18 +45,76 @@ async function getHomeWorks() {
     },
     include: workInclude,
     orderBy: [{ isEditorPick: "desc" }, { isFeatured: "desc" }, { favoriteCount: "desc" }, { updatedAt: "desc" }],
-    take: 18
+    take: 36
   });
 
-  return works.filter(isPublicQualityWork).slice(0, 6);
+  return works.filter(isPublicQualityWork).slice(0, 12);
 }
+
+async function getHomeCommentPreviews(workIds: string[]) {
+  if (!workIds.length) return {};
+  const comments = await prisma.comment.findMany({
+    where: {
+      workId: { in: workIds },
+      status: ContentStatus.VISIBLE
+    },
+    select: {
+      id: true,
+      workId: true,
+      content: true,
+      createdAt: true,
+      user: {
+        select: {
+          nickname: true
+        }
+      }
+    },
+    orderBy: {
+      createdAt: "desc"
+    },
+    take: workIds.length * 6
+  });
+
+  return comments.reduce<Record<string, FeedCommentPreview[]>>((groups, comment) => {
+    const current = groups[comment.workId] ?? [];
+    if (current.length < 2) {
+      groups[comment.workId] = [
+        ...current,
+        {
+          id: comment.id,
+          workId: comment.workId,
+          content: comment.content,
+          createdAt: comment.createdAt.toISOString(),
+          user: {
+            nickname: comment.user.nickname
+          }
+        }
+      ];
+    }
+    return groups;
+  }, {});
+}
+
+type HomePageProps = {
+  searchParams?: Promise<{
+    view?: string;
+  }>;
+};
 
 function fabricMeta(fabric: { composition?: string | null; weight?: string | null; width?: string | null }) {
   return [fabric.composition, fabric.weight, fabric.width].filter(Boolean).slice(0, 2).join(" · ") || "参数待补充";
 }
 
-export default async function HomePage() {
+function feedMode(value: string | undefined, isLoggedIn: boolean): "inspiration" | "activity" {
+  if (value === "activity") return "activity";
+  if (value === "inspiration") return "inspiration";
+  return isLoggedIn ? "activity" : "inspiration";
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
   const currentUser = await getCurrentUser();
+  const params = await searchParams;
+  const activeFeedMode = feedMode(params?.view, Boolean(currentUser));
   const qualityWorkIds = await getPublicQualityWorkIds();
   const qualityWorkIdList = qualityWorkIds.length ? qualityWorkIds : ["__no_public_quality_work__"];
   const [works, opportunityWorks, providers, fabrics, featuredCase] = await Promise.all([
@@ -101,6 +155,8 @@ export default async function HomePage() {
     })
   ]);
   const worksWithInteractions = await attachWorkCardInteractionState(works, currentUser?.id);
+  const homeFeedWorks = worksWithInteractions as unknown as HomeFeedWork[];
+  const commentPreviews = activeFeedMode === "activity" ? await getHomeCommentPreviews(homeFeedWorks.map((work) => work.id)) : {};
   const qualityOpportunityWorks = opportunityWorks.filter(isPublicQualityWork);
 
   return (
@@ -127,21 +183,19 @@ export default async function HomePage() {
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold text-ink md:text-3xl">精选作品</h2>
-            <p className="mt-2 text-sm text-ink/52">先看已经被认真展示的设计。</p>
+            <p className="mt-2 text-sm text-ink/52">{activeFeedMode === "activity" ? "沉浸浏览作品、评论和互动。" : "快速发现更多值得停留的设计。"}</p>
           </div>
-          <Link href="/works" className="hidden items-center gap-1 text-sm font-semibold text-ink/55 hover:text-ink sm:inline-flex">
-            更多作品 <ArrowRight size={15} />
-          </Link>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-full bg-white p-1 text-sm font-semibold shadow-[0_10px_30px_rgba(16,16,16,0.06)]" aria-label="首页浏览模式">
+              <Link href="/?view=inspiration" className={`rounded-full px-4 py-2 ${activeFeedMode === "inspiration" ? "bg-ink text-white" : "text-ink/55 hover:text-ink"}`}>灵感</Link>
+              <Link href="/?view=activity" className={`rounded-full px-4 py-2 ${activeFeedMode === "activity" ? "bg-ink text-white" : "text-ink/55 hover:text-ink"}`}>动态</Link>
+            </div>
+            <Link href="/works" className="hidden items-center gap-1 text-sm font-semibold text-ink/55 hover:text-ink sm:inline-flex">
+              更多作品 <ArrowRight size={15} />
+            </Link>
+          </div>
         </div>
-        {worksWithInteractions.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {worksWithInteractions.map((work, index) => (
-              <WorkCard key={work.id} work={asWorkCard(work)} index={index} compact />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">平台正在筛选首批高质量作品。</div>
-        )}
+        <HomeFeed works={homeFeedWorks} commentPreviews={commentPreviews} mode={activeFeedMode} isLoggedIn={Boolean(currentUser)} />
       </section>
 
       <section className="mt-10 md:mt-12">

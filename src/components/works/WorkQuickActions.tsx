@@ -1,11 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Bookmark, Heart, Share2, ShoppingBag } from "lucide-react";
+import { WorkSharePanel } from "@/components/works/WorkSharePanel";
+import type { WorkShareInfo } from "@/lib/work-share";
 
 type WorkQuickActionsProps = {
   workId: string;
   title: string;
+  description?: string | null;
+  designerName: string;
+  schoolName?: string | null;
+  imageUrl?: string | null;
+  styleTags?: string[] | null;
+  category?: string | null;
   initialLikeCount: number;
   initialFavoriteCount: number;
   initialLiked?: boolean;
@@ -37,7 +45,7 @@ function buttonClass(active: boolean, tone: "like" | "favorite" | "want-buy" | "
           ? "bg-ink text-white"
           : "bg-white text-ink";
 
-  return `flex min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 px-1.5 py-2 text-xs font-semibold transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-55 ${
+  return `inline-flex min-h-[44px] min-w-0 items-center justify-center gap-1.5 rounded-full px-2.5 py-2 text-xs font-semibold transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-55 ${
     active ? activeClass : "text-ink/62"
   }`;
 }
@@ -45,6 +53,12 @@ function buttonClass(active: boolean, tone: "like" | "favorite" | "want-buy" | "
 export function WorkQuickActions({
   workId,
   title,
+  description,
+  designerName,
+  schoolName,
+  imageUrl,
+  styleTags,
+  category,
   initialLikeCount,
   initialFavoriteCount,
   initialLiked = false,
@@ -57,11 +71,7 @@ export function WorkQuickActions({
   const [favoriteCount, setFavoriteCount] = useState(initialFavoriteCount);
   const [busy, setBusy] = useState<BusyAction>(null);
   const [message, setMessage] = useState("");
-  const workUrl = useMemo(() => {
-    if (typeof window === "undefined") return `/works/${workId}`;
-    return `${window.location.origin}/works/${workId}`;
-  }, [workId]);
-
+  const [shareOpen, setShareOpen] = useState(false);
   const toggleLike = async () => {
     if (busy) return;
 
@@ -154,53 +164,43 @@ export function WorkQuickActions({
 
   const shareWork = async () => {
     if (busy) return;
-
-    setBusy("share");
     setMessage("");
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title,
-          text: "在 RunwayLab 发现这个设计作品",
-          url: workUrl
-        });
-        setMessage("分享面板已打开。");
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(workUrl);
-        setMessage("作品链接已复制。");
-      } else {
-        setMessage("请复制当前页面链接分享。");
-      }
-    } catch (error) {
-      if ((error as Error).name !== "AbortError") {
-        setMessage("请复制当前页面链接分享。");
-      }
-    } finally {
-      setBusy(null);
-    }
+    setShareOpen(true);
+  };
+
+  const shareInfo: WorkShareInfo = {
+    id: workId,
+    title,
+    description,
+    designerName,
+    schoolName,
+    imageUrl,
+    styleTags,
+    category
   };
 
   return (
     <div className="border-t border-black/5">
-      <div className="grid min-h-[44px] grid-cols-4 divide-x divide-black/5 text-xs">
-        <button type="button" disabled={busy === "like"} onClick={toggleLike} className={buttonClass(liked, "like")} aria-pressed={liked}>
+      <div className="grid min-h-[52px] grid-cols-4 gap-1 px-2 py-2 text-xs">
+        <button type="button" disabled={busy === "like"} onClick={toggleLike} className={buttonClass(liked, "like")} aria-pressed={liked} aria-label={liked ? "取消点赞" : "点赞"}>
           <Heart size={15} fill={liked ? "currentColor" : "none"} />
           <span className="max-w-full truncate">{liked ? "已赞" : "点赞"} {countText(likeCount)}</span>
         </button>
-        <button type="button" disabled={busy === "favorite"} onClick={toggleFavorite} className={buttonClass(favorited, "favorite")} aria-pressed={favorited}>
+        <button type="button" disabled={busy === "favorite"} onClick={toggleFavorite} className={buttonClass(favorited, "favorite")} aria-pressed={favorited} aria-label={favorited ? "取消收藏" : "收藏"}>
           <Bookmark size={15} fill={favorited ? "currentColor" : "none"} />
           <span className="max-w-full truncate">{favorited ? "已藏" : "收藏"} {countText(favoriteCount)}</span>
         </button>
-        <button type="button" disabled={busy === "want-buy" || wantBuy} onClick={markWantBuy} className={buttonClass(wantBuy, "want-buy")} aria-pressed={wantBuy}>
+        <button type="button" disabled={busy === "want-buy" || wantBuy} onClick={markWantBuy} className={buttonClass(wantBuy, "want-buy")} aria-pressed={wantBuy} aria-label={wantBuy ? "已想买" : "想买"}>
           <ShoppingBag size={15} />
           <span className="max-w-full truncate">{wantBuy ? "已想买" : "想买"}</span>
         </button>
-        <button type="button" disabled={busy === "share"} onClick={shareWork} className={buttonClass(false)}>
+        <button type="button" disabled={busy === "share"} onClick={shareWork} className={buttonClass(false)} aria-label="分享作品">
           <Share2 size={15} />
           <span className="max-w-full truncate">分享</span>
         </button>
       </div>
       {message ? <p className="border-t border-black/5 bg-paper px-3 py-2 text-xs leading-5 text-ink/62">{message}</p> : null}
+      <WorkSharePanel work={shareInfo} open={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   );
 }

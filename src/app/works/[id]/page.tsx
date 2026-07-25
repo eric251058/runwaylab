@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Eye } from "lucide-react";
 import { ActionGuide } from "@/components/ActionGuide";
@@ -38,6 +39,9 @@ import { canViewWorkDetail } from "@/lib/permissions";
 import { getProviderForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
 import { PROVIDER_PROPOSAL_STATUS_LABELS, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site-config";
+import { getPublicWorkShareInfo } from "@/lib/work-share-data";
+import { workCanonicalUrl, workShareDescription, workShareTitle } from "@/lib/work-share";
 import { getWorkDetailById } from "@/lib/works/queries";
 import {
   AiDiagnosisReviewStatus,
@@ -61,6 +65,63 @@ type WorkDetailPageProps = {
     id: string;
   }>;
 };
+
+export async function generateMetadata({ params }: WorkDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    const shareInfo = await getPublicWorkShareInfo(id);
+    if (!shareInfo) {
+      return {
+        title: "作品暂不可分享｜RunwayLab",
+        description: SITE_DESCRIPTION,
+        robots: { index: false, follow: false }
+      };
+    }
+
+    const title = workShareTitle(shareInfo);
+    const description = workShareDescription(shareInfo);
+    const url = workCanonicalUrl(shareInfo.id);
+    const imageUrl = `${SITE_URL}/works/${encodeURIComponent(shareInfo.id)}/opengraph-image`;
+
+    return {
+      title,
+      description,
+      alternates: { canonical: url },
+      openGraph: {
+        title,
+        description,
+        url,
+        siteName: SITE_NAME,
+        type: "article",
+        locale: "zh_CN",
+        images: [
+          {
+            url: imageUrl,
+            width: 1200,
+            height: 630,
+            alt: shareInfo.title
+          }
+        ]
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: [imageUrl]
+      },
+      robots: {
+        index: true,
+        follow: true
+      }
+    };
+  } catch {
+    return {
+      title: "RunwayLab",
+      description: SITE_DESCRIPTION,
+      robots: { index: false, follow: false }
+    };
+  }
+}
 
 function field(label: string, value?: string | number | boolean | null) {
   if (value === undefined || value === null || value === "") return null;
@@ -940,6 +1001,17 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
                   nickname: comment.user.nickname
                 }
               }))}
+              shareInfo={{
+                id: work.id,
+                title: work.title,
+                description: work.description,
+                designerName: work.user.nickname,
+                schoolName: activityInfo?.school?.name ?? profile?.school ?? null,
+                city: activityInfo?.school?.city ?? profile?.city ?? null,
+                imageUrl: work.images[0]?.imageUrl ?? null,
+                styleTags: work.styleTags,
+                category: work.category
+              }}
             />
           </div>
 
