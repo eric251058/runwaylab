@@ -241,6 +241,11 @@ export default async function MePage({ searchParams }: MePageProps) {
             账号与资料
           </Link>
           {!provider ? (
+            <Link href="/me/projects" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink sm:px-5">
+              项目工作台
+            </Link>
+          ) : null}
+          {!provider ? (
             <Link href="/publish" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white sm:px-5">
               发布作品
             </Link>
@@ -312,12 +317,12 @@ export default async function MePage({ searchParams }: MePageProps) {
       {activeTab === "progress" ? (
         <section className="grid gap-3 md:grid-cols-2">
           {[
-            ["孵化进度", `${incubatingWorkCount} 件作品正在推进`, "/me/incubation"],
+            ["项目工作台", `${incubatingWorkCount} 件作品正在推进`, "/me/projects"],
             ["参赛作品", `${entryItems.length} 件作品参加挑战`, "/challenges"],
-            ["面料需求", `${fabricItems.length} 条记录`, "/me/incubation"],
-            ["打样需求", `${sampleItems.length} 条记录`, "/me/incubation"],
+            ["面料需求", `${fabricItems.length} 条记录`, "/me/projects"],
+            ["打样需求", `${sampleItems.length} 条记录`, "/me/projects"],
             ["预售意向", `${receivedPresaleCount} 条收到的意向`, "/me/incubation"],
-            ["合作方案", `${receivedSampleProposalCount + receivedFactoryProposalCount + receivedBuyerIntentCount} 条待查看`, "/me/incubation"]
+            ["合作方案", `${receivedSampleProposalCount + receivedFactoryProposalCount + receivedBuyerIntentCount} 条待查看`, "/me/projects"]
           ].map(([title, description, href]) => (
             <Link key={title} href={href} className="rounded-[8px] border border-black/8 bg-white p-4 transition hover:border-ink/35">
               <h2 className="font-semibold text-ink">{title}</h2>
