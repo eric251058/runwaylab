@@ -381,6 +381,11 @@ enum DesignerProjectPreference {
   PAUSED
 }
 
+enum ProjectIntakeStatus {
+  DRAFT
+  READY_FOR_REVIEW
+}
+
 enum CollaborationProjectVisibility {
   PRIVATE
   PARTICIPANTS
@@ -625,6 +630,7 @@ model User {
   createdProjectMilestones              ProjectMilestone[]           @relation("ProjectMilestoneCreatedBy")
   projectIssues                         ProjectIssue[]               @relation("ProjectIssueReporter")
   projectOrders                         ProjectOrder[]               @relation("ProjectOrderBuyer")
+  projectIntakes                        ProjectIntake[]
   givenReviews                          Review[]                     @relation("ReviewReviewer")
   receivedReviews                       Review[]                     @relation("ReviewTargetUser")
   createdIncubationBatches              IncubationBatch[]            @relation("IncubationBatchCreatedBy")
@@ -745,6 +751,7 @@ model Work {
   demandIntents                WorkDemandIntent[]
   projectDesignAuthorizations  ProjectDesignAuthorization[]
   projectProducts              ProjectProduct[]
+  projectIntakes               ProjectIntake[]               @relation("ProjectIntakeLinkedWork")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1640,9 +1647,10 @@ model IncubationProject {
   handledAt       DateTime?
   handledById     String?
 
-  work      Work  @relation(fields: [workId], references: [id], onDelete: Cascade)
-  designer  User  @relation("IncubationProjectDesigner", fields: [designerId], references: [id], onDelete: Cascade)
-  handledBy User? @relation("IncubationProjectHandledBy", fields: [handledById], references: [id])
+  work           Work            @relation(fields: [workId], references: [id], onDelete: Cascade)
+  designer       User            @relation("IncubationProjectDesigner", fields: [designerId], references: [id], onDelete: Cascade)
+  handledBy      User?           @relation("IncubationProjectHandledBy", fields: [handledById], references: [id])
+  projectIntakes ProjectIntake[] @relation("ProjectIntakeLinkedIncubationProject")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1922,6 +1930,7 @@ model CollaborationProject {
   orders                ProjectOrder[]
   reviews               Review[]
   caseStudies           CaseStudy[]
+  projectIntakes        ProjectIntake[]              @relation("ProjectIntakeLinkedCollaborationProject")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1940,6 +1949,38 @@ model CollaborationProject {
   @@index([reviewStatus])
   @@index([designerAuthorizationStatus])
   @@index([priority])
+}
+
+model ProjectIntake {
+  id                           String              @id @default(cuid())
+  ownerId                      String
+  clientDraftId                String
+  sourceType                   String
+  category                     String
+  categoryOther                String?
+  primaryNeed                  String
+  ideaText                     String?
+  status                       ProjectIntakeStatus @default(DRAFT)
+  completion                   Int                 @default(75)
+  linkedWorkId                 String?
+  linkedCollaborationProjectId String?
+  linkedIncubationProjectId    String?
+  submittedForReviewAt         DateTime?
+
+  owner                      User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  linkedWork                 Work?                 @relation("ProjectIntakeLinkedWork", fields: [linkedWorkId], references: [id], onDelete: SetNull)
+  linkedCollaborationProject CollaborationProject? @relation("ProjectIntakeLinkedCollaborationProject", fields: [linkedCollaborationProjectId], references: [id], onDelete: SetNull)
+  linkedIncubationProject    IncubationProject?    @relation("ProjectIntakeLinkedIncubationProject", fields: [linkedIncubationProjectId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, clientDraftId])
+  @@index([ownerId, updatedAt])
+  @@index([status])
+  @@index([linkedWorkId])
+  @@index([linkedCollaborationProjectId])
+  @@index([linkedIncubationProjectId])
 }
 
 model ProjectDesignAuthorization {

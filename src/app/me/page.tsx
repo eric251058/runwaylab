@@ -241,6 +241,11 @@ export default async function MePage({ searchParams }: MePageProps) {
             账号与资料
           </Link>
           {!provider ? (
+            <Link href="/start" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink sm:px-5">
+              启动项目
+            </Link>
+          ) : null}
+          {!provider ? (
             <Link href="/me/projects" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink sm:px-5">
               项目工作台
             </Link>

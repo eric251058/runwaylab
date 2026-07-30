@@ -21,6 +21,7 @@ type AuthUser = {
 
 const coveredRoutes = [
   "/",
+  "/start",
   "/works",
   "/publish",
   "/me",
