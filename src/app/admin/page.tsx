@@ -24,6 +24,7 @@ export const dynamic = "force-dynamic";
 
 const adminLinks = [
   ["/admin/works", "作品管理", "审核、下架、精选和孵化候选"],
+  ["/admin/project-intakes", "启动项目评估", "处理用户提交的 60 秒启动项目"],
   ["/admin/editorial", "编辑推荐", "首页精选、榜单和运营推荐"],
   ["/admin/incubation", "孵化管理", "查看孵化状态和产业信号"],
   ["/admin/batches", "批次管理", "聚合课程、挑战赛和小单试产机会"],
@@ -47,6 +48,7 @@ const adminLinks = [
 
 const operationActions = [
   ["/admin/works", "审核作品", "先让优质作品通过审核，进入公开展示。"],
+  ["/admin/project-intakes", "评估启动项目", "处理用户主动提交的项目资料。"],
   ["/admin/editorial", "设置首页精选", "把适合转化的作品放到首页和榜单入口。"],
   ["/admin/presale-campaigns", "创建预售活动", "开启不收款的预售意向验证。"],
   ["/admin/opportunities", "管理合格机会", "审核可打样、小单和规模生产项目。"],
@@ -58,6 +60,7 @@ const adminGroups = [
     title: "待处理",
     links: [
       ["/admin/works", "作品审核"],
+      ["/admin/project-intakes", "启动项目评估"],
       ["/admin/provider-applications", "服务商申请"],
       ["/admin/presale-intents", "预售意向"]
     ]

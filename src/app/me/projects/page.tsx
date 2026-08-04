@@ -108,7 +108,7 @@ export default async function MeProjectsPage() {
                 </div>
 
                 <div className="grid gap-2 md:w-48">
-                  <Link href={`/me/start-projects/${intake.id}#positioning`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
+                  <Link href={`/me/start-projects/${intake.id}`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
                     {nextAction.label}
                   </Link>
                   <Link href={`/me/start-projects/${intake.id}`} className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">

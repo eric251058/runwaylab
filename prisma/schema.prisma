@@ -384,6 +384,21 @@ enum DesignerProjectPreference {
 enum ProjectIntakeStatus {
   DRAFT
   READY_FOR_REVIEW
+  SUBMITTED
+  NEEDS_INFO
+  ACCEPTED
+  DECLINED
+}
+
+enum ProjectIntakeEventType {
+  CREATED
+  DETAILS_UPDATED
+  SUBMITTED
+  WITHDRAWN
+  NEEDS_INFO
+  RESUBMITTED
+  ACCEPTED
+  DECLINED
 }
 
 enum CollaborationProjectVisibility {
@@ -631,6 +646,8 @@ model User {
   projectIssues                         ProjectIssue[]               @relation("ProjectIssueReporter")
   projectOrders                         ProjectOrder[]               @relation("ProjectOrderBuyer")
   projectIntakes                        ProjectIntake[]
+  reviewedProjectIntakes                ProjectIntake[]              @relation("ProjectIntakeReviewedBy")
+  projectIntakeEvents                   ProjectIntakeEvent[]         @relation("ProjectIntakeEventActor")
   givenReviews                          Review[]                     @relation("ReviewReviewer")
   receivedReviews                       Review[]                     @relation("ReviewTargetUser")
   createdIncubationBatches              IncubationBatch[]            @relation("IncubationBatchCreatedBy")
@@ -1960,17 +1977,28 @@ model ProjectIntake {
   categoryOther                String?
   primaryNeed                  String
   ideaText                     String?
+  projectTitle                 String?
+  targetAudience               String?
+  useScenario                  String?
+  expectedPriceBand            String?
+  launchTiming                 String?
+  reviewMessage                String?
   status                       ProjectIntakeStatus @default(DRAFT)
-  completion                   Int                 @default(75)
+  completion                   Int                 @default(0)
+  reviewNote                   String?
+  reviewedById                 String?
+  reviewedAt                   DateTime?
   linkedWorkId                 String?
   linkedCollaborationProjectId String?
   linkedIncubationProjectId    String?
   submittedForReviewAt         DateTime?
 
   owner                      User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  reviewedBy                 User?                 @relation("ProjectIntakeReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   linkedWork                 Work?                 @relation("ProjectIntakeLinkedWork", fields: [linkedWorkId], references: [id], onDelete: SetNull)
   linkedCollaborationProject CollaborationProject? @relation("ProjectIntakeLinkedCollaborationProject", fields: [linkedCollaborationProjectId], references: [id], onDelete: SetNull)
   linkedIncubationProject    IncubationProject?    @relation("ProjectIntakeLinkedIncubationProject", fields: [linkedIncubationProjectId], references: [id], onDelete: SetNull)
+  events                     ProjectIntakeEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1978,9 +2006,28 @@ model ProjectIntake {
   @@unique([ownerId, clientDraftId])
   @@index([ownerId, updatedAt])
   @@index([status])
+  @@index([status, submittedForReviewAt])
+  @@index([reviewedById])
   @@index([linkedWorkId])
   @@index([linkedCollaborationProjectId])
   @@index([linkedIncubationProjectId])
+}
+
+model ProjectIntakeEvent {
+  id        String                 @id @default(cuid())
+  intakeId  String
+  actorId   String?
+  eventType ProjectIntakeEventType
+  note      String?
+
+  intake ProjectIntake @relation(fields: [intakeId], references: [id], onDelete: Cascade)
+  actor  User?         @relation("ProjectIntakeEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([intakeId, createdAt])
+  @@index([actorId])
+  @@index([eventType])
 }
 
 model ProjectDesignAuthorization {
