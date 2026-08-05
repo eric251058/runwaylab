@@ -1,4 +1,6 @@
 import {
+  CollaborationProjectStatus,
+  CollaborationProjectVisibility,
   NotificationType,
   Prisma,
   ProjectIntakeEventType,
@@ -18,6 +20,7 @@ import {
   START_SOURCE_VALUES,
   USE_SCENARIO_VALUES,
   projectIntakeCreateSchema,
+  projectIntakeConversionSchema,
   projectIntakePatchSchema,
   projectIntakeReviewSchema,
   type ExpectedPriceBand,
@@ -103,7 +106,8 @@ export const PROJECT_INTAKE_EVENT_LABELS: Record<ProjectIntakeEventType, string>
   NEEDS_INFO: "平台希望补充资料",
   RESUBMITTED: "已重新提交评估",
   ACCEPTED: "项目已通过评估",
-  DECLINED: "项目暂不适合推进"
+  DECLINED: "项目暂不适合推进",
+  CONVERTED: "项目已转为正式项目"
 };
 
 export const projectIntakeListSelect = {
@@ -130,6 +134,18 @@ export const projectIntakeListSelect = {
   linkedCollaborationProjectId: true,
   linkedIncubationProjectId: true,
   submittedForReviewAt: true,
+  convertedAt: true,
+  convertedById: true,
+  linkedCollaborationProject: {
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      visibility: true,
+      createdAt: true,
+      updatedAt: true
+    }
+  },
   createdAt: true,
   updatedAt: true
 } satisfies Prisma.ProjectIntakeSelect;
@@ -145,6 +161,12 @@ export const projectIntakeDetailSelect = {
     }
   },
   reviewedBy: {
+    select: {
+      id: true,
+      nickname: true
+    }
+  },
+  convertedBy: {
     select: {
       id: true,
       nickname: true
@@ -306,7 +328,11 @@ function withComputedState<T extends ProjectIntakeListItem | ProjectIntakeDetail
   };
 }
 
-export function projectIntakeNextAction(intake: Pick<ProjectIntakeListItem, "status" | "ideaText" | "completion" | "targetAudience" | "useScenario" | "expectedPriceBand" | "launchTiming">) {
+export function privateCollaborationProjectHref(projectId: string) {
+  return `/me/projects/collaboration/${projectId}`;
+}
+
+export function projectIntakeNextAction(intake: Pick<ProjectIntakeListItem, "status" | "ideaText" | "completion" | "targetAudience" | "useScenario" | "expectedPriceBand" | "launchTiming" | "linkedCollaborationProjectId">) {
   const completion = calculateProjectIntakeCompletion(intake);
   const missing = projectIntakeMissingFields(intake);
 
@@ -324,6 +350,12 @@ export function projectIntakeNextAction(intake: Pick<ProjectIntakeListItem, "sta
   }
 
   if (intake.status === ProjectIntakeStatus.ACCEPTED) {
+    if (intake.linkedCollaborationProjectId) {
+      return {
+        label: "进入项目工作台",
+        description: "正式项目已建立。原始启动资料和平台评估记录会继续保留。"
+      };
+    }
     return {
       label: "等待平台安排下一步",
       description: "项目已通过评估。本轮不会自动生成正式项目，后续由平台安排受控转换。"
@@ -426,6 +458,50 @@ async function createProjectIntakeNotification(tx: Prisma.TransactionClient, inp
   });
 }
 
+async function createProjectIntakeConvertedNotification(tx: Prisma.TransactionClient, input: { ownerId: string; projectId: string }) {
+  const linkUrl = sanitizeNotificationTargetUrl(privateCollaborationProjectHref(input.projectId));
+  const title = safeNotificationSummary("正式项目已建立", 120);
+  const content = safeNotificationSummary("你的项目已经进入正式项目工作台，可以继续查看后续安排。", 240);
+
+  const duplicate = await tx.notification.findFirst({
+    where: {
+      userId: input.ownerId,
+      type: NotificationType.REQUEST_HANDLED,
+      title,
+      linkUrl,
+      createdAt: { gte: new Date(Date.now() - 2 * 60 * 1000) }
+    },
+    select: { id: true }
+  });
+  if (duplicate) return duplicate;
+
+  return tx.notification.create({
+    data: {
+      userId: input.ownerId,
+      type: NotificationType.REQUEST_HANDLED,
+      title,
+      content,
+      linkUrl
+    }
+  });
+}
+
+function conversionProjectSummary(intake: ProjectIntakeListItem) {
+  return [categoryLabel(intake.category, intake.categoryOther), needLabel(intake.primaryNeed), useScenarioLabel(intake.useScenario)]
+    .filter(Boolean)
+    .join(" / ");
+}
+
+function conversionProjectDescription(intake: ProjectIntakeListItem) {
+  const idea = cleanText(intake.ideaText);
+  const audience = cleanText(intake.targetAudience);
+  return [idea, audience ? `目标用户：${audience}` : null].filter(Boolean).join("\n");
+}
+
+function conversionConflictMessage() {
+  return "项目状态已更新，请刷新后重试。";
+}
+
 export function parseProjectIntakeCreateInput(input: unknown) {
   return projectIntakeCreateSchema.safeParse(input);
 }
@@ -436,6 +512,10 @@ export function parseProjectIntakePatchInput(input: unknown) {
 
 export function parseProjectIntakeReviewInput(input: unknown) {
   return projectIntakeReviewSchema.safeParse(input);
+}
+
+export function parseProjectIntakeConversionInput(input: unknown) {
+  return projectIntakeConversionSchema.safeParse(input);
 }
 
 function createDataForUser(userId: string, input: ReturnType<typeof projectIntakeCreateSchema.parse>) {
@@ -546,7 +626,7 @@ export async function createProjectIntakeForUser(userId: string, rawInput: unkno
 
 export async function getProjectIntakesForUser(userId: string) {
   const items = await prisma.projectIntake.findMany({
-    where: { ownerId: userId },
+    where: { ownerId: userId, linkedCollaborationProjectId: null },
     select: projectIntakeListSelect,
     orderBy: { updatedAt: "desc" },
     take: 40
@@ -838,10 +918,163 @@ export async function reviewProjectIntakeAsAdmin(id: string, admin: Viewer, rawI
   });
 }
 
-export type ProjectIntakeAdminFilter = "WAITING" | "NEEDS_INFO" | "ACCEPTED" | "DECLINED" | "ALL";
+type ConvertedProjectShape = NonNullable<ProjectIntakeListItem["linkedCollaborationProject"]>;
+
+class ProjectIntakeConversionConflictError extends Error {
+  constructor() {
+    super(conversionConflictMessage());
+    this.name = "ProjectIntakeConversionConflictError";
+  }
+}
+
+function isRetryableConversionError(error: unknown) {
+  return error instanceof ProjectIntakeConversionConflictError || (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2002" || error.code === "P2034"));
+}
+
+async function getConvertedIntakeForAdmin(id: string, admin: Viewer) {
+  if (!isActiveAdmin(admin)) return null;
+  return prisma.projectIntake.findUnique({
+    where: { id },
+    select: projectIntakeDetailSelect
+  });
+}
+
+export async function convertProjectIntakeToProject(id: string, admin: Viewer, rawInput: unknown) {
+  if (!isActiveAdmin(admin)) return { ok: false as const, status: 403, error: "没有后台权限。" };
+
+  const parsed = parseProjectIntakeConversionInput(rawInput);
+  if (!parsed.success) {
+    return { ok: false as const, status: 400, error: parsed.error.issues[0]?.message ?? conversionConflictMessage() };
+  }
+
+  const expectedUpdatedAt = new Date(parsed.data.expectedUpdatedAt);
+  const maxAttempts = 2;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const current = await tx.projectIntake.findUnique({
+            where: { id },
+            select: projectIntakeListSelect
+          });
+
+          if (!current) return { ok: false as const, status: 404, error: "项目不存在。" };
+          if (current.linkedCollaborationProjectId) {
+            const project = current.linkedCollaborationProject;
+            if (!project) return { ok: false as const, status: 409, error: "正式项目关联暂不可用，请联系管理员处理。" };
+            const intake = await tx.projectIntake.findUniqueOrThrow({ where: { id }, select: projectIntakeDetailSelect });
+            return { ok: true as const, intake: withComputedState(intake), project, idempotent: true };
+          }
+          if (current.status !== ProjectIntakeStatus.ACCEPTED) {
+            return { ok: false as const, status: 409, error: "只有已通过评估且尚未建立正式项目的启动项目可以转化。" };
+          }
+          if (current.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+            return { ok: false as const, status: 409, error: conversionConflictMessage() };
+          }
+
+          const now = new Date();
+          const project = await tx.collaborationProject.create({
+            data: {
+              title: projectIntakeTitle(current),
+              ownerUserId: current.ownerId,
+              createdById: admin.id,
+              description: conversionProjectDescription(current) || null,
+              summary: conversionProjectSummary(current) || null,
+              status: CollaborationProjectStatus.DRAFT,
+              visibility: CollaborationProjectVisibility.PRIVATE,
+              internalNote: `Converted from ProjectIntake ${current.id}`
+            },
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              visibility: true,
+              createdAt: true,
+              updatedAt: true
+            }
+          });
+
+          const updated = await tx.projectIntake.updateMany({
+            where: {
+              id,
+              status: ProjectIntakeStatus.ACCEPTED,
+              linkedCollaborationProjectId: null,
+              convertedAt: null,
+              updatedAt: expectedUpdatedAt
+            },
+            data: {
+              linkedCollaborationProjectId: project.id,
+              convertedAt: now,
+              convertedById: admin.id
+            }
+          });
+
+          if (updated.count !== 1) {
+            throw new ProjectIntakeConversionConflictError();
+          }
+
+          await tx.projectIntakeEvent.create({
+            data: {
+              intakeId: id,
+              actorId: admin.id,
+              eventType: ProjectIntakeEventType.CONVERTED,
+              note: "项目已转为正式项目"
+            }
+          });
+
+          await tx.adminLog.create({
+            data: {
+              adminId: admin.id,
+              action: "PROJECT_INTAKE_CONVERT",
+              targetType: "ProjectIntake",
+              targetId: id,
+              detail: {
+                intakeId: id,
+                collaborationProjectId: project.id,
+                oldStatus: ProjectIntakeStatus.ACCEPTED,
+                result: "CONVERTED",
+                convertedAt: now.toISOString()
+              }
+            }
+          });
+
+          await createProjectIntakeConvertedNotification(tx, {
+            ownerId: current.ownerId,
+            projectId: project.id
+          });
+
+          const intake = await tx.projectIntake.findUniqueOrThrow({
+            where: { id },
+            select: projectIntakeDetailSelect
+          });
+
+          return { ok: true as const, intake: withComputedState(intake), project, idempotent: false };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+    } catch (error) {
+      const latest = await getConvertedIntakeForAdmin(id, admin);
+      const project = latest?.linkedCollaborationProject as ConvertedProjectShape | null | undefined;
+      if (project) {
+        return { ok: true as const, intake: withComputedState(latest!), project, idempotent: true };
+      }
+      if (isRetryableConversionError(error) && attempt < maxAttempts) continue;
+      if (isRetryableConversionError(error)) {
+        return { ok: false as const, status: 409, error: conversionConflictMessage() };
+      }
+      console.error("Project intake conversion failed", { errorType: error instanceof Error ? error.name : typeof error });
+      return { ok: false as const, status: 500, error: "正式项目建立失败，请稍后再试。" };
+    }
+  }
+
+  return { ok: false as const, status: 409, error: conversionConflictMessage() };
+}
+
+export type ProjectIntakeAdminFilter = "WAITING" | "NEEDS_INFO" | "ACCEPTED" | "ACCEPTED_PENDING" | "CONVERTED" | "DECLINED" | "ALL";
 
 export function normalizeProjectIntakeAdminFilter(value?: string | null): ProjectIntakeAdminFilter {
-  if (value === "NEEDS_INFO" || value === "ACCEPTED" || value === "DECLINED" || value === "ALL") return value;
+  if (value === "NEEDS_INFO" || value === "ACCEPTED" || value === "ACCEPTED_PENDING" || value === "CONVERTED" || value === "DECLINED" || value === "ALL") return value;
   return "WAITING";
 }
 
@@ -856,13 +1089,16 @@ export async function getAdminProjectIntakes({
 }) {
   const safePage = Math.max(1, Math.floor(page));
   const safePageSize = Math.min(Math.max(1, Math.floor(pageSize)), 50);
-  const statusWhere =
+  const where: Prisma.ProjectIntakeWhereInput =
     filter === "WAITING"
       ? { status: ProjectIntakeStatus.SUBMITTED }
-      : filter === "ALL"
-        ? {}
-        : { status: filter as ProjectIntakeStatus };
-  const where: Prisma.ProjectIntakeWhereInput = statusWhere;
+      : filter === "ACCEPTED_PENDING"
+        ? { status: ProjectIntakeStatus.ACCEPTED, linkedCollaborationProjectId: null }
+        : filter === "CONVERTED"
+          ? { linkedCollaborationProjectId: { not: null } }
+          : filter === "ALL"
+            ? {}
+            : { status: filter as ProjectIntakeStatus };
   const [items, total] = await Promise.all([
     prisma.projectIntake.findMany({
       where,

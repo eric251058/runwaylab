@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { ProjectIntakeConversionPanel } from "@/components/admin/ProjectIntakeConversionPanel";
 import { ProjectIntakeReviewPanel } from "@/components/admin/ProjectIntakeReviewPanel";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
@@ -10,6 +11,7 @@ import {
   getProjectIntakeForAdmin,
   launchTimingLabel,
   needLabel,
+  privateCollaborationProjectHref,
   projectIntakeTitle,
   sourceLabel,
   useScenarioLabel
@@ -108,9 +110,24 @@ export default async function AdminProjectIntakeDetailPage({ params }: AdminProj
 
         <div className="grid h-fit gap-5">
           <ProjectIntakeReviewPanel intakeId={intake.id} status={intake.status} expectedUpdatedAt={intake.updatedAt.toISOString()} />
+          <ProjectIntakeConversionPanel
+            intakeId={intake.id}
+            status={intake.status}
+            expectedUpdatedAt={intake.updatedAt.toISOString()}
+            project={
+              intake.linkedCollaborationProject
+                ? {
+                    id: intake.linkedCollaborationProject.id,
+                    title: intake.linkedCollaborationProject.title,
+                    createdAt: intake.linkedCollaborationProject.createdAt.toISOString(),
+                    href: privateCollaborationProjectHref(intake.linkedCollaborationProject.id)
+                  }
+                : null
+            }
+          />
           <section className="rounded-[8px] border border-black/8 bg-white p-5 text-sm leading-6 text-ink/58">
             <h2 className="font-semibold text-ink">处理边界</h2>
-            <p className="mt-2">通过评估不会自动创建 Work、CollaborationProject 或 IncubationProject。本轮只完成平台评估结果。</p>
+            <p className="mt-2">通过评估后可由管理员受控建立一个私有正式项目。本轮不会自动创建 Work、IncubationProject、供应商机会、订单或预售。</p>
           </section>
         </div>
       </div>

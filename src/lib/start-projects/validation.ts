@@ -8,7 +8,7 @@ export const START_SOURCE_VALUES = ["DESIGN", "IDEA", "AUDIENCE", "STORE", "BRAN
 export const START_CATEGORY_VALUES = ["DRESS", "SHIRT", "OUTERWEAR", "SET", "SKIRT", "PANTS", "LIGHT_FORMAL", "KNIT", "OTHER"] as const;
 export const START_NEED_VALUES = ["DESIGN_DIRECTION", "FABRIC", "SAMPLE", "PRODUCTION", "MARKET_VALIDATION", "UNSURE"] as const;
 export const PROJECT_INTAKE_STATUS_VALUES = ["DRAFT", "READY_FOR_REVIEW", "SUBMITTED", "NEEDS_INFO", "ACCEPTED", "DECLINED"] as const;
-export const PROJECT_INTAKE_EVENT_VALUES = ["CREATED", "DETAILS_UPDATED", "SUBMITTED", "WITHDRAWN", "NEEDS_INFO", "RESUBMITTED", "ACCEPTED", "DECLINED"] as const;
+export const PROJECT_INTAKE_EVENT_VALUES = ["CREATED", "DETAILS_UPDATED", "SUBMITTED", "WITHDRAWN", "NEEDS_INFO", "RESUBMITTED", "ACCEPTED", "DECLINED", "CONVERTED"] as const;
 
 export const USE_SCENARIO_VALUES = ["DAILY_COMMUTE", "WEEKEND", "DATE_PARTY", "FORMAL", "TRAVEL", "STAGE_PHOTO", "STORE_SALES", "OTHER", "UNSURE"] as const;
 export const EXPECTED_PRICE_BAND_VALUES = ["UNDER_299", "FROM_300_TO_599", "FROM_600_TO_999", "FROM_1000_TO_1999", "FROM_2000", "UNSURE"] as const;
@@ -159,6 +159,12 @@ export const projectIntakeReviewSchema = z
       }
     }
   });
+
+export const projectIntakeConversionSchema = z
+  .object({
+    expectedUpdatedAt: z.string().datetime("项目状态已更新，请刷新后重试。")
+  })
+  .strict();
 
 export function normalizeStartSourceParam(value?: string | null): StartSourceType | null {
   if (value === "design") return "DESIGN";

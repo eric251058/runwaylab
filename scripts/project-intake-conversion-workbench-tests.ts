@@ -1,0 +1,19 @@
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+
+const startProjects = readFileSync("src/lib/start-projects.ts", "utf8");
+const privateProjects = readFileSync("src/lib/private-collaboration-projects.ts", "utf8");
+const meProjects = readFileSync("src/app/me/projects/page.tsx", "utf8");
+const detailPagePath = "src/app/me/projects/collaboration/[id]/page.tsx";
+const detailPage = readFileSync(detailPagePath, "utf8");
+
+assert.equal(existsSync(detailPagePath), true, "private collaboration project detail page should exist");
+assert.match(startProjects, /getProjectIntakesForUser[\s\S]*linkedCollaborationProjectId:\s*null/, "converted intakes should be hidden from the draft list");
+assert.match(privateProjects, /getPrivateCollaborationProjectsForUser/, "private formal projects should have a dedicated list loader");
+assert.match(privateProjects, /visibility:\s*CollaborationProjectVisibility\.PRIVATE/, "private list loader should only fetch private projects");
+assert.match(privateProjects, /projectIntake:\s*\{\s*isNot:\s*null\s*\}/, "private list loader should only fetch intake-converted projects");
+assert.match(meProjects, /getPrivateCollaborationProjectsForUser\(user\.id\)/, "/me/projects should include intake-converted formal projects");
+assert.match(meProjects, /totalProjectCount = projects\.length \+ intakes\.length \+ collaborationProjects\.length/, "/me/projects count should include formal projects once");
+assert.match(detailPage, /robots:\s*\{\s*index:\s*false,\s*follow:\s*false\s*\}/, "private formal project page should be noindex");
+
+console.log("project intake conversion workbench tests passed");

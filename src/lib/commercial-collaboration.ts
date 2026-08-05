@@ -2,12 +2,14 @@ import {
   CaseStudyStatus,
   CollaborationProjectPriority,
   CollaborationProjectStatus,
+  CollaborationProjectVisibility,
   ProjectOrderStatus,
   ReviewStatus,
   ReviewTargetType,
   VerificationStatus,
   VerificationType
 } from "@prisma/client";
+import { PUBLIC_PROJECT_STATUSES } from "@/lib/projects/rules";
 
 export const VERIFICATION_TYPE_LABELS: Record<VerificationType, string> = {
   DESIGNER: "设计师",
@@ -119,8 +121,9 @@ export function enumValue<T extends string>(value: FormDataEntryValue | null, al
 
 export function publicProjectWhere() {
   return {
+    visibility: CollaborationProjectVisibility.PUBLIC,
     status: {
-      notIn: [CollaborationProjectStatus.DRAFT, CollaborationProjectStatus.CANCELLED]
+      in: [...PUBLIC_PROJECT_STATUSES]
     }
   };
 }

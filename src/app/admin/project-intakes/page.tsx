@@ -21,7 +21,9 @@ type AdminProjectIntakesPageProps = {
 const filters = [
   ["WAITING", "等待评估"],
   ["NEEDS_INFO", "需要补充"],
-  ["ACCEPTED", "已通过"],
+  ["ACCEPTED_PENDING", "待建立项目"],
+  ["CONVERTED", "已建立项目"],
+  ["ACCEPTED", "全部通过"],
   ["DECLINED", "暂不适合"],
   ["ALL", "全部"]
 ] as const;
@@ -70,6 +72,7 @@ export default async function AdminProjectIntakesPage({ searchParams }: AdminPro
                 <div className="min-w-0">
                   <div className="flex flex-wrap gap-2">
                     <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{PROJECT_INTAKE_STATUS_LABELS[item.status]}</span>
+                    {item.linkedCollaborationProject ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">已建立正式项目</span> : null}
                     <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">完成度 {item.completion}%</span>
                     <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">提交 {formatDate(item.submittedForReviewAt)}</span>
                   </div>
@@ -82,9 +85,14 @@ export default async function AdminProjectIntakesPage({ searchParams }: AdminPro
                     <span>{expectedPriceBandLabel(item.expectedPriceBand)} / {launchTimingLabel(item.launchTiming)}</span>
                   </div>
                 </div>
-                <Link href={`/admin/project-intakes/${item.id}`} className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
-                  查看评估
-                </Link>
+                <div className="grid gap-2 lg:w-36">
+                  <Link href={`/admin/project-intakes/${item.id}`} className="inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">
+                    查看评估
+                  </Link>
+                  {item.linkedCollaborationProject ? (
+                    <span className="text-center text-xs font-semibold text-ink/42">{item.linkedCollaborationProject.title}</span>
+                  ) : null}
+                </div>
               </div>
             </article>
           ))

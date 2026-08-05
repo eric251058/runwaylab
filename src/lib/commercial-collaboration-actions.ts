@@ -79,7 +79,7 @@ export async function saveCollaborationProject(formData: FormData) {
   const data = {
     title: requiredText(formData.get("title"), "项目标题"),
     slug: optionalText(formData.get("slug")),
-    workId: requiredText(formData.get("workId"), "作品"),
+    workId: optionalText(formData.get("workId")),
     designerId: optionalText(formData.get("designerId")),
     schoolId: optionalText(formData.get("schoolId")),
     teacherId: optionalText(formData.get("teacherId")),

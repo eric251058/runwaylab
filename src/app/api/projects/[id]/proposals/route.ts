@@ -49,6 +49,9 @@ export async function POST(request: Request, context: RouteContext) {
   if (!project || !canViewProject(user, project)) {
     return NextResponse.json({ error: "项目不存在或暂不可见。" }, { status: 404 });
   }
+  if (!project.workId) {
+    return NextResponse.json({ error: "该项目暂不可提交服务商方案。" }, { status: 400 });
+  }
 
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   const title = text(body?.title, 80);

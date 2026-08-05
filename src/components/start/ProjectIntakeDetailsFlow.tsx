@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type IntakeStatus = "DRAFT" | "READY_FOR_REVIEW" | "SUBMITTED" | "NEEDS_INFO" | "ACCEPTED" | "DECLINED";
-type EventType = "CREATED" | "DETAILS_UPDATED" | "SUBMITTED" | "WITHDRAWN" | "NEEDS_INFO" | "RESUBMITTED" | "ACCEPTED" | "DECLINED";
+type EventType = "CREATED" | "DETAILS_UPDATED" | "SUBMITTED" | "WITHDRAWN" | "NEEDS_INFO" | "RESUBMITTED" | "ACCEPTED" | "DECLINED" | "CONVERTED";
 
 type EventDto = {
   id: string;
@@ -37,6 +37,10 @@ export type ProjectIntakeDetailsDto = {
   completion: number;
   submittedForReviewAt: string | null;
   reviewedAt: string | null;
+  convertedAt: string | null;
+  linkedCollaborationProjectId: string | null;
+  linkedCollaborationProjectTitle: string | null;
+  linkedCollaborationProjectHref: string | null;
   createdAt: string;
   updatedAt: string;
   nextAction: {
@@ -67,7 +71,8 @@ const eventLabels: Record<EventType, string> = {
   NEEDS_INFO: "平台希望补充资料",
   RESUBMITTED: "已重新提交评估",
   ACCEPTED: "项目已通过评估",
-  DECLINED: "项目暂不适合推进"
+  DECLINED: "项目暂不适合推进",
+  CONVERTED: "项目已转为正式项目"
 };
 
 const sourceLabels: Record<string, string> = {
@@ -279,7 +284,9 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
     intake.status === "SUBMITTED"
       ? { label: "查看当前资料", action: () => setStep("review") }
       : intake.status === "ACCEPTED"
-        ? { label: "查看平台建议", action: () => setStep("review") }
+        ? intake.linkedCollaborationProjectHref
+          ? { label: "进入项目工作台", action: () => router.push(intake.linkedCollaborationProjectHref!) }
+          : { label: "查看平台建议", action: () => setStep("review") }
         : intake.status === "DECLINED"
           ? { label: "开始一个新项目", action: () => router.push("/start") }
           : canSubmit
@@ -295,6 +302,11 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
         </div>
         <h1 className="mt-4 text-3xl font-semibold leading-tight text-ink md:text-5xl">{intake.title}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58">{intake.nextAction.description}</p>
+        {intake.linkedCollaborationProjectHref ? (
+          <p className="mt-4 rounded-[8px] bg-paper p-4 text-sm leading-7 text-ink/68">
+            正式项目已建立：{intake.linkedCollaborationProjectTitle ?? "项目工作台"}。原始启动资料和平台评估记录会继续保留。
+          </p>
+        ) : null}
         {reviewNote ? <p className="mt-4 rounded-[8px] bg-paper p-4 text-sm leading-7 text-ink/68">平台反馈：{reviewNote}</p> : null}
         {message ? <p className="mt-4 rounded-[8px] border border-black/8 bg-white px-4 py-3 text-sm text-ink/62">{message}</p> : null}
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">

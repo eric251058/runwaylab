@@ -91,6 +91,7 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
   });
 
   if (!project || !canManageProject(user, project)) throw new Error("无权申请该项目的设计授权");
+  if (!project.workId || !project.work) throw new Error("该项目尚未关联公开作品，不能申请设计授权");
 
   const termsVersion = optionalText(formData.get("termsVersion")) ?? "v1";
   const scope = optionalText(formData.get("scope")) ?? "围绕该作品推进打样、预售验证和合作沟通。";

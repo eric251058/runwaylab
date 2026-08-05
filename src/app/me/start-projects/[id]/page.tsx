@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ProjectIntakeDetailsFlow, type ProjectIntakeDetailsDto } from "@/components/start/ProjectIntakeDetailsFlow";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getProjectIntakeForViewer, projectIntakeNextAction, projectIntakeTitle } from "@/lib/start-projects";
+import { getProjectIntakeForViewer, privateCollaborationProjectHref, projectIntakeNextAction, projectIntakeTitle } from "@/lib/start-projects";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +46,10 @@ function serializeIntake(intake: Awaited<ReturnType<typeof getProjectIntakeForVi
     completion: intake.completion,
     submittedForReviewAt: intake.submittedForReviewAt?.toISOString() ?? null,
     reviewedAt: intake.reviewedAt?.toISOString() ?? null,
+    convertedAt: intake.convertedAt?.toISOString() ?? null,
+    linkedCollaborationProjectId: intake.linkedCollaborationProjectId,
+    linkedCollaborationProjectTitle: intake.linkedCollaborationProject?.title ?? null,
+    linkedCollaborationProjectHref: intake.linkedCollaborationProjectId ? privateCollaborationProjectHref(intake.linkedCollaborationProjectId) : null,
     createdAt: intake.createdAt.toISOString(),
     updatedAt: intake.updatedAt.toISOString(),
     nextAction: projectIntakeNextAction(intake),

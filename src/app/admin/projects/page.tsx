@@ -52,7 +52,7 @@ export default async function AdminProjectsPage() {
             <input type="hidden" name="id" value={project.id} />
             <input name="title" defaultValue={project.title} className={input} />
             <input name="slug" defaultValue={project.slug ?? ""} placeholder="slug" className={input} />
-            <select name="workId" defaultValue={project.workId} className={input}>{workOptions}</select>
+            <select name="workId" defaultValue={project.workId ?? ""} className={input}><option value="">作品待关联</option>{workOptions}</select>
             <select name="providerId" defaultValue={project.providerId ?? ""} className={input}><option value="">服务商</option>{providers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
             <select name="status" defaultValue={project.status} className={input}>{Object.values(CollaborationProjectStatus).map((status) => <option key={status} value={status}>{PROJECT_STATUS_LABELS[status]}</option>)}</select>
             <select name="priority" defaultValue={project.priority} className={input}>{Object.values(CollaborationProjectPriority).map((priority) => <option key={priority} value={priority}>{PROJECT_PRIORITY_LABELS[priority]}</option>)}</select>
@@ -66,7 +66,7 @@ export default async function AdminProjectsPage() {
             <select name="teacherId" defaultValue={project.teacherId ?? ""} className={input}><option value="">老师</option>{teachers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
             <textarea name="description" defaultValue={project.description ?? ""} className="min-h-20 rounded-[6px] border border-black/10 px-3 py-3 text-sm md:col-span-3" />
             <button className="h-10 rounded-full border border-black/10 px-4 text-sm font-semibold">保存</button>
-            <p className="text-xs text-ink/45 md:col-span-4">作品：{project.work.title} / 服务商：{project.provider?.name ?? "待关联"}</p>
+            <p className="text-xs text-ink/45 md:col-span-4">作品：{project.work?.title ?? "待关联"} / 服务商：{project.provider?.name ?? "待关联"}</p>
           </form>
         )) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无合作项目。</div>}
       </section>

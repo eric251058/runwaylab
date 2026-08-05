@@ -44,6 +44,8 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
 
   if (!project) notFound();
   const preorderProducts = project.products.filter((product) => canOpenLimitedPreorder(project.status, product.status, project.designerAuthorizationStatus));
+  const work = project.work;
+  const designerName = project.designer?.nickname ?? work?.user.nickname ?? "待关联";
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12">
@@ -60,8 +62,16 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
         <section className="rounded-[8px] border border-black/8 bg-white p-5">
           <h2 className="text-2xl font-semibold text-ink">参与资源</h2>
           <div className="mt-4 grid gap-3 text-sm text-ink/58 md:grid-cols-2">
-            <Link href={`/works/${project.workId}`} className="rounded-[6px] bg-paper p-3 font-semibold text-ink">作品：{project.work.title}</Link>
-            <Link href={`/designers/${project.work.userId}`} className="rounded-[6px] bg-paper p-3">设计师：{project.designer?.nickname ?? project.work.user.nickname}</Link>
+            {work && project.workId ? (
+              <Link href={`/works/${project.workId}`} className="rounded-[6px] bg-paper p-3 font-semibold text-ink">作品：{work.title}</Link>
+            ) : (
+              <div className="rounded-[6px] bg-paper p-3 font-semibold text-ink">作品：待关联</div>
+            )}
+            {work?.userId ? (
+              <Link href={`/designers/${work.userId}`} className="rounded-[6px] bg-paper p-3">设计师：{designerName}</Link>
+            ) : (
+              <div className="rounded-[6px] bg-paper p-3">设计师：{designerName}</div>
+            )}
             <div className="rounded-[6px] bg-paper p-3">学校：{project.school?.name ?? "待关联"}</div>
             <div className="rounded-[6px] bg-paper p-3">老师：{project.teacher?.name ?? "待关联"}</div>
             <div className="rounded-[6px] bg-paper p-3">服务商：{project.provider?.name ?? "待关联"}</div>
@@ -73,7 +83,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
 
         <section className="rounded-[8px] border border-black/8 bg-white p-5">
           <h2 className="text-2xl font-semibold text-ink">当前进展</h2>
-          <img src={visualFor(0, project.work.images[0])} alt={project.work.title} className="mt-4 aspect-[4/3] w-full rounded-[6px] object-cover" />
+          <img src={visualFor(0, work?.images[0])} alt={work?.title ?? project.title} className="mt-4 aspect-[4/3] w-full rounded-[6px] object-cover" />
           <p className="mt-4 text-sm leading-6 text-ink/58">当前阶段：{PROJECT_STATUS_LABELS[project.status]}</p>
           <p className="mt-1 text-sm leading-6 text-ink/58">预售验证：{project.presaleCampaign?.title ?? "待开启"}</p>
           <p className="mt-1 text-sm leading-6 text-ink/58">下一步：继续确认资源、打样和市场反馈。</p>

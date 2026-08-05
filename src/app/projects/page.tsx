@@ -34,7 +34,7 @@ export default async function ProjectsPage() {
                 <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{PROJECT_STATUS_LABELS[project.status]}</span>
               </div>
               <h2 className="mt-4 line-clamp-2 text-xl font-semibold text-ink">{project.title}</h2>
-              <p className="mt-2 text-sm text-ink/52">关联作品：{project.work.title}</p>
+              <p className="mt-2 text-sm text-ink/52">关联作品：{project.work?.title ?? "待关联"}</p>
               <p className="mt-3 line-clamp-2 text-sm leading-6 text-ink/56">{project.description ?? "围绕作品孵化推进资源匹配、打样验证与合作沟通。"}</p>
               <p className="mt-3 line-clamp-2 text-sm leading-6 text-ink/56">参与资源：{[project.school?.name, project.teacher?.name, project.provider?.name].filter(Boolean).join(" / ") || "待补充"}</p>
               <p className="mt-2 text-sm leading-6 text-ink/56">目标 / 预算：{[project.targetQuantity, project.estimatedBudget].filter(Boolean).join(" / ") || "待确认"}</p>

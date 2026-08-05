@@ -399,6 +399,7 @@ enum ProjectIntakeEventType {
   RESUBMITTED
   ACCEPTED
   DECLINED
+  CONVERTED
 }
 
 enum CollaborationProjectVisibility {
@@ -647,6 +648,7 @@ model User {
   projectOrders                         ProjectOrder[]               @relation("ProjectOrderBuyer")
   projectIntakes                        ProjectIntake[]
   reviewedProjectIntakes                ProjectIntake[]              @relation("ProjectIntakeReviewedBy")
+  convertedProjectIntakes               ProjectIntake[]              @relation("ProjectIntakeConvertedBy")
   projectIntakeEvents                   ProjectIntakeEvent[]         @relation("ProjectIntakeEventActor")
   givenReviews                          Review[]                     @relation("ReviewReviewer")
   receivedReviews                       Review[]                     @relation("ReviewTargetUser")
@@ -1901,7 +1903,7 @@ model CollaborationProject {
   id                          String                           @id @default(cuid())
   title                       String
   slug                        String?                          @unique
-  workId                      String
+  workId                      String?
   designerId                  String?
   ownerUserId                 String?
   ownerProviderId             String?
@@ -1929,7 +1931,7 @@ model CollaborationProject {
   internalNote                String?
   createdById                 String?
 
-  work                  Work                         @relation(fields: [workId], references: [id], onDelete: Cascade)
+  work                  Work?                        @relation(fields: [workId], references: [id], onDelete: Cascade)
   designer              User?                        @relation("CollaborationProjectDesigner", fields: [designerId], references: [id], onDelete: SetNull)
   ownerUser             User?                        @relation("CollaborationProjectOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   ownerProvider         Provider?                    @relation("CollaborationProjectOwnerProvider", fields: [ownerProviderId], references: [id], onDelete: SetNull)
@@ -1947,7 +1949,7 @@ model CollaborationProject {
   orders                ProjectOrder[]
   reviews               Review[]
   caseStudies           CaseStudy[]
-  projectIntakes        ProjectIntake[]              @relation("ProjectIntakeLinkedCollaborationProject")
+  projectIntake         ProjectIntake?               @relation("ProjectIntakeLinkedCollaborationProject")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1989,12 +1991,15 @@ model ProjectIntake {
   reviewedById                 String?
   reviewedAt                   DateTime?
   linkedWorkId                 String?
-  linkedCollaborationProjectId String?
+  linkedCollaborationProjectId String?             @unique
   linkedIncubationProjectId    String?
   submittedForReviewAt         DateTime?
+  convertedAt                  DateTime?
+  convertedById                String?
 
   owner                      User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   reviewedBy                 User?                 @relation("ProjectIntakeReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  convertedBy                User?                 @relation("ProjectIntakeConvertedBy", fields: [convertedById], references: [id], onDelete: SetNull)
   linkedWork                 Work?                 @relation("ProjectIntakeLinkedWork", fields: [linkedWorkId], references: [id], onDelete: SetNull)
   linkedCollaborationProject CollaborationProject? @relation("ProjectIntakeLinkedCollaborationProject", fields: [linkedCollaborationProjectId], references: [id], onDelete: SetNull)
   linkedIncubationProject    IncubationProject?    @relation("ProjectIntakeLinkedIncubationProject", fields: [linkedIncubationProjectId], references: [id], onDelete: SetNull)
@@ -2007,9 +2012,10 @@ model ProjectIntake {
   @@index([ownerId, updatedAt])
   @@index([status])
   @@index([status, submittedForReviewAt])
+  @@index([status, convertedAt])
   @@index([reviewedById])
+  @@index([convertedById])
   @@index([linkedWorkId])
-  @@index([linkedCollaborationProjectId])
   @@index([linkedIncubationProjectId])
 }
 

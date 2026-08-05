@@ -566,7 +566,7 @@ export default async function AdminPage() {
         <div className="rounded-[8px] border border-black/8 bg-white p-5">
           <h2 className="font-semibold text-ink">最新合作项目</h2>
           <div className="mt-3 space-y-2 text-sm text-ink/58">
-            {latestProjects.length ? latestProjects.map((item) => <p key={item.id}>{item.title} / {item.work.title} / {PROJECT_STATUS_LABELS[item.status]}</p>) : <p>暂无合作项目</p>}
+            {latestProjects.length ? latestProjects.map((item) => <p key={item.id}>{item.title} / {item.work?.title ?? "作品待关联"} / {PROJECT_STATUS_LABELS[item.status]}</p>) : <p>暂无合作项目</p>}
           </div>
         </div>
         <div className="rounded-[8px] border border-black/8 bg-white p-5">
