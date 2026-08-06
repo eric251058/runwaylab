@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowRight, Clock, ListChecks } from "lucide-react";
+import { PrivateProjectActionCard, type PrivateProjectActionCardAction } from "@/components/projects/PrivateProjectActionCard";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
+  privateProjectCurrentAction,
   getPrivateCollaborationProjectForViewer,
   privateProjectIntakeSummary,
   privateProjectNextAction,
@@ -45,6 +47,20 @@ function info(label: string, value?: string | null) {
   );
 }
 
+function serializeAction(action: NonNullable<ReturnType<typeof privateProjectCurrentAction>>): PrivateProjectActionCardAction {
+  return {
+    id: action.id,
+    title: action.title,
+    instructions: action.instructions,
+    status: action.status,
+    responsibility: action.responsibility,
+    dueAt: action.dueAt?.toISOString() ?? null,
+    updatedAt: action.updatedAt.toISOString(),
+    userResultNote: action.userResultNote,
+    userResultSubmittedAt: action.userResultSubmittedAt?.toISOString() ?? null
+  };
+}
+
 export default async function PrivateCollaborationProjectPage({ params }: PageProps) {
   const user = await getCurrentUser();
   const { id } = await params;
@@ -54,7 +70,8 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
   const project = await getPrivateCollaborationProjectForViewer(id, user);
   if (!project) notFound();
 
-  const nextAction = privateProjectNextAction();
+  const currentAction = privateProjectCurrentAction(project);
+  const nextAction = privateProjectNextAction(project);
   const timeline = privateProjectTimeline(project);
   const intake = project.projectIntake;
 
@@ -86,11 +103,14 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
         <div className="grid gap-5">
+          <PrivateProjectActionCard projectId={project.id} action={currentAction ? serializeAction(currentAction) : null} />
+
           <section className="rounded-[8px] border border-black/8 bg-white p-5">
             <h2 className="text-xl font-semibold text-ink">项目摘要</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {info("当前阶段", "启动草稿已转正式项目")}
+              {info("当前阶段", privateProjectStageLabel(project))}
               {info("当前状态", privateProjectStageLabel(project))}
+              {info("当前动作", currentAction?.title)}
               {info("原始启动信息", privateProjectIntakeSummary(project))}
               {info("一句话想法", project.description)}
               {info("平台反馈", intake?.reviewNote)}

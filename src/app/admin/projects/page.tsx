@@ -1,12 +1,63 @@
 import { CollaborationProjectPriority, CollaborationProjectStatus } from "@prisma/client";
+import Link from "next/link";
 import { saveCollaborationProject } from "@/lib/commercial-collaboration-actions";
 import { dateInputValue, PROJECT_PRIORITY_LABELS, PROJECT_STATUS_LABELS } from "@/lib/commercial-collaboration";
+import {
+  PRIVATE_PROJECT_ACTION_RESPONSIBILITY_LABELS,
+  PRIVATE_PROJECT_ACTION_STATUS_LABELS,
+  getAdminPrivateProjects,
+  getCurrentPrivateProjectAction,
+  privateProjectActionSummary,
+  type PrivateProjectAdminFilter
+} from "@/lib/private-project-actions";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminProjectsPage() {
-  const [projects, works, providers, fabrics, campaigns, schools, teachers] = await Promise.all([
+type PageProps = {
+  searchParams?: Promise<{ privateFilter?: string; privatePage?: string }>;
+};
+
+function normalizePrivateFilter(value?: string | null): PrivateProjectAdminFilter {
+  if (
+    value === "NO_ACTION" ||
+    value === "WAITING_USER" ||
+    value === "WAITING_PLATFORM" ||
+    value === "WAITING_CONFIRMATION" ||
+    value === "WAITING_NEXT" ||
+    value === "ALL_PRIVATE"
+  ) {
+    return value;
+  }
+  return "TODO";
+}
+
+function formatDate(value: Date) {
+  return value.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+const privateFilters: Array<[PrivateProjectAdminFilter, string]> = [
+  ["TODO", "待处理"],
+  ["NO_ACTION", "待安排"],
+  ["WAITING_USER", "等用户"],
+  ["WAITING_PLATFORM", "平台处理中"],
+  ["WAITING_CONFIRMATION", "待确认"],
+  ["WAITING_NEXT", "待下一步"],
+  ["ALL_PRIVATE", "全部私有"]
+];
+
+export default async function AdminProjectsPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const privateFilter = normalizePrivateFilter(params?.privateFilter);
+  const privatePage = Number(params?.privatePage ?? "1");
+
+  const [privateProjects, projects, works, providers, fabrics, campaigns, schools, teachers] = await Promise.all([
+    getAdminPrivateProjects({ filter: privateFilter, page: Number.isFinite(privatePage) ? privatePage : 1 }),
     prisma.collaborationProject.findMany({ include: { work: true, provider: true }, orderBy: { createdAt: "desc" }, take: 120 }),
     prisma.work.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 200 }),
     prisma.provider.findMany({ orderBy: { name: "asc" }, take: 200 }),
@@ -25,6 +76,65 @@ export default async function AdminProjectsPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Admin</p>
         <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">合作项目管理</h1>
       </header>
+
+      <section className="mb-8 rounded-[8px] border border-black/8 bg-white p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Private project kickoff</p>
+            <h2 className="mt-2 text-2xl font-semibold text-ink">私人正式项目待处理</h2>
+            <p className="mt-2 text-sm leading-6 text-ink/55">只展示由启动草稿转化来的 PRIVATE / DRAFT 正式项目。</p>
+          </div>
+          <p className="text-sm font-semibold text-ink/45">共 {privateProjects.total} 个</p>
+        </div>
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
+          {privateFilters.map(([value, label]) => (
+            <Link
+              key={value}
+              href={`/admin/projects?privateFilter=${value}`}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${privateFilter === value ? "bg-ink text-white" : "border border-black/10 text-ink"}`}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+        <div className="mt-4 grid gap-3">
+          {privateProjects.items.length ? privateProjects.items.map((project) => {
+            const currentAction = getCurrentPrivateProjectAction(project.actions);
+            const summary = privateProjectActionSummary(currentAction);
+            return (
+              <Link key={project.id} href={`/admin/projects/${project.id}`} className="grid gap-3 rounded-[8px] border border-black/8 bg-paper p-4 hover:bg-white md:grid-cols-[1fr_auto] md:items-center">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{summary.stageLabel}</span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">{summary.statusLabel}</span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">{summary.responsibilityLabel}</span>
+                  </div>
+                  <h3 className="mt-3 truncate text-lg font-semibold text-ink">{project.title}</h3>
+                  <p className="mt-2 truncate text-sm leading-6 text-ink/55">当前动作：{summary.title}</p>
+                  <p className="mt-1 text-xs font-semibold text-ink/40">负责人：{project.ownerUser?.nickname ?? project.ownerUserId ?? "未绑定"} / 更新：{formatDate(project.updatedAt)}</p>
+                </div>
+                <div className="text-sm font-semibold text-ink">
+                  {currentAction ? `${PRIVATE_PROJECT_ACTION_STATUS_LABELS[currentAction.status]} / ${PRIVATE_PROJECT_ACTION_RESPONSIBILITY_LABELS[currentAction.responsibility]}` : "待安排"}
+                </div>
+              </Link>
+            );
+          }) : (
+            <div className="rounded-[8px] bg-paper p-5 text-sm leading-6 text-ink/55">当前筛选下暂无私人正式项目。</div>
+          )}
+        </div>
+        {privateProjects.pageCount > 1 ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {Array.from({ length: privateProjects.pageCount }).map((_, index) => {
+              const page = index + 1;
+              return (
+                <Link key={page} href={`/admin/projects?privateFilter=${privateFilter}&privatePage=${page}`} className={`rounded-full px-4 py-2 text-sm font-semibold ${privateProjects.page === page ? "bg-ink text-white" : "border border-black/10 text-ink"}`}>
+                  {page}
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
+      </section>
 
       <form action={saveCollaborationProject} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-5 md:grid-cols-2">
         <input name="title" required placeholder="项目标题" className={input} />

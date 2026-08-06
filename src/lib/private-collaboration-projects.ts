@@ -1,6 +1,21 @@
-import { CollaborationProjectVisibility, UserRole, UserStatus, type User } from "@prisma/client";
-import { PROJECT_STATUS_LABELS } from "@/lib/commercial-collaboration";
+import {
+  CollaborationProjectActionResponsibility,
+  CollaborationProjectActionStatus,
+  CollaborationProjectVisibility,
+  UserRole,
+  UserStatus,
+  type User
+} from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  PRIVATE_PROJECT_ACTION_RESPONSIBILITY_LABELS,
+  PRIVATE_PROJECT_ACTION_STATUS_LABELS,
+  PRIVATE_PROJECT_EVENT_LABELS,
+  getCurrentPrivateProjectAction,
+  privateProjectActionSelect,
+  privateProjectActionSummary,
+  privateProjectEventSelect
+} from "@/lib/private-project-actions";
 import { PROJECT_INTAKE_EVENT_LABELS, categoryLabel, needLabel, projectIntakeTitle, sourceLabel } from "@/lib/start-projects";
 
 type Viewer = Pick<User, "id" | "role" | "status">;
@@ -52,6 +67,16 @@ export const privateCollaborationProjectSelect = {
         take: 40
       }
     }
+  },
+  actions: {
+    select: privateProjectActionSelect,
+    orderBy: { updatedAt: "desc" as const },
+    take: 50
+  },
+  events: {
+    select: privateProjectEventSelect,
+    orderBy: { createdAt: "desc" as const },
+    take: 80
   }
 };
 
@@ -90,14 +115,40 @@ export async function getPrivateCollaborationProjectForViewer(id: string, user: 
   return project;
 }
 
-export function privateProjectStageLabel(project: Pick<PrivateCollaborationProject, "status">) {
-  return PROJECT_STATUS_LABELS[project.status] ?? "启动项目";
+export function privateProjectCurrentAction(project: Pick<PrivateCollaborationProject, "actions">) {
+  return getCurrentPrivateProjectAction(project.actions);
 }
 
-export function privateProjectNextAction() {
+export function privateProjectStageLabel(project: Pick<PrivateCollaborationProject, "actions">) {
+  return privateProjectActionSummary(privateProjectCurrentAction(project)).stageLabel;
+}
+
+export function privateProjectNextAction(project?: Pick<PrivateCollaborationProject, "actions"> | null) {
+  const action = project ? privateProjectCurrentAction(project) : null;
+  if (!action) {
+    return {
+      label: "等待平台安排下一步",
+      description: "正式项目已建立，平台会按一个明确步骤继续推进。"
+    };
+  }
+
+  if (action.status === CollaborationProjectActionStatus.WAITING_PLATFORM_CONFIRMATION) {
+    return {
+      label: "等待平台确认",
+      description: "你已经提交了当前步骤结果，平台确认后会安排下一步。"
+    };
+  }
+
+  if (action.responsibility === CollaborationProjectActionResponsibility.USER) {
+    return {
+      label: "提交完成结果",
+      description: action.instructions
+    };
+  }
+
   return {
-    label: "等待平台安排下一阶段",
-    description: "正式项目已建立，但尚未进入供应商匹配、生产或预售。"
+    label: "平台正在处理",
+    description: action.instructions
   };
 }
 
@@ -116,6 +167,7 @@ export function privateProjectIntakeSummary(project: PrivateCollaborationProject
 
 export function privateProjectTimeline(project: PrivateCollaborationProject) {
   const intakeEvents = project.projectIntake?.events ?? [];
+  const projectEvents = project.events ?? [];
   const convertedAt = project.projectIntake?.convertedAt ?? project.createdAt;
   const convertedEvent = {
     id: `project-${project.id}-converted`,
@@ -125,6 +177,22 @@ export function privateProjectTimeline(project: PrivateCollaborationProject) {
   };
   return [
     convertedEvent,
+    ...projectEvents.map((event) => ({
+      id: event.id,
+      title: PRIVATE_PROJECT_EVENT_LABELS[event.eventType],
+      description: event.note ?? event.action?.title ?? "",
+      at: event.createdAt
+    })),
+    ...project.actions.map((action) => {
+      const statusLabel = PRIVATE_PROJECT_ACTION_STATUS_LABELS[action.status];
+      const responsibilityLabel = PRIVATE_PROJECT_ACTION_RESPONSIBILITY_LABELS[action.responsibility];
+      return {
+        id: `action-${action.id}`,
+        title: `${statusLabel}：${action.title}`,
+        description: `${responsibilityLabel} / ${action.instructions}`,
+        at: action.updatedAt
+      };
+    }),
     ...intakeEvents.map((event) => ({
       id: event.id,
       title: PROJECT_INTAKE_EVENT_LABELS[event.eventType],

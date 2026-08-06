@@ -354,6 +354,34 @@ enum CollaborationProjectPriority {
   URGENT
 }
 
+enum CollaborationProjectActionType {
+  DESIGN_CLARIFICATION
+  FABRIC_BRIEF
+  SAMPLE_BRIEF
+  PRODUCTION_FEASIBILITY
+  PLATFORM_PREPARATION
+}
+
+enum CollaborationProjectActionResponsibility {
+  USER
+  PLATFORM
+}
+
+enum CollaborationProjectActionStatus {
+  ACTIVE
+  WAITING_PLATFORM_CONFIRMATION
+  COMPLETED
+  CANCELLED
+}
+
+enum CollaborationProjectEventType {
+  PROJECT_CREATED
+  ACTION_CREATED
+  USER_RESULT_SUBMITTED
+  ACTION_COMPLETED
+  ACTION_CANCELLED
+}
+
 enum ProjectOrderStatus {
   INTENT
   RESERVATION
@@ -644,6 +672,10 @@ model User {
   projectDesignAuthorizationsAsDesigner ProjectDesignAuthorization[] @relation("ProjectDesignAuthorizationDesigner")
   projectDesignAuthorizationsAsOwner    ProjectDesignAuthorization[] @relation("ProjectDesignAuthorizationOwner")
   createdProjectMilestones              ProjectMilestone[]           @relation("ProjectMilestoneCreatedBy")
+  createdCollaborationProjectActions    CollaborationProjectAction[] @relation("CollaborationProjectActionCreatedBy")
+  completedCollaborationProjectActions  CollaborationProjectAction[] @relation("CollaborationProjectActionCompletedBy")
+  cancelledCollaborationProjectActions  CollaborationProjectAction[] @relation("CollaborationProjectActionCancelledBy")
+  collaborationProjectEvents            CollaborationProjectEvent[]  @relation("CollaborationProjectEventActor")
   projectIssues                         ProjectIssue[]               @relation("ProjectIssueReporter")
   projectOrders                         ProjectOrder[]               @relation("ProjectOrderBuyer")
   projectIntakes                        ProjectIntake[]
@@ -1950,6 +1982,8 @@ model CollaborationProject {
   reviews               Review[]
   caseStudies           CaseStudy[]
   projectIntake         ProjectIntake?               @relation("ProjectIntakeLinkedCollaborationProject")
+  actions               CollaborationProjectAction[]
+  events                CollaborationProjectEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1968,6 +2002,63 @@ model CollaborationProject {
   @@index([reviewStatus])
   @@index([designerAuthorizationStatus])
   @@index([priority])
+}
+
+model CollaborationProjectAction {
+  id                    String                                   @id @default(cuid())
+  projectId             String
+  type                  CollaborationProjectActionType
+  responsibility        CollaborationProjectActionResponsibility
+  status                CollaborationProjectActionStatus         @default(ACTIVE)
+  title                 String
+  instructions          String
+  dueAt                 DateTime?
+  startedAt             DateTime                                 @default(now())
+  userResultNote        String?
+  userResultSubmittedAt DateTime?
+  completedAt           DateTime?
+  completedById         String?
+  completionNote        String?
+  cancelledAt           DateTime?
+  cancelledById         String?
+  cancellationReason    String?
+  createdById           String?
+
+  project     CollaborationProject        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User?                       @relation("CollaborationProjectActionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  completedBy User?                       @relation("CollaborationProjectActionCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  cancelledBy User?                       @relation("CollaborationProjectActionCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+  events      CollaborationProjectEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([projectId, status])
+  @@index([status, updatedAt])
+  @@index([createdById])
+  @@index([completedById])
+  @@index([cancelledById])
+}
+
+model CollaborationProjectEvent {
+  id        String                        @id @default(cuid())
+  projectId String
+  actionId  String?
+  actorId   String?
+  eventType CollaborationProjectEventType
+  note      String?
+
+  project CollaborationProject        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  action  CollaborationProjectAction? @relation(fields: [actionId], references: [id], onDelete: SetNull)
+  actor   User?                       @relation("CollaborationProjectEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([actionId, createdAt])
+  @@index([actorId])
+  @@index([eventType])
 }
 
 model ProjectIntake {

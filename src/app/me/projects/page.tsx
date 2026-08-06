@@ -87,7 +87,7 @@ export default async function MeProjectsPage() {
       {totalProjectCount ? (
         <section className="grid gap-4">
           {collaborationProjects.map((project) => {
-            const nextAction = privateProjectNextAction();
+            const nextAction = privateProjectNextAction(project);
             const href = privateCollaborationProjectHref(project.id);
             return (
               <article key={project.id} className="grid gap-4 rounded-[8px] border border-black/8 bg-white p-4 shadow-[0_14px_42px_rgba(16,16,16,0.07)] md:grid-cols-[160px_1fr_auto] md:items-center">
@@ -109,7 +109,7 @@ export default async function MeProjectsPage() {
                   <div className="mt-3 grid gap-2 text-xs font-semibold text-ink/45 sm:grid-cols-3">
                     <span className="inline-flex items-center gap-1"><ListChecks className="h-3.5 w-3.5" />启动草稿已转化</span>
                     <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{formatDate(project.updatedAt)}</span>
-                    <span className="inline-flex items-center gap-1"><Bell className="h-3.5 w-3.5" />等待平台安排</span>
+                    <span className="inline-flex items-center gap-1"><Bell className="h-3.5 w-3.5" />{nextAction.label}</span>
                   </div>
                 </div>
 

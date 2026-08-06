@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { safeNotificationSummary, sanitizeNotificationTargetUrl } from "@/lib/notifications";
+import { createProjectCreatedEventForConversion } from "@/lib/private-project-actions";
 import {
   EXPECTED_PRICE_BAND_VALUES,
   LAUNCH_TIMING_VALUES,
@@ -1021,6 +1022,11 @@ export async function convertProjectIntakeToProject(id: string, admin: Viewer, r
               eventType: ProjectIntakeEventType.CONVERTED,
               note: "项目已转为正式项目"
             }
+          });
+
+          await createProjectCreatedEventForConversion(tx, {
+            projectId: project.id,
+            actorId: admin.id
           });
 
           await tx.adminLog.create({
