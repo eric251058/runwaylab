@@ -7,6 +7,7 @@ import {
   PRIVATE_PROJECT_ACTION_STATUS_LABELS,
   getAdminPrivateProjects,
   getCurrentPrivateProjectAction,
+  privateProjectAdminReasonLabel,
   privateProjectActionSummary,
   type PrivateProjectAdminFilter
 } from "@/lib/private-project-actions";
@@ -15,7 +16,7 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  searchParams?: Promise<{ privateFilter?: string; privatePage?: string }>;
+  searchParams?: Promise<{ privateFilter?: string; privatePage?: string; mode?: string }>;
 };
 
 function normalizePrivateFilter(value?: string | null): PrivateProjectAdminFilter {
@@ -43,11 +44,11 @@ function formatDate(value: Date) {
 
 const privateFilters: Array<[PrivateProjectAdminFilter, string]> = [
   ["TODO", "待处理"],
-  ["NO_ACTION", "待安排"],
-  ["WAITING_USER", "等用户"],
-  ["WAITING_PLATFORM", "平台处理中"],
-  ["WAITING_CONFIRMATION", "待确认"],
-  ["WAITING_NEXT", "待下一步"],
+  ["NO_ACTION", "待设置第一步"],
+  ["WAITING_USER", "等待用户行动"],
+  ["WAITING_PLATFORM", "等待平台行动"],
+  ["WAITING_CONFIRMATION", "等待平台确认"],
+  ["WAITING_NEXT", "待安排下一步"],
   ["ALL_PRIVATE", "全部私有"]
 ];
 
@@ -55,17 +56,21 @@ export default async function AdminProjectsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const privateFilter = normalizePrivateFilter(params?.privateFilter);
   const privatePage = Number(params?.privatePage ?? "1");
+  const maintenanceMode = params?.mode === "maintenance";
 
-  const [privateProjects, projects, works, providers, fabrics, campaigns, schools, teachers] = await Promise.all([
-    getAdminPrivateProjects({ filter: privateFilter, page: Number.isFinite(privatePage) ? privatePage : 1 }),
-    prisma.collaborationProject.findMany({ include: { work: true, provider: true }, orderBy: { createdAt: "desc" }, take: 120 }),
-    prisma.work.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 200 }),
-    prisma.provider.findMany({ orderBy: { name: "asc" }, take: 200 }),
-    prisma.fabric.findMany({ orderBy: { name: "asc" }, take: 200 }),
-    prisma.presaleCampaign.findMany({ orderBy: { createdAt: "desc" }, take: 200 }),
-    prisma.school.findMany({ orderBy: { name: "asc" }, take: 200 }),
-    prisma.teacher.findMany({ orderBy: { name: "asc" }, take: 200 })
-  ]);
+  const privateProjects = await getAdminPrivateProjects({ filter: privateFilter, page: Number.isFinite(privatePage) ? privatePage : 1 });
+  const maintenanceData = maintenanceMode
+    ? await Promise.all([
+        prisma.collaborationProject.findMany({ include: { work: true, provider: true }, orderBy: { createdAt: "desc" }, take: 120 }),
+        prisma.work.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 200 }),
+        prisma.provider.findMany({ orderBy: { name: "asc" }, take: 200 }),
+        prisma.fabric.findMany({ orderBy: { name: "asc" }, take: 200 }),
+        prisma.presaleCampaign.findMany({ orderBy: { createdAt: "desc" }, take: 200 }),
+        prisma.school.findMany({ orderBy: { name: "asc" }, take: 200 }),
+        prisma.teacher.findMany({ orderBy: { name: "asc" }, take: 200 })
+      ])
+    : null;
+  const [projects, works, providers, fabrics, campaigns, schools, teachers] = maintenanceData ?? [[], [], [], [], [], [], []];
 
   const input = "h-10 rounded-[6px] border border-black/10 px-3 text-sm";
   const workOptions = works.map((work) => <option key={work.id} value={work.id}>{work.title} / {work.user.nickname}</option>);
@@ -84,7 +89,12 @@ export default async function AdminProjectsPage({ searchParams }: PageProps) {
             <h2 className="mt-2 text-2xl font-semibold text-ink">私人正式项目待处理</h2>
             <p className="mt-2 text-sm leading-6 text-ink/55">只展示由启动草稿转化来的 PRIVATE / DRAFT 正式项目。</p>
           </div>
-          <p className="text-sm font-semibold text-ink/45">共 {privateProjects.total} 个</p>
+          <div className="flex flex-col gap-2 sm:items-end">
+            <p className="text-sm font-semibold text-ink/45">共 {privateProjects.total} 个</p>
+            <Link href={maintenanceMode ? "/admin/projects" : "/admin/projects?mode=maintenance"} className="inline-flex min-h-10 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">
+              {maintenanceMode ? "回到待处理" : "合作项目维护"}
+            </Link>
+          </div>
         </div>
         <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
           {privateFilters.map(([value, label]) => (
@@ -101,20 +111,23 @@ export default async function AdminProjectsPage({ searchParams }: PageProps) {
           {privateProjects.items.length ? privateProjects.items.map((project) => {
             const currentAction = getCurrentPrivateProjectAction(project.actions);
             const summary = privateProjectActionSummary(currentAction);
+            const reasonLabel = privateProjectAdminReasonLabel(project.actions);
+            const listHref = `/admin/projects?privateFilter=${privateFilter}&privatePage=${privateProjects.page}`;
             return (
-              <Link key={project.id} href={`/admin/projects/${project.id}`} className="grid gap-3 rounded-[8px] border border-black/8 bg-paper p-4 hover:bg-white md:grid-cols-[1fr_auto] md:items-center">
+              <Link key={project.id} href={`/admin/projects/${project.id}?returnTo=${encodeURIComponent(listHref)}`} className="grid gap-3 rounded-[8px] border border-black/8 bg-paper p-4 hover:bg-white md:grid-cols-[1fr_auto] md:items-center">
                 <div className="min-w-0">
                   <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">PRIVATE</span>
                     <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{summary.stageLabel}</span>
                     <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">{summary.statusLabel}</span>
                     <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/55">{summary.responsibilityLabel}</span>
                   </div>
                   <h3 className="mt-3 truncate text-lg font-semibold text-ink">{project.title}</h3>
                   <p className="mt-2 truncate text-sm leading-6 text-ink/55">当前动作：{summary.title}</p>
-                  <p className="mt-1 text-xs font-semibold text-ink/40">负责人：{project.ownerUser?.nickname ?? project.ownerUserId ?? "未绑定"} / 更新：{formatDate(project.updatedAt)}</p>
+                  <p className="mt-1 text-xs font-semibold text-ink/40">待处理原因：{reasonLabel} / 负责人：{project.ownerUser?.nickname ?? project.ownerUserId ?? "未绑定"} / 更新：{formatDate(project.updatedAt)}</p>
                 </div>
                 <div className="text-sm font-semibold text-ink">
-                  {currentAction ? `${PRIVATE_PROJECT_ACTION_STATUS_LABELS[currentAction.status]} / ${PRIVATE_PROJECT_ACTION_RESPONSIBILITY_LABELS[currentAction.responsibility]}` : "待安排"}
+                  {currentAction ? `${PRIVATE_PROJECT_ACTION_STATUS_LABELS[currentAction.status]} / ${PRIVATE_PROJECT_ACTION_RESPONSIBILITY_LABELS[currentAction.responsibility]}` : reasonLabel}
                 </div>
               </Link>
             );
@@ -136,6 +149,14 @@ export default async function AdminProjectsPage({ searchParams }: PageProps) {
         ) : null}
       </section>
 
+      {!maintenanceMode ? (
+        <section className="rounded-[8px] border border-black/8 bg-white p-5 text-sm leading-6 text-ink/55">
+          合作项目维护表单已移到维护模式，默认页面只加载私人项目运营队列。
+        </section>
+      ) : null}
+
+      {maintenanceMode ? (
+      <>
       <form action={saveCollaborationProject} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-5 md:grid-cols-2">
         <input name="title" required placeholder="项目标题" className={input} />
         <input name="slug" placeholder="slug，可选" className={input} />
@@ -180,6 +201,8 @@ export default async function AdminProjectsPage({ searchParams }: PageProps) {
           </form>
         )) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无合作项目。</div>}
       </section>
+      </>
+      ) : null}
     </div>
   );
 }

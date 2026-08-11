@@ -109,7 +109,7 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
             <h2 className="text-xl font-semibold text-ink">项目摘要</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {info("当前阶段", privateProjectStageLabel(project))}
-              {info("当前状态", privateProjectStageLabel(project))}
+              {info("下一步", nextAction.label)}
               {info("当前动作", currentAction?.title)}
               {info("原始启动信息", privateProjectIntakeSummary(project))}
               {info("一句话想法", project.description)}

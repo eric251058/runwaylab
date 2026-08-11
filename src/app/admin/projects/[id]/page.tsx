@@ -4,16 +4,19 @@ import { ArrowLeft, Clock } from "lucide-react";
 import { PrivateProjectActionPanel, type AdminPrivateProjectAction } from "@/components/admin/PrivateProjectActionPanel";
 import { requireAdminUser } from "@/lib/auth/guards";
 import {
+  PRIVATE_PROJECT_EVENT_LABELS,
   getAdminPrivateProjectDetail,
   getCurrentPrivateProjectAction,
   privateProjectActionSummary,
   type PrivateProjectAction
 } from "@/lib/private-project-actions";
+import { categoryLabel, needLabel } from "@/lib/start-projects";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ returnTo?: string }>;
 };
 
 function formatDate(value?: Date | null) {
@@ -51,11 +54,19 @@ function detail(label: string, value?: string | null) {
   );
 }
 
-export default async function AdminPrivateProjectDetailPage({ params }: PageProps) {
+function safeAdminReturnTo(value?: string | null) {
+  if (!value || !value.startsWith("/admin/projects")) return "/admin/projects";
+  if (value.startsWith("//") || value.includes("://")) return "/admin/projects";
+  return value;
+}
+
+export default async function AdminPrivateProjectDetailPage({ params, searchParams }: PageProps) {
   const admin = await requireAdminUser();
   if (!admin) notFound();
 
   const { id } = await params;
+  const query = await searchParams;
+  const returnTo = safeAdminReturnTo(query?.returnTo);
   const project = await getAdminPrivateProjectDetail(id, admin);
   if (!project) notFound();
 
@@ -64,7 +75,7 @@ export default async function AdminPrivateProjectDetailPage({ params }: PageProp
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-12">
-      <Link href="/admin/projects" className="inline-flex items-center gap-2 text-sm font-semibold text-ink/52 hover:text-ink">
+      <Link href={returnTo} className="inline-flex items-center gap-2 text-sm font-semibold text-ink/52 hover:text-ink">
         <ArrowLeft className="h-4 w-4" />
         返回项目列表
       </Link>
@@ -92,8 +103,8 @@ export default async function AdminPrivateProjectDetailPage({ params }: PageProp
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {detail("项目标题", project.title)}
               {detail("负责人", project.ownerUser?.nickname ?? project.ownerUserId)}
-              {detail("启动品类", project.projectIntake?.category)}
-              {detail("当前需求", project.projectIntake?.primaryNeed)}
+              {detail("启动品类", project.projectIntake ? categoryLabel(project.projectIntake.category, project.projectIntake.categoryOther) : null)}
+              {detail("当前需求", project.projectIntake ? needLabel(project.projectIntake.primaryNeed) : null)}
               {detail("一句话想法", project.projectIntake?.ideaText ?? project.description)}
               {detail("平台评估反馈", project.projectIntake?.reviewNote)}
               {detail("建立时间", formatDate(project.projectIntake?.convertedAt ?? project.createdAt))}
@@ -113,7 +124,7 @@ export default async function AdminPrivateProjectDetailPage({ params }: PageProp
             <div className="mt-4 space-y-3">
               {project.events.length ? project.events.map((event) => (
                 <article key={event.id} className="rounded-[8px] bg-paper p-4">
-                  <p className="font-semibold text-ink">{event.eventType}</p>
+                  <p className="font-semibold text-ink">{PRIVATE_PROJECT_EVENT_LABELS[event.eventType]}</p>
                   {event.note ? <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink/58">{event.note}</p> : null}
                   <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-ink/40">
                     <Clock className="h-3.5 w-3.5" />

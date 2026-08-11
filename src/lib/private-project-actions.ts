@@ -105,6 +105,22 @@ export const privateProjectActionSelect = {
   }
 } satisfies Prisma.CollaborationProjectActionSelect;
 
+export const privateProjectActionListSelect = {
+  id: true,
+  projectId: true,
+  type: true,
+  responsibility: true,
+  status: true,
+  title: true,
+  dueAt: true,
+  startedAt: true,
+  userResultSubmittedAt: true,
+  completedAt: true,
+  cancelledAt: true,
+  createdAt: true,
+  updatedAt: true
+} satisfies Prisma.CollaborationProjectActionSelect;
+
 export const privateProjectEventSelect = {
   id: true,
   projectId: true,
@@ -132,9 +148,31 @@ export const privateProjectEventSelect = {
 } satisfies Prisma.CollaborationProjectEventSelect;
 
 export type PrivateProjectAction = Prisma.CollaborationProjectActionGetPayload<{ select: typeof privateProjectActionSelect }>;
+export type PrivateProjectActionListItem = Prisma.CollaborationProjectActionGetPayload<{ select: typeof privateProjectActionListSelect }>;
 export type PrivateProjectEvent = Prisma.CollaborationProjectEventGetPayload<{ select: typeof privateProjectEventSelect }>;
 
 export type PrivateProjectAdminFilter = "TODO" | "NO_ACTION" | "WAITING_USER" | "WAITING_PLATFORM" | "WAITING_CONFIRMATION" | "WAITING_NEXT" | "ALL_PRIVATE";
+export type PrivateProjectAdminReason = "NO_ACTION" | "WAITING_USER" | "WAITING_PLATFORM" | "WAITING_CONFIRMATION" | "WAITING_NEXT_COMPLETED" | "WAITING_NEXT_CANCELLED" | "PRIVATE_PROJECT";
+
+export const PRIVATE_PROJECT_ADMIN_REASON_LABELS: Record<PrivateProjectAdminReason, string> = {
+  NO_ACTION: "待设置第一步",
+  WAITING_USER: "等待用户完成",
+  WAITING_PLATFORM: "平台需要处理",
+  WAITING_CONFIRMATION: "等待平台确认",
+  WAITING_NEXT_COMPLETED: "待安排下一步",
+  WAITING_NEXT_CANCELLED: "推进安排已取消，待重新安排",
+  PRIVATE_PROJECT: "私人项目"
+};
+
+export const PRIVATE_PROJECT_ADMIN_REASON_PRIORITY: Record<PrivateProjectAdminReason, number> = {
+  WAITING_CONFIRMATION: 10,
+  WAITING_PLATFORM: 20,
+  NO_ACTION: 30,
+  WAITING_NEXT_COMPLETED: 40,
+  WAITING_NEXT_CANCELLED: 45,
+  WAITING_USER: 80,
+  PRIVATE_PROJECT: 90
+};
 
 const unsafeTextPattern = /<[^>]+>|<\/?script|javascript:|data:/i;
 const placeholderPattern = /^(test|demo|asdf|qwer|placeholder|测试|占位|样例)$/i;
@@ -250,6 +288,28 @@ export function isOpenPrivateProjectAction(action?: Pick<PrivateProjectAction, "
 
 export function getCurrentPrivateProjectAction<T extends Pick<PrivateProjectAction, "status">>(actions: T[]) {
   return actions.find(isOpenPrivateProjectAction) ?? null;
+}
+
+export function privateProjectAdminReason(
+  actions: Array<Pick<PrivateProjectActionListItem, "status" | "responsibility" | "updatedAt">>
+): PrivateProjectAdminReason {
+  const currentAction = getCurrentPrivateProjectAction(actions);
+  if (!currentAction) {
+    const latestAction = actions[0];
+    if (!latestAction) return "NO_ACTION";
+    return latestAction.status === CollaborationProjectActionStatus.CANCELLED ? "WAITING_NEXT_CANCELLED" : "WAITING_NEXT_COMPLETED";
+  }
+  if (currentAction.status === CollaborationProjectActionStatus.WAITING_PLATFORM_CONFIRMATION) return "WAITING_CONFIRMATION";
+  if (currentAction.responsibility === CollaborationProjectActionResponsibility.PLATFORM) return "WAITING_PLATFORM";
+  return "WAITING_USER";
+}
+
+export function privateProjectAdminReasonLabel(actions: Array<Pick<PrivateProjectActionListItem, "status" | "responsibility" | "updatedAt">>) {
+  return PRIVATE_PROJECT_ADMIN_REASON_LABELS[privateProjectAdminReason(actions)];
+}
+
+export function privateProjectAdminSortPriority(actions: Array<Pick<PrivateProjectActionListItem, "status" | "responsibility" | "updatedAt">>) {
+  return PRIVATE_PROJECT_ADMIN_REASON_PRIORITY[privateProjectAdminReason(actions)];
 }
 
 export function privateProjectActionSummary(action?: Pick<PrivateProjectAction, "status" | "title" | "responsibility" | "type"> | null) {
@@ -370,6 +430,77 @@ function projectEligibilityWhere(projectId: string): Prisma.CollaborationProject
   };
 }
 
+function adminPrivateProjectBaseWhere(): Prisma.CollaborationProjectWhereInput {
+  return {
+    visibility: CollaborationProjectVisibility.PRIVATE,
+    status: CollaborationProjectStatus.DRAFT,
+    ownerUserId: { not: null }
+  };
+}
+
+function activeUserActionWhere(): Prisma.CollaborationProjectActionWhereInput {
+  return {
+    status: CollaborationProjectActionStatus.ACTIVE,
+    responsibility: CollaborationProjectActionResponsibility.USER
+  };
+}
+
+function activePlatformActionWhere(): Prisma.CollaborationProjectActionWhereInput {
+  return {
+    status: CollaborationProjectActionStatus.ACTIVE,
+    responsibility: CollaborationProjectActionResponsibility.PLATFORM
+  };
+}
+
+function waitingConfirmationActionWhere(): Prisma.CollaborationProjectActionWhereInput {
+  return {
+    status: CollaborationProjectActionStatus.WAITING_PLATFORM_CONFIRMATION,
+    responsibility: CollaborationProjectActionResponsibility.USER
+  };
+}
+
+function openPrivateProjectActionWhere(): Prisma.CollaborationProjectActionWhereInput {
+  return { status: { in: [...OPEN_PRIVATE_PROJECT_ACTION_STATUSES] } };
+}
+
+function endedPrivateProjectActionWhere(): Prisma.CollaborationProjectActionWhereInput {
+  return { status: { in: [CollaborationProjectActionStatus.COMPLETED, CollaborationProjectActionStatus.CANCELLED] } };
+}
+
+export function getAdminPrivateProjectWhere(filter: PrivateProjectAdminFilter): Prisma.CollaborationProjectWhereInput {
+  const baseWhere = adminPrivateProjectBaseWhere();
+  if (filter === "NO_ACTION") {
+    return { ...baseWhere, actions: { none: {} } };
+  }
+  if (filter === "WAITING_USER") {
+    return { ...baseWhere, actions: { some: activeUserActionWhere() } };
+  }
+  if (filter === "WAITING_PLATFORM") {
+    return { ...baseWhere, actions: { some: activePlatformActionWhere() } };
+  }
+  if (filter === "WAITING_CONFIRMATION") {
+    return { ...baseWhere, actions: { some: waitingConfirmationActionWhere() } };
+  }
+  if (filter === "WAITING_NEXT") {
+    return {
+      ...baseWhere,
+      AND: [{ actions: { none: openPrivateProjectActionWhere() } }, { actions: { some: endedPrivateProjectActionWhere() } }]
+    };
+  }
+  if (filter === "ALL_PRIVATE") return baseWhere;
+  return {
+    ...baseWhere,
+    OR: [
+      { actions: { some: waitingConfirmationActionWhere() } },
+      { actions: { some: activePlatformActionWhere() } },
+      { actions: { none: {} } },
+      {
+        AND: [{ actions: { none: openPrivateProjectActionWhere() } }, { actions: { some: endedPrivateProjectActionWhere() } }]
+      }
+    ]
+  };
+}
+
 export async function getAdminPrivateProjects({
   filter = "TODO",
   page = 1,
@@ -381,60 +512,83 @@ export async function getAdminPrivateProjects({
 }) {
   const safePage = Math.max(1, Math.floor(page));
   const safePageSize = Math.min(Math.max(1, Math.floor(pageSize)), 50);
-  const openActionWhere = { status: { in: [...OPEN_PRIVATE_PROJECT_ACTION_STATUSES] } };
-  const baseWhere: Prisma.CollaborationProjectWhereInput = {
-    visibility: CollaborationProjectVisibility.PRIVATE,
-    status: CollaborationProjectStatus.DRAFT,
-    ownerUserId: { not: null }
-  };
-  const where: Prisma.CollaborationProjectWhereInput =
-    filter === "NO_ACTION"
-      ? { ...baseWhere, actions: { none: openActionWhere } }
-      : filter === "WAITING_USER"
-        ? { ...baseWhere, actions: { some: { status: CollaborationProjectActionStatus.ACTIVE, responsibility: CollaborationProjectActionResponsibility.USER } } }
-        : filter === "WAITING_PLATFORM"
-          ? { ...baseWhere, actions: { some: { status: CollaborationProjectActionStatus.ACTIVE, responsibility: CollaborationProjectActionResponsibility.PLATFORM } } }
-          : filter === "WAITING_CONFIRMATION"
-            ? { ...baseWhere, actions: { some: { status: CollaborationProjectActionStatus.WAITING_PLATFORM_CONFIRMATION } } }
-            : filter === "WAITING_NEXT"
-              ? { ...baseWhere, actions: { none: openActionWhere, some: { status: { in: [CollaborationProjectActionStatus.COMPLETED, CollaborationProjectActionStatus.CANCELLED] } } } }
-              : filter === "ALL_PRIVATE"
-                ? baseWhere
-                : { ...baseWhere, OR: [{ actions: { none: openActionWhere } }, { actions: { some: { status: CollaborationProjectActionStatus.WAITING_PLATFORM_CONFIRMATION } } }] };
+  const where = getAdminPrivateProjectWhere(filter);
+  const select = {
+    id: true,
+    title: true,
+    status: true,
+    visibility: true,
+    ownerUserId: true,
+    createdAt: true,
+    updatedAt: true,
+    ownerUser: {
+      select: {
+        id: true,
+        nickname: true,
+        createdAt: true
+      }
+    },
+    projectIntake: {
+      select: {
+        id: true,
+        projectTitle: true,
+        category: true,
+        primaryNeed: true,
+        convertedAt: true
+      }
+    },
+    actions: {
+      select: privateProjectActionListSelect,
+      orderBy: { updatedAt: "desc" as const },
+      take: 2
+    }
+  } satisfies Prisma.CollaborationProjectSelect;
+
+  if (filter === "TODO") {
+    const buckets = [
+      getAdminPrivateProjectWhere("WAITING_CONFIRMATION"),
+      getAdminPrivateProjectWhere("WAITING_PLATFORM"),
+      getAdminPrivateProjectWhere("NO_ACTION"),
+      getAdminPrivateProjectWhere("WAITING_NEXT")
+    ];
+    const counts = await Promise.all(buckets.map((bucketWhere) => prisma.collaborationProject.count({ where: bucketWhere })));
+    const total = counts.reduce((sum, count) => sum + count, 0);
+    const items: Array<Prisma.CollaborationProjectGetPayload<{ select: typeof select }>> = [];
+    let remainingSkip = (safePage - 1) * safePageSize;
+    let remainingTake = safePageSize;
+
+    for (const [index, bucketWhere] of buckets.entries()) {
+      if (remainingTake <= 0) break;
+      const bucketCount = counts[index] ?? 0;
+      if (remainingSkip >= bucketCount) {
+        remainingSkip -= bucketCount;
+        continue;
+      }
+      const bucketItems = await prisma.collaborationProject.findMany({
+        where: bucketWhere,
+        select,
+        orderBy: { updatedAt: "desc" },
+        skip: remainingSkip,
+        take: remainingTake
+      });
+      items.push(...bucketItems);
+      remainingTake -= bucketItems.length;
+      remainingSkip = 0;
+    }
+
+    return {
+      items,
+      total,
+      page: safePage,
+      pageSize: safePageSize,
+      pageCount: Math.max(1, Math.ceil(total / safePageSize))
+    };
+  }
 
   const [items, total] = await Promise.all([
     prisma.collaborationProject.findMany({
       where,
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        visibility: true,
-        ownerUserId: true,
-        createdAt: true,
-        updatedAt: true,
-        ownerUser: {
-          select: {
-            id: true,
-            nickname: true,
-            createdAt: true
-          }
-        },
-        projectIntake: {
-          select: {
-            id: true,
-            projectTitle: true,
-            category: true,
-            primaryNeed: true,
-            convertedAt: true
-          }
-        },
-        actions: {
-          select: privateProjectActionSelect,
-          orderBy: { updatedAt: "desc" },
-          take: 2
-        }
-      },
+      select,
       orderBy: { updatedAt: "desc" },
       skip: (safePage - 1) * safePageSize,
       take: safePageSize
@@ -479,6 +633,7 @@ export async function getAdminPrivateProjectDetail(id: string, admin: Viewer) {
           projectTitle: true,
           ideaText: true,
           category: true,
+          categoryOther: true,
           primaryNeed: true,
           targetAudience: true,
           reviewNote: true,
