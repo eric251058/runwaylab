@@ -2281,6 +2281,8 @@ model ProjectOrder {
   estimatedShipDate       DateTime?
   exceptionNote           String?
   note                    String?
+  paymentAttempts         CommercePaymentAttempt[]
+  refunds                 CommerceRefund[]
 
   project  CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   work     Work?                @relation(fields: [workId], references: [id], onDelete: SetNull)
@@ -2553,4 +2555,124 @@ model AdminLog {
 
   @@index([adminId])
   @@index([targetType, targetId])
+}
+
+enum CommercePaymentAttemptStatus {
+  CREATED
+  PROCESSING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  CANCELLED
+}
+
+enum CommerceRefundStatus {
+  REQUESTED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum CommerceIdempotencyStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum CommerceAggregateType {
+  CAMPAIGN
+  ORDER
+  PAYMENT
+  REFUND
+  FULFILLMENT
+}
+
+model CommercePaymentAttempt {
+  id                String                       @id @default(cuid())
+  orderId           String
+  provider          String
+  providerAttemptId String?
+  idempotencyKey    String                       @unique
+  amount            Int
+  currency          String                       @default("CNY")
+  status            CommercePaymentAttemptStatus @default(CREATED)
+  failureCode       String?
+  failureMessage    String?
+  authorizedAt      DateTime?
+  capturedAt        DateTime?
+  failedAt          DateTime?
+  order             ProjectOrder                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refunds           CommerceRefund[]
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+
+  @@unique([provider, providerAttemptId])
+  @@index([orderId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CommerceRefund {
+  id               String                  @id @default(cuid())
+  orderId          String
+  paymentAttemptId String?
+  provider         String
+  providerRefundId String?
+  idempotencyKey   String                  @unique
+  amount           Int
+  currency         String                  @default("CNY")
+  status           CommerceRefundStatus    @default(REQUESTED)
+  reason           String?
+  failureCode      String?
+  failureMessage   String?
+  requestedAt      DateTime                @default(now())
+  completedAt      DateTime?
+  order            ProjectOrder            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentAttempt   CommercePaymentAttempt? @relation(fields: [paymentAttemptId], references: [id], onDelete: SetNull)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@unique([provider, providerRefundId])
+  @@index([orderId])
+  @@index([paymentAttemptId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CommerceIdempotencyRecord {
+  id           String                    @id @default(cuid())
+  scope        String
+  key          String
+  requestHash  String
+  status       CommerceIdempotencyStatus @default(PROCESSING)
+  responseCode Int?
+  responseBody Json?
+  lockedAt     DateTime                  @default(now())
+  completedAt  DateTime?
+  expiresAt    DateTime
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  @@unique([scope, key])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model CommerceStateEvent {
+  id             String                @id @default(cuid())
+  aggregateType  CommerceAggregateType
+  aggregateId    String
+  fromState      String?
+  toState        String
+  actorId        String?
+  reason         String?
+  metadata       Json?
+  idempotencyKey String?
+  createdAt      DateTime              @default(now())
+
+  @@unique([aggregateType, aggregateId, idempotencyKey])
+  @@index([aggregateType, aggregateId, createdAt])
+  @@index([actorId])
+  @@index([createdAt])
 }
