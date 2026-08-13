@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { WorkspaceMemberActions } from "./workspace-member-actions";
 
 export default async function WorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -49,6 +50,11 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
             <span className="text-xs text-ink/45">{member.role}</span>
           </div>
         )}</div>
+        <WorkspaceMemberActions
+          workspaceId={workspace.id}
+          canInvite={membership?.role === "OWNER" || membership?.role === "ADMIN"}
+          canLeave={Boolean(membership && membership.role !== "OWNER")}
+        />
       </aside>
     </div>
   </main>;
