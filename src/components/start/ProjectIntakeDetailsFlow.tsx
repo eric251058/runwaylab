@@ -55,24 +55,24 @@ type ProjectIntakeDetailsFlowProps = {
 };
 
 const statusLabels: Record<IntakeStatus, string> = {
-  DRAFT: "启动草稿",
-  READY_FOR_REVIEW: "可以提交评估",
-  SUBMITTED: "等待平台评估",
+  DRAFT: "想法",
+  READY_FOR_REVIEW: "可以启动",
+  SUBMITTED: "正在准备项目",
   NEEDS_INFO: "需要补充资料",
-  ACCEPTED: "已通过评估",
+  ACCEPTED: "项目已启动",
   DECLINED: "暂不适合推进"
 };
 
 const eventLabels: Record<EventType, string> = {
   CREATED: "项目已启动",
   DETAILS_UPDATED: "项目资料已更新",
-  SUBMITTED: "已提交平台评估",
+  SUBMITTED: "已启动项目",
   WITHDRAWN: "已撤回评估",
   NEEDS_INFO: "平台希望补充资料",
-  RESUBMITTED: "已重新提交评估",
-  ACCEPTED: "项目已通过评估",
+  RESUBMITTED: "已重新启动项目",
+  ACCEPTED: "项目已启动",
   DECLINED: "项目暂不适合推进",
-  CONVERTED: "项目已转为正式项目"
+  CONVERTED: "项目工作台已准备好"
 };
 
 const sourceLabels: Record<string, string> = {
@@ -204,7 +204,7 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
         ...(init.headers ?? {})
       }
     });
-    const data = (await response.json().catch(() => null)) as { message?: string; loginUrl?: string; intake?: ProjectIntakeDetailsDto } | null;
+    const data = (await response.json().catch(() => null)) as { message?: string; loginUrl?: string; intake?: ProjectIntakeDetailsDto; href?: string } | null;
     if (response.status === 401) {
       router.push(data?.loginUrl ?? `/login?next=/me/start-projects/${intake.id}`);
       return null;
@@ -258,7 +258,11 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
     setConfirmSubmit(false);
     if (!data?.intake) return;
     applyServerIntake(data.intake);
-    setMessage("项目已提交评估。");
+    if (data.href) {
+      router.push(data.href);
+      return;
+    }
+    setMessage("项目已启动。");
     setStep("overview");
     router.refresh();
   }
@@ -285,12 +289,12 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
       ? { label: "查看当前资料", action: () => setStep("review") }
       : intake.status === "ACCEPTED"
         ? intake.linkedCollaborationProjectHref
-          ? { label: "进入项目工作台", action: () => router.push(intake.linkedCollaborationProjectHref!) }
+          ? { label: "继续", action: () => router.push(intake.linkedCollaborationProjectHref!) }
           : { label: "查看平台建议", action: () => setStep("review") }
         : intake.status === "DECLINED"
           ? { label: "开始一个新项目", action: () => router.push("/start") }
           : canSubmit
-            ? { label: intake.status === "NEEDS_INFO" ? "重新提交评估" : "提交平台评估", action: () => setStep("review") }
+            ? { label: intake.status === "NEEDS_INFO" ? "重新启动项目" : "启动项目", action: () => setStep("review") }
             : { label: "补充项目资料", action: () => setStep("audience") };
 
   return (
@@ -304,7 +308,7 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
         <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58">{intake.nextAction.description}</p>
         {intake.linkedCollaborationProjectHref ? (
           <p className="mt-4 rounded-[8px] bg-paper p-4 text-sm leading-7 text-ink/68">
-            正式项目已建立：{intake.linkedCollaborationProjectTitle ?? "项目工作台"}。原始启动资料和平台评估记录会继续保留。
+            项目已启动：{intake.linkedCollaborationProjectTitle ?? "项目工作台"}。这份启动资料会继续保留。
           </p>
         ) : null}
         {reviewNote ? <p className="mt-4 rounded-[8px] bg-paper p-4 text-sm leading-7 text-ink/68">平台反馈：{reviewNote}</p> : null}
@@ -447,11 +451,11 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
           </label>
           {confirmSubmit ? (
             <div className="mt-5 rounded-[8px] border border-black/10 bg-paper p-4">
-              <h3 className="font-semibold text-ink">确认提交平台评估？</h3>
-              <p className="mt-2 text-sm leading-6 text-ink/58">平台会根据当前资料判断项目是否适合进入下一阶段。你可能收到“通过”“需要补充”或“暂不适合”的反馈。</p>
+              <h3 className="font-semibold text-ink">确认启动项目？</h3>
+              <p className="mt-2 text-sm leading-6 text-ink/58">启动后会直接进入项目工作台，并生成第一步。你不用等待人工评估。</p>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <button type="button" disabled={submitting} onClick={submitReview} className="min-h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-45">
-                  {submitting ? "提交中" : "确认提交"}
+                  {submitting ? "启动中" : "确认启动"}
                 </button>
                 <button type="button" onClick={() => setConfirmSubmit(false)} className="min-h-11 rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
                   继续检查资料
@@ -461,7 +465,7 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
           ) : null}
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <button type="button" disabled={!canSubmit || submitting} onClick={() => setConfirmSubmit(true)} className="min-h-12 rounded-full bg-ink px-6 text-sm font-semibold text-white disabled:opacity-45">
-              {intake.status === "NEEDS_INFO" ? "重新提交评估" : "提交平台评估"}
+              {intake.status === "NEEDS_INFO" ? "重新启动项目" : "启动项目"}
             </button>
             <button type="button" onClick={() => setStep("plan")} className="min-h-12 rounded-full border border-black/10 px-6 text-sm font-semibold text-ink">
               返回

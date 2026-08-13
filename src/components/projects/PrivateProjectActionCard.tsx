@@ -18,18 +18,6 @@ export type PrivateProjectActionCardAction = {
   userResultSubmittedAt?: string | null;
 };
 
-const statusLabels: Record<ActionStatus, string> = {
-  ACTIVE: "进行中",
-  WAITING_PLATFORM_CONFIRMATION: "已提交，等待平台确认",
-  COMPLETED: "已完成",
-  CANCELLED: "已取消"
-};
-
-const responsibilityLabels: Record<ActionResponsibility, string> = {
-  USER: "需要你完成",
-  PLATFORM: "平台正在处理"
-};
-
 function formatDate(value?: string | null) {
   if (!value) return null;
   return new Date(value).toLocaleString("zh-CN", {
@@ -44,17 +32,15 @@ export function PrivateProjectActionCard({ projectId, action }: { projectId: str
   const router = useRouter();
   const [note, setNote] = useState("");
   const [message, setMessage] = useState("");
+  const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   if (!action) {
     return (
       <section className="rounded-[8px] border border-black/8 bg-white p-5">
-        <div className="flex flex-wrap gap-2">
-          <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">启动草稿</span>
-          <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">等待平台安排</span>
-        </div>
-        <h2 className="mt-4 text-xl font-semibold text-ink">下一步</h2>
-        <p className="mt-2 text-sm leading-6 text-ink/58">正式项目已建立，平台会安排一个明确的下一步。你暂时不用补充图片或联系服务商。</p>
+        <p className="text-sm font-semibold text-ink/45">现在</p>
+        <h2 className="mt-3 text-2xl font-semibold text-ink">正在准备下一步</h2>
+        <p className="mt-3 text-sm leading-6 text-ink/58">我们会根据当前进度继续推进。</p>
       </section>
     );
   }
@@ -62,6 +48,27 @@ export function PrivateProjectActionCard({ projectId, action }: { projectId: str
   const canSubmit = action.status === "ACTIVE" && action.responsibility === "USER";
   const submittedAt = formatDate(action.userResultSubmittedAt);
   const dueAt = formatDate(action.dueAt);
+
+  if (action.status === "WAITING_PLATFORM_CONFIRMATION") {
+    return (
+      <section className="rounded-[8px] border border-black/8 bg-white p-5">
+        <p className="text-sm font-semibold text-ink/45">现在</p>
+        <h2 className="mt-3 text-2xl font-semibold text-ink">已收到</h2>
+        <p className="mt-3 text-sm leading-6 text-ink/58">我们正在确认你提交的信息，你现在不用做任何事。</p>
+        {submittedAt ? <p className="mt-4 text-xs font-semibold text-ink/40">提交时间：{submittedAt}</p> : null}
+      </section>
+    );
+  }
+
+  if (action.responsibility === "PLATFORM") {
+    return (
+      <section className="rounded-[8px] border border-black/8 bg-white p-5">
+        <p className="text-sm font-semibold text-ink/45">现在</p>
+        <h2 className="mt-3 text-2xl font-semibold text-ink">我们正在处理</h2>
+        <p className="mt-3 text-sm leading-6 text-ink/58">我们正在根据你的需求整理下一步。</p>
+      </section>
+    );
+  }
 
   async function submitResult() {
     if (!action || isPending) return;
@@ -89,19 +96,23 @@ export function PrivateProjectActionCard({ projectId, action }: { projectId: str
 
   return (
     <section className="rounded-[8px] border border-black/8 bg-white p-5">
-      <div className="flex flex-wrap gap-2">
-        <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{statusLabels[action.status]}</span>
-        <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{responsibilityLabels[action.responsibility]}</span>
-        {dueAt ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">建议完成：{dueAt}</span> : null}
-      </div>
-
-      <h2 className="mt-4 text-xl font-semibold text-ink">{action.title}</h2>
+      <p className="text-sm font-semibold text-ink/45">现在要做</p>
+      <h2 className="mt-3 text-2xl font-semibold text-ink">{action.title}</h2>
       <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-ink/58">{action.instructions}</p>
+      {dueAt ? <p className="mt-3 text-xs font-semibold text-ink/40">建议完成：{dueAt}</p> : null}
 
-      {canSubmit ? (
+      {canSubmit && !showForm ? (
+        <button
+          type="button"
+          onClick={() => setShowForm(true)}
+          className="mt-5 min-h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white"
+        >
+          继续
+        </button>
+      ) : canSubmit ? (
         <div className="mt-5 grid gap-3">
           <label className="grid gap-2 text-sm font-semibold text-ink">
-            完成说明
+            补充说明
             <textarea
               value={note}
               onChange={(event) => setNote(event.target.value)}
@@ -116,18 +127,12 @@ export function PrivateProjectActionCard({ projectId, action }: { projectId: str
             disabled={isPending}
             className="min-h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isPending ? "提交中..." : "提交完成结果"}
+            {isPending ? "提交中..." : "完成"}
           </button>
-        </div>
-      ) : action.status === "WAITING_PLATFORM_CONFIRMATION" ? (
-        <div className="mt-5 rounded-[8px] bg-paper p-4 text-sm leading-6 text-ink/58">
-          <p className="font-semibold text-ink">你已提交，等待平台确认。</p>
-          {submittedAt ? <p className="mt-1">提交时间：{submittedAt}</p> : null}
-          {action.userResultNote ? <p className="mt-2 whitespace-pre-wrap break-words">{action.userResultNote}</p> : null}
         </div>
       ) : (
         <div className="mt-5 rounded-[8px] bg-paper p-4 text-sm leading-6 text-ink/58">
-          {action.responsibility === "PLATFORM" ? "平台正在处理当前步骤，完成后会更新到这里。" : "当前步骤状态已更新。"}
+          当前步骤状态已更新。
         </div>
       )}
 

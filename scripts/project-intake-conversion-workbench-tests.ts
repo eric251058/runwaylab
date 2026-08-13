@@ -13,7 +13,8 @@ assert.match(privateProjects, /getPrivateCollaborationProjectsForUser/, "private
 assert.match(privateProjects, /visibility:\s*CollaborationProjectVisibility\.PRIVATE/, "private list loader should only fetch private projects");
 assert.match(privateProjects, /projectIntake:\s*\{\s*isNot:\s*null\s*\}/, "private list loader should only fetch intake-converted projects");
 assert.match(meProjects, /getPrivateCollaborationProjectsForUser\(user\.id\)/, "/me/projects should include intake-converted formal projects");
-assert.match(meProjects, /totalProjectCount = projects\.length \+ intakes\.length \+ collaborationProjects\.length/, "/me/projects count should include formal projects once");
+assert.match(meProjects, /totalProjectCount = publishedProjects\.length \+ intakes\.length \+ collaborationProjects\.length/, "/me/projects should include each project source once");
+assert.doesNotMatch(meProjects, /stat\(|启动草稿|正式项目/, "/me/projects should not expose internal source-count panels");
 assert.match(detailPage, /robots:\s*\{\s*index:\s*false,\s*follow:\s*false\s*\}/, "private formal project page should be noindex");
 
 console.log("project intake conversion workbench tests passed");

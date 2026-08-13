@@ -1,6 +1,7 @@
 import {
   CollaborationProjectActionResponsibility,
   CollaborationProjectActionStatus,
+  CollaborationProjectActionType,
   CollaborationProjectVisibility,
   UserRole,
   UserStatus,
@@ -8,7 +9,6 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
-  PRIVATE_PROJECT_ACTION_RESPONSIBILITY_LABELS,
   PRIVATE_PROJECT_ACTION_STATUS_LABELS,
   PRIVATE_PROJECT_EVENT_LABELS,
   getCurrentPrivateProjectAction,
@@ -123,32 +123,78 @@ export function privateProjectStageLabel(project: Pick<PrivateCollaborationProje
   return privateProjectActionSummary(privateProjectCurrentAction(project)).stageLabel;
 }
 
+export function getProjectExperienceStage(project: Pick<PrivateCollaborationProject, "actions">) {
+  const action = privateProjectCurrentAction(project);
+  const stage =
+    !action || action.type === CollaborationProjectActionType.DESIGN_CLARIFICATION
+      ? "IDEA"
+      : "DEVELOPMENT";
+
+  if (!action) {
+    return {
+      stage,
+      headline: "正在准备下一步",
+      description: "我们会根据当前进度继续推进。",
+      actor: "platform",
+      primaryActionLabel: "继续"
+    } as const;
+  }
+
+  if (action.status === CollaborationProjectActionStatus.WAITING_PLATFORM_CONFIRMATION) {
+    return {
+      stage,
+      headline: "已收到",
+      description: "我们正在确认你提交的信息，你现在不用做任何事。",
+      actor: "platform",
+      primaryActionLabel: "继续"
+    } as const;
+  }
+
+  if (action.responsibility === CollaborationProjectActionResponsibility.PLATFORM) {
+    return {
+      stage,
+      headline: "我们正在处理",
+      description: "我们正在根据你的需求整理下一步。",
+      actor: "platform",
+      primaryActionLabel: "继续"
+    } as const;
+  }
+
+  return {
+    stage,
+    headline: "现在要做",
+    description: action.instructions,
+    actor: "owner",
+    primaryActionLabel: "继续"
+  } as const;
+}
+
 export function privateProjectNextAction(project?: Pick<PrivateCollaborationProject, "actions"> | null) {
   const action = project ? privateProjectCurrentAction(project) : null;
   if (!action) {
     return {
-      label: "等待平台安排下一步",
-      description: "正式项目已建立，平台会按一个明确步骤继续推进。"
+      label: "继续",
+      description: "正在准备下一步。我们会根据当前进度继续推进。"
     };
   }
 
   if (action.status === CollaborationProjectActionStatus.WAITING_PLATFORM_CONFIRMATION) {
     return {
-      label: "等待平台确认",
-      description: "你已经提交了当前步骤结果，平台确认后会安排下一步。"
+      label: "继续",
+      description: "已收到。我们正在确认你提交的信息，你现在不用做任何事。"
     };
   }
 
   if (action.responsibility === CollaborationProjectActionResponsibility.USER) {
     return {
-      label: "提交完成结果",
+      label: "继续",
       description: action.instructions
     };
   }
 
   return {
-    label: "平台正在处理",
-    description: action.instructions
+    label: "继续",
+    description: "我们正在根据你的需求整理下一步。"
   };
 }
 
@@ -171,8 +217,8 @@ export function privateProjectTimeline(project: PrivateCollaborationProject) {
   const convertedAt = project.projectIntake?.convertedAt ?? project.createdAt;
   const convertedEvent = {
     id: `project-${project.id}-converted`,
-    title: "正式项目已建立",
-    description: "项目已进入正式项目工作台，后续安排仍由平台受控推进。",
+    title: "项目已启动",
+    description: "你可以从当前这一步继续推进。",
     at: convertedAt
   };
   return [
@@ -185,11 +231,10 @@ export function privateProjectTimeline(project: PrivateCollaborationProject) {
     })),
     ...project.actions.map((action) => {
       const statusLabel = PRIVATE_PROJECT_ACTION_STATUS_LABELS[action.status];
-      const responsibilityLabel = PRIVATE_PROJECT_ACTION_RESPONSIBILITY_LABELS[action.responsibility];
       return {
         id: `action-${action.id}`,
         title: `${statusLabel}：${action.title}`,
-        description: `${responsibilityLabel} / ${action.instructions}`,
+        description: action.instructions,
         at: action.updatedAt
       };
     }),

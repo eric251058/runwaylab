@@ -44,7 +44,7 @@ export const PRIVATE_PROJECT_ACTION_STATUS_LABELS: Record<CollaborationProjectAc
 };
 
 export const PRIVATE_PROJECT_EVENT_LABELS: Record<CollaborationProjectEventType, string> = {
-  PROJECT_CREATED: "正式项目已建立",
+  PROJECT_CREATED: "项目已启动",
   ACTION_CREATED: "平台安排了下一步",
   USER_RESULT_SUBMITTED: "你提交了完成结果",
   ACTION_COMPLETED: "当前步骤已完成",
@@ -418,8 +418,60 @@ export async function createProjectCreatedEventForConversion(tx: Transaction, in
     projectId: input.projectId,
     actorId: input.actorId ?? null,
     eventType: CollaborationProjectEventType.PROJECT_CREATED,
-    note: "正式项目已建立"
+    note: "项目已启动"
   });
+}
+
+export async function createInitialPrivateProjectActionForIntake(
+  tx: Transaction,
+  input: {
+    projectId: string;
+    ownerId: string;
+    actorId?: string | null;
+    type: CollaborationProjectActionType;
+    responsibility: CollaborationProjectActionResponsibility;
+    title: string;
+    instructions: string;
+  }
+) {
+  const existing = await tx.collaborationProjectAction.findFirst({
+    where: {
+      projectId: input.projectId,
+      status: { in: [...OPEN_PRIVATE_PROJECT_ACTION_STATUSES] }
+    },
+    select: privateProjectActionSelect,
+    orderBy: { updatedAt: "desc" }
+  });
+  if (existing) return { action: existing, idempotent: true };
+
+  const action = await tx.collaborationProjectAction.create({
+    data: {
+      projectId: input.projectId,
+      type: input.type,
+      responsibility: input.responsibility,
+      title: input.title,
+      instructions: input.instructions,
+      createdById: input.actorId ?? null
+    },
+    select: privateProjectActionSelect
+  });
+
+  await createProjectEventOnce(tx, {
+    projectId: input.projectId,
+    actionId: action.id,
+    actorId: input.actorId ?? null,
+    eventType: CollaborationProjectEventType.ACTION_CREATED,
+    note: action.title
+  });
+
+  await createPrivateProjectNotification(tx, {
+    ownerId: input.ownerId,
+    projectId: input.projectId,
+    title: "项目有新的下一步",
+    content: "项目已经启动，你可以从当前这一步继续推进。"
+  });
+
+  return { action, idempotent: false };
 }
 
 function projectEligibilityWhere(projectId: string): Prisma.CollaborationProjectWhereInput {

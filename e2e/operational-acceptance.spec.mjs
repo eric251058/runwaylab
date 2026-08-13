@@ -19,17 +19,28 @@ const {
 } = PrismaClientPackage;
 
 const prisma = new PrismaClient();
-const password = "RunwayLab-E2E-P1-03!";
-const runId = `p103-${Date.now()}`;
-const titlePrefix = "RunwayLab E2E P1-03";
-const flowProjectTitle = `${titlePrefix} owner flow ${runId}`;
-const protectedProjectTitle = `${titlePrefix} protected ${runId}`;
-const actionSuffix = runId.slice(-6);
-const userActionTitle = `E2E user ${actionSuffix}`;
-const platformActionTitle = `E2E platform ${actionSuffix}`;
-const activeUserActionTitle = `E2E fabric ${actionSuffix}`;
-const concurrentActionTitleA = `E2E concurrent A ${actionSuffix}`;
-const concurrentActionTitleB = `E2E concurrent B ${actionSuffix}`;
+const password = "RunwayLab-E2E-V2.0B.5!";
+const contractLimits = {
+  clientDraftId: 80,
+  ideaText: 180,
+  projectTitle: 50,
+  safeProjectTitle: 40,
+  targetAudience: 120,
+  reviewMessage: 500,
+  actionTitle: 40,
+  safeActionTitle: 30,
+  instructions: 1000,
+  completionNote: 1000,
+  cancellationReason: 200
+};
+const shortSuffix = shortUnique();
+const runId = `v205-${shortSuffix}`;
+const titlePrefix = `V205-${shortSuffix}`;
+const flowProjectTitle = safeProjectTitle("Dress");
+const protectedProjectTitle = safeProjectTitle("Guard");
+const concurrentProjectTitle = safeProjectTitle("Duo");
+const actionSuffix = shortSuffix;
+const platformActionTitle = safeActionTitle("Platform");
 const ownerEmail = "e2e-owner@runwaylab.test";
 const adminEmail = "e2e-admin@runwaylab.test";
 const outsiderEmail = "e2e-outsider@runwaylab.test";
@@ -41,16 +52,95 @@ let outsider;
 let protectedProjectId;
 let intakeId;
 let flowProjectId;
-let userActionId;
+let firstActionId;
 let platformActionId;
-let cancelledUserActionId;
-let concurrentActionId;
+let concurrentIntakeId;
+let concurrentProjectId;
 let ownerContext;
 let adminContext;
 let outsiderContext;
 let ownerPage;
 let adminPage;
 let outsiderPage;
+
+function shortUnique() {
+  return Date.now().toString(36).slice(-6);
+}
+
+function safeProjectTitle(prefix) {
+  const value = `E2E ${prefix} ${shortSuffix}`;
+  expect(value.length, `${prefix} projectTitle should stay below the test safety limit`).toBeLessThanOrEqual(contractLimits.safeProjectTitle);
+  return value;
+}
+
+function safeActionTitle(prefix) {
+  const value = `E2E ${prefix} ${shortSuffix}`;
+  expect(value.length, `${prefix} action title should stay below the test safety limit`).toBeLessThanOrEqual(contractLimits.safeActionTitle);
+  return value;
+}
+
+function assertStringField(value, field, max, { min = 0, optional = true } = {}) {
+  if (value === undefined || value === null) {
+    if (!optional) throw new Error(`${field} is required in E2E request data.`);
+    return;
+  }
+  if (typeof value !== "string") throw new Error(`${field} must be a string in E2E request data.`);
+  const length = value.trim().length;
+  if (length < min || length > max) {
+    throw new Error(`${field} length ${length} is outside E2E-safe contract range ${min}-${max}: ${value}`);
+  }
+}
+
+function assertEnumField(value, field, allowed, { optional = false } = {}) {
+  if (value === undefined || value === null) {
+    if (optional) return;
+    throw new Error(`${field} is required in E2E request data.`);
+  }
+  if (!allowed.includes(value)) {
+    throw new Error(`${field}=${value} is not one of: ${allowed.join(", ")}`);
+  }
+}
+
+function preflightRequestBody(path, body, method) {
+  if (method === "GET") return;
+  if (!body || typeof body !== "object" || Array.isArray(body)) return;
+
+  if (path === "/api/start-projects") {
+    assertStringField(body.clientDraftId, "clientDraftId", contractLimits.clientDraftId, { min: 8, optional: false });
+    assertEnumField(body.sourceType, "sourceType", ["DESIGN", "IDEA", "AUDIENCE", "STORE", "BRAND"]);
+    assertEnumField(body.category, "category", ["DRESS", "SHIRT", "OUTERWEAR", "SET", "SKIRT", "PANTS", "LIGHT_FORMAL", "KNIT", "OTHER"]);
+    assertEnumField(body.primaryNeed, "primaryNeed", ["DESIGN_DIRECTION", "FABRIC", "SAMPLE", "PRODUCTION", "MARKET_VALIDATION", "UNSURE"]);
+    assertStringField(body.categoryOther, "categoryOther", 40);
+    assertStringField(body.ideaText, "ideaText", contractLimits.ideaText);
+  }
+
+  if (/^\/api\/start-projects\/[^/]+$/.test(path) && method === "PATCH") {
+    assertStringField(body.projectTitle, "projectTitle", contractLimits.projectTitle, { min: 2 });
+    assertStringField(body.projectTitle, "projectTitle", contractLimits.safeProjectTitle, { min: 2 });
+    assertStringField(body.ideaText, "ideaText", contractLimits.ideaText);
+    assertStringField(body.targetAudience, "targetAudience", contractLimits.targetAudience, { min: 2 });
+    assertEnumField(body.useScenario, "useScenario", ["DAILY_COMMUTE", "WEEKEND", "DATE_PARTY", "FORMAL", "TRAVEL", "STAGE_PHOTO", "STORE_SALES", "OTHER", "UNSURE"], { optional: true });
+    assertEnumField(body.expectedPriceBand, "expectedPriceBand", ["UNDER_299", "FROM_300_TO_599", "FROM_600_TO_999", "FROM_1000_TO_1999", "FROM_2000", "UNSURE"], { optional: true });
+    assertEnumField(body.launchTiming, "launchTiming", ["WITHIN_30_DAYS", "ONE_TO_THREE_MONTHS", "THREE_TO_SIX_MONTHS", "EXPLORING"], { optional: true });
+    assertStringField(body.reviewMessage, "reviewMessage", contractLimits.reviewMessage);
+  }
+
+  if (/^\/api\/admin\/projects\/[^/]+\/actions$/.test(path)) {
+    assertEnumField(body.type, "type", Object.values(CollaborationProjectActionType));
+    assertEnumField(body.responsibility, "responsibility", Object.values(CollaborationProjectActionResponsibility));
+    assertStringField(body.title, "action title", contractLimits.actionTitle, { min: 2, optional: false });
+    assertStringField(body.title, "action title", contractLimits.safeActionTitle, { min: 2, optional: false });
+    assertStringField(body.instructions, "instructions", contractLimits.instructions, { min: 5, optional: false });
+  }
+
+  if (/\/actions\/[^/]+\/submit$/.test(path) || /\/actions\/[^/]+\/complete$/.test(path)) {
+    assertStringField(body.completionNote, "completionNote", contractLimits.completionNote);
+  }
+
+  if (/\/actions\/[^/]+\/cancel$/.test(path)) {
+    assertStringField(body.reason, "cancellationReason", contractLimits.cancellationReason, { min: 10, optional: false });
+  }
+}
 
 function assertIsolatedE2EEnvironment() {
   if (process.env.RUNWAYLAB_E2E !== "1") {
@@ -96,22 +186,20 @@ async function cleanupE2EData() {
     select: { id: true }
   });
   const userIds = users.map((user) => user.id);
-  const projectWhere = {
-    OR: [
-      { title: { startsWith: titlePrefix } },
-      { internalNote: { startsWith: titlePrefix } },
-      ...(userIds.length ? [{ ownerUserId: { in: userIds } }, { createdById: { in: userIds } }] : [])
-    ]
-  };
   const projects = await prisma.collaborationProject.findMany({
-    where: projectWhere,
+    where: {
+      OR: [
+        { title: { startsWith: titlePrefix } },
+        ...(userIds.length ? [{ ownerUserId: { in: userIds } }, { createdById: { in: userIds } }] : [])
+      ]
+    },
     select: { id: true }
   });
   const projectIds = projects.map((project) => project.id);
   const intakes = await prisma.projectIntake.findMany({
     where: {
       OR: [
-        { clientDraftId: { startsWith: "e2e-p103-" } },
+        { clientDraftId: { startsWith: "e2e-v205-" } },
         { projectTitle: { startsWith: titlePrefix } },
         ...(userIds.length ? [{ ownerId: { in: userIds } }] : [])
       ]
@@ -204,6 +292,7 @@ async function login(page, email) {
 }
 
 async function browserJson(page, path, body = {}, method = "POST") {
+  preflightRequestBody(path, body, method);
   return page.evaluate(
     async ({ path: requestPath, body: requestBody, method: requestMethod }) => {
       const response = await fetch(requestPath, {
@@ -243,16 +332,37 @@ async function expectPostOk(page, path, body = {}, method = "POST") {
   return response.json;
 }
 
-async function getIntake() {
+async function createCompleteIntake(page, clientDraftId, title) {
+  const created = await expectPostOk(page, "/api/start-projects", {
+    clientDraftId,
+    sourceType: "IDEA",
+    category: "DRESS",
+    primaryNeed: "FABRIC",
+    ideaText: "想做一件通勤的连衣裙"
+  });
+  const id = created.intake.id;
+  await expectPostOk(page, `/api/start-projects/${id}`, {
+    projectTitle: title,
+    ideaText: "想做一件通勤的连衣裙",
+    targetAudience: "刚上班的女生",
+    useScenario: "DAILY_COMMUTE",
+    expectedPriceBand: "UNDER_299",
+    launchTiming: "ONE_TO_THREE_MONTHS",
+    reviewMessage: "希望先找面料并确认开发方向。"
+  }, "PATCH");
+  return id;
+}
+
+async function getIntake(id = intakeId) {
   return prisma.projectIntake.findUniqueOrThrow({
-    where: { id: intakeId },
-    include: { events: true }
+    where: { id },
+    include: { events: true, linkedCollaborationProject: true }
   });
 }
 
-async function getFlowProject() {
+async function getFlowProject(id = flowProjectId) {
   return prisma.collaborationProject.findUniqueOrThrow({
-    where: { id: flowProjectId },
+    where: { id },
     include: {
       actions: { orderBy: { createdAt: "asc" } },
       events: { orderBy: { createdAt: "asc" } },
@@ -261,24 +371,21 @@ async function getFlowProject() {
   });
 }
 
-async function countOpenActions() {
+async function countOpenActions(projectId = flowProjectId) {
   return prisma.collaborationProjectAction.count({
     where: {
-      projectId: flowProjectId,
+      projectId,
       status: { in: [CollaborationProjectActionStatus.ACTIVE, CollaborationProjectActionStatus.WAITING_PLATFORM_CONFIRMATION] }
     }
   });
 }
 
-async function expectAdminListContains(filter, shouldContain) {
-  const path = filter ? `/admin/projects?privateFilter=${filter}` : "/admin/projects";
-  await adminPage.goto(path);
-  const bodyText = await adminPage.locator("body").innerText();
-  if (shouldContain) {
-    expect(bodyText, `${path} should show ${flowProjectTitle}`).toContain(flowProjectTitle);
-  } else {
-    expect(bodyText, `${path} should not show ${flowProjectTitle}`).not.toContain(flowProjectTitle);
-  }
+async function expectNoHorizontalOverflow(page, path) {
+  await page.goto(path);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow, `${path} should not overflow horizontally`).toBeLessThanOrEqual(0);
+  const primaryName = /继续|新建项目|返回我的项目|启动项目|创建我的项目/;
+  await expect(page.getByRole("link", { name: primaryName }).or(page.getByRole("button", { name: primaryName })).first()).toBeVisible();
 }
 
 function duplicateKeys(items, keyFn) {
@@ -290,7 +397,19 @@ function duplicateKeys(items, keyFn) {
   return [...seen.entries()].filter(([, count]) => count > 1).map(([key]) => key);
 }
 
-test.describe.serial("V2.0B.4.2.5 P1-03 operational acceptance", () => {
+async function expectSimpleNotificationDedup(projectId = flowProjectId) {
+  const notifications = await prisma.notification.findMany({
+    where: {
+      userId: owner.id,
+      type: NotificationType.REQUEST_HANDLED,
+      linkUrl: projectHref(projectId)
+    },
+    select: { title: true, linkUrl: true }
+  });
+  expect(duplicateKeys(notifications, (notification) => `${notification.title}:${notification.linkUrl}`)).toEqual([]);
+}
+
+test.describe.serial("V2.0B.5 simple project experience acceptance", () => {
   test.beforeAll(async ({ browser }) => {
     assertIsolatedE2EEnvironment();
     await cleanupE2EData();
@@ -322,22 +441,22 @@ test.describe.serial("V2.0B.4.2.5 P1-03 operational acceptance", () => {
     await context.close();
   });
 
-  test("owner logs in and creates a real ProjectIntake from /start", async () => {
+  test("owner logs in and creates a real start project intake from /start", async () => {
     await login(ownerPage, ownerEmail);
     await ownerPage.goto("/start");
     await expect(ownerPage).toHaveURL(/\/start/);
 
     const created = await expectPostOk(ownerPage, "/api/start-projects", {
-      clientDraftId: `e2e-p103-${runId}`,
-      sourceType: "DESIGN",
+      clientDraftId: `e2e-v205-${runId}`,
+      sourceType: "IDEA",
       category: "DRESS",
-      primaryNeed: "SAMPLE",
-      ideaText: "Small batch silk dress with a clear fitting and sample plan"
+      primaryNeed: "FABRIC",
+      ideaText: "想做一件通勤的连衣裙"
     });
     intakeId = created.intake.id;
 
     await ownerPage.goto(created.href);
-    await expect(ownerPage.locator("body")).toContainText("Small batch silk dress");
+    await expect(ownerPage.locator("body")).toContainText("想做一件通勤的连衣裙");
 
     const intake = await getIntake();
     expect(intake.ownerId).toBe(owner.id);
@@ -345,197 +464,143 @@ test.describe.serial("V2.0B.4.2.5 P1-03 operational acceptance", () => {
     expect(intake.linkedCollaborationProjectId).toBeNull();
   });
 
-  test("owner completes details, submits for review, and database records SUBMITTED", async () => {
+  test("owner completes details and launches the project without admin review", async () => {
     await expectPostOk(ownerPage, `/api/start-projects/${intakeId}`, {
       projectTitle: flowProjectTitle,
-      ideaText: "Small batch silk dress with a clear fitting and sample plan",
-      targetAudience: "Independent boutique buyers preparing a spring capsule",
-      useScenario: "DATE_PARTY",
-      expectedPriceBand: "FROM_600_TO_999",
+      ideaText: "想做一件通勤的连衣裙",
+      targetAudience: "刚上班的女生",
+      useScenario: "DAILY_COMMUTE",
+      expectedPriceBand: "UNDER_299",
       launchTiming: "ONE_TO_THREE_MONTHS",
-      reviewMessage: "Please evaluate whether this should become a private collaboration project."
+      reviewMessage: "希望先找面料并确认开发方向。"
     }, "PATCH");
-    await expectPostOk(ownerPage, `/api/start-projects/${intakeId}/submit`, {});
-
-    await ownerPage.goto(`/me/start-projects/${intakeId}`);
-    await expect(ownerPage.locator("body")).toContainText(flowProjectTitle);
+    const launched = await expectPostOk(ownerPage, `/api/start-projects/${intakeId}/submit`, {});
+    flowProjectId = launched.project.id;
 
     const intake = await getIntake();
-    expect(intake.status).toBe(ProjectIntakeStatus.SUBMITTED);
+    const project = await getFlowProject(flowProjectId);
+    const action = project.actions[0];
+    firstActionId = action.id;
+
+    expect(intake.status).toBe(ProjectIntakeStatus.ACCEPTED);
     expect(intake.completion).toBe(100);
-    expect(intake.events.some((event) => event.eventType === ProjectIntakeEventType.SUBMITTED)).toBe(true);
-  });
-
-  test("admin logs in, accepts the intake, converts it, and database links a PRIVATE project", async () => {
-    await login(adminPage, adminEmail);
-    let intake = await getIntake();
-    const accepted = await expectPostOk(adminPage, `/api/admin/project-intakes/${intakeId}/review`, {
-      decision: "ACCEPTED",
-      note: "Accepted for an isolated E2E private collaboration workflow.",
-      expectedUpdatedAt: intake.updatedAt.toISOString()
-    });
-    expect(accepted.intake.status).toBe(ProjectIntakeStatus.ACCEPTED);
-
-    intake = await getIntake();
-    const converted = await expectPostOk(adminPage, `/api/admin/project-intakes/${intakeId}/convert`, {
-      expectedUpdatedAt: intake.updatedAt.toISOString()
-    });
-    flowProjectId = converted.project.id;
-
-    const project = await getFlowProject();
-    intake = await getIntake();
+    expect(intake.reviewedById).toBeNull();
+    expect(intake.linkedCollaborationProjectId).toBe(flowProjectId);
     expect(project.visibility).toBe(CollaborationProjectVisibility.PRIVATE);
     expect(project.status).toBe(CollaborationProjectStatus.DRAFT);
     expect(project.ownerUserId).toBe(owner.id);
-    expect(intake.linkedCollaborationProjectId).toBe(flowProjectId);
-    expect(project.events.some((event) => event.eventType === CollaborationProjectEventType.PROJECT_CREATED)).toBe(true);
+    expect(await prisma.collaborationProject.count({ where: { projectIntake: { id: intakeId } } })).toBe(1);
+    expect(await countOpenActions()).toBe(1);
+    expect(action.type).toBe(CollaborationProjectActionType.DESIGN_CLARIFICATION);
+    expect(action.responsibility).toBe(CollaborationProjectActionResponsibility.USER);
+    expect(action.status).toBe(CollaborationProjectActionStatus.ACTIVE);
+    expect(action.title).toBe("完善产品需求");
+    expect(project.events.filter((event) => event.eventType === CollaborationProjectEventType.PROJECT_CREATED)).toHaveLength(1);
+    expect(project.events.filter((event) => event.eventType === CollaborationProjectEventType.ACTION_CREATED)).toHaveLength(1);
+    expect(intake.events.some((event) => event.eventType === ProjectIntakeEventType.CONVERTED)).toBe(true);
   });
 
-  test("owner /me/projects shows the converted project once and hides the converted intake", async () => {
+  test("repeat launch is idempotent and does not duplicate project, action, event, or notification", async () => {
+    const eventCountBefore = await prisma.collaborationProjectEvent.count({ where: { projectId: flowProjectId } });
+    const notificationCountBefore = await prisma.notification.count({ where: { userId: owner.id, linkUrl: projectHref(flowProjectId) } });
+    const relaunched = await expectPostOk(ownerPage, `/api/start-projects/${intakeId}/submit`, {});
+    expect(relaunched.project.id).toBe(flowProjectId);
+    expect(relaunched.idempotent).toBe(true);
+
+    expect(await prisma.collaborationProject.count({ where: { projectIntake: { id: intakeId } } })).toBe(1);
+    expect(await countOpenActions()).toBe(1);
+    expect(await prisma.collaborationProjectEvent.count({ where: { projectId: flowProjectId } })).toBe(eventCountBefore);
+    expect(await prisma.notification.count({ where: { userId: owner.id, linkUrl: projectHref(flowProjectId) } })).toBe(notificationCountBefore);
+    await expectSimpleNotificationDedup();
+  });
+
+  test("owner /me/projects shows the project once with simple user-facing copy", async () => {
     await ownerPage.goto("/me/projects");
     const projectHrefValue = projectHref(flowProjectId);
     const projectCards = ownerPage.locator(`article:has(a[href="${projectHrefValue}"])`);
     await expect(projectCards).toHaveCount(1);
     await expect(projectCards.first()).toContainText(flowProjectTitle);
+    await expect(projectCards.first()).toContainText("继续");
     await expect(ownerPage.locator(`article:has(a[href="/me/start-projects/${intakeId}"])`)).toHaveCount(0);
-
-    const visibleIntakeCount = await prisma.projectIntake.count({
-      where: { ownerId: owner.id, linkedCollaborationProjectId: null, projectTitle: flowProjectTitle }
-    });
-    const privateProjectCount = await prisma.collaborationProject.count({
-      where: { id: flowProjectId, ownerUserId: owner.id, visibility: CollaborationProjectVisibility.PRIVATE, title: flowProjectTitle }
-    });
-    const linkedIntake = await prisma.projectIntake.findUnique({
-      where: { id: intakeId },
-      select: { linkedCollaborationProjectId: true }
-    });
-    expect(visibleIntakeCount).toBe(0);
-    expect(privateProjectCount).toBe(1);
-    expect(linkedIntake?.linkedCollaborationProjectId).toBe(flowProjectId);
+    const body = ownerPage.locator("body");
+    await expect(body).not.toContainText("正式项目");
+    await expect(body).not.toContainText("启动草稿");
+    await expect(body).not.toContainText("等待平台评估");
   });
 
-  test("admin creates a USER action, owner submits the result, and admin confirms it", async () => {
-    const created = await expectPostOk(adminPage, `/api/admin/projects/${flowProjectId}/actions`, {
-      type: CollaborationProjectActionType.DESIGN_CLARIFICATION,
-      responsibility: CollaborationProjectActionResponsibility.USER,
-      title: userActionTitle,
-      instructions: "Upload or describe the fitting decision for this E2E sample plan."
-    });
-    userActionId = created.action.id;
-    expect(created.action.status).toBe(CollaborationProjectActionStatus.ACTIVE);
-
-    let project = await getFlowProject();
-    expect(project.actions.find((action) => action.id === userActionId).status).toBe(CollaborationProjectActionStatus.ACTIVE);
-    expect(project.events.filter((event) => event.eventType === CollaborationProjectEventType.ACTION_CREATED && event.actionId === userActionId)).toHaveLength(1);
-
+  test("owner project detail shows USER active work as now-to-do without internal vocabulary", async () => {
     await ownerPage.goto(projectHref(flowProjectId));
-    await expect(ownerPage.locator("body")).toContainText(flowProjectTitle);
-    const submitted = await expectPostOk(ownerPage, `/api/me/projects/collaboration/${flowProjectId}/actions/${userActionId}/submit`, {
-      completionNote: "Owner completed the E2E fitting decision and submitted it for platform confirmation."
+    const body = ownerPage.locator("body");
+    await expect(body).toContainText(flowProjectTitle);
+    await expect(body).toContainText("现在要做");
+    await expect(body).toContainText("完善产品需求");
+    await expect(body).not.toContainText("USER");
+    await expect(body).not.toContainText("PLATFORM");
+    await expect(body).not.toContainText("当前行动");
+    await expect(body).not.toContainText("CollaborationProject");
+  });
+
+  test("owner submits the first action result and sees a received state", async () => {
+    const eventCountBefore = await prisma.collaborationProjectEvent.count({
+      where: { projectId: flowProjectId, actionId: firstActionId, eventType: CollaborationProjectEventType.USER_RESULT_SUBMITTED }
+    });
+    const notificationCountBefore = await prisma.notification.count({ where: { userId: owner.id, linkUrl: projectHref(flowProjectId) } });
+    const submitted = await expectPostOk(ownerPage, `/api/me/projects/collaboration/${flowProjectId}/actions/${firstActionId}/submit`, {
+      completionNote: "已经补充通勤连衣裙的面料、颜色和场景要求。"
     });
     expect(submitted.action.status).toBe(CollaborationProjectActionStatus.WAITING_PLATFORM_CONFIRMATION);
 
-    project = await getFlowProject();
-    expect(project.actions.find((action) => action.id === userActionId).status).toBe(CollaborationProjectActionStatus.WAITING_PLATFORM_CONFIRMATION);
+    const action = await prisma.collaborationProjectAction.findUniqueOrThrow({ where: { id: firstActionId } });
+    expect(action.status).toBe(CollaborationProjectActionStatus.WAITING_PLATFORM_CONFIRMATION);
     expect(await countOpenActions()).toBe(1);
-    await expectAdminListContains(null, true);
-    await expectAdminListContains("WAITING_CONFIRMATION", true);
+    expect(await prisma.collaborationProjectEvent.count({
+      where: { projectId: flowProjectId, actionId: firstActionId, eventType: CollaborationProjectEventType.USER_RESULT_SUBMITTED }
+    })).toBe(eventCountBefore + 1);
+    expect(await prisma.notification.count({ where: { userId: owner.id, linkUrl: projectHref(flowProjectId) } })).toBe(notificationCountBefore);
+    await expectSimpleNotificationDedup();
 
-    const completed = await expectPostOk(adminPage, `/api/admin/projects/${flowProjectId}/actions/${userActionId}/complete`, {
-      completionNote: "Admin confirmed the owner E2E result."
-    });
-    expect(completed.action.status).toBe(CollaborationProjectActionStatus.COMPLETED);
+    await ownerPage.goto(projectHref(flowProjectId));
+    await expect(ownerPage.locator("body")).toContainText("已收到");
   });
 
-  test("admin platform and user-action filters match the operational queue rules", async () => {
-    let created = await expectPostOk(adminPage, `/api/admin/projects/${flowProjectId}/actions`, {
+  test("admin confirms the user step and creates a platform action shown as processing to the owner", async () => {
+    await login(adminPage, adminEmail);
+    const completed = await expectPostOk(adminPage, `/api/admin/projects/${flowProjectId}/actions/${firstActionId}/complete`, {
+      completionNote: "Admin confirmed the V2.0B.5 owner first-step result."
+    });
+    expect(completed.action.status).toBe(CollaborationProjectActionStatus.COMPLETED);
+    expect(await countOpenActions()).toBe(0);
+
+    const created = await expectPostOk(adminPage, `/api/admin/projects/${flowProjectId}/actions`, {
       type: CollaborationProjectActionType.PLATFORM_PREPARATION,
       responsibility: CollaborationProjectActionResponsibility.PLATFORM,
       title: platformActionTitle,
-      instructions: "Platform prepares the next production feasibility review."
+      instructions: "Platform prepares a fabric direction for this simple project experience."
     });
     platformActionId = created.action.id;
     expect(created.action.status).toBe(CollaborationProjectActionStatus.ACTIVE);
+    expect(await countOpenActions()).toBe(1);
 
-    await expectAdminListContains(null, true);
-    await expectAdminListContains("WAITING_PLATFORM", true);
-
-    const platformCompleted = await expectPostOk(adminPage, `/api/admin/projects/${flowProjectId}/actions/${platformActionId}/complete`, {
-      completionNote: "Platform E2E action completed."
-    });
-    expect(platformCompleted.action.status).toBe(CollaborationProjectActionStatus.COMPLETED);
-    expect(await countOpenActions()).toBe(0);
-    await expectAdminListContains("WAITING_NEXT", true);
-
-    created = await expectPostOk(adminPage, `/api/admin/projects/${flowProjectId}/actions`, {
-      type: CollaborationProjectActionType.FABRIC_BRIEF,
-      responsibility: CollaborationProjectActionResponsibility.USER,
-      title: activeUserActionTitle,
-      instructions: "Owner should answer one more fabric brief question."
-    });
-    cancelledUserActionId = created.action.id;
-    expect(created.action.status).toBe(CollaborationProjectActionStatus.ACTIVE);
-
-    await expectAdminListContains(null, false);
-    await expectAdminListContains("WAITING_USER", true);
-
-    const cancellationEventCountBefore = await prisma.collaborationProjectEvent.count({
-      where: { projectId: flowProjectId, actionId: cancelledUserActionId, eventType: CollaborationProjectEventType.ACTION_CANCELLED }
-    });
-    const notificationCountBeforeCancel = await prisma.notification.count({
-      where: { userId: owner.id, type: NotificationType.REQUEST_HANDLED, linkUrl: projectHref(flowProjectId) }
-    });
-    const cancelled = await expectPostOk(adminPage, `/api/admin/projects/${flowProjectId}/actions/${cancelledUserActionId}/cancel`, {
-      reason: "Cancelling this E2E action to verify rescheduling and retained history."
-    });
-    expect(cancelled.action.status).toBe(CollaborationProjectActionStatus.CANCELLED);
-    expect(await countOpenActions()).toBe(0);
-
-    const cancelledAction = await prisma.collaborationProjectAction.findUniqueOrThrow({
-      where: { id: cancelledUserActionId },
-      select: { status: true, cancellationReason: true }
-    });
-    expect(cancelledAction.status).toBe(CollaborationProjectActionStatus.CANCELLED);
-    expect(cancelledAction.cancellationReason).toBe("Cancelling this E2E action to verify rescheduling and retained history.");
-    expect(await prisma.collaborationProjectEvent.count({
-      where: { projectId: flowProjectId, actionId: cancelledUserActionId, eventType: CollaborationProjectEventType.ACTION_CANCELLED }
-    })).toBe(cancellationEventCountBefore + 1);
-    expect(await prisma.notification.count({
-      where: { userId: owner.id, type: NotificationType.REQUEST_HANDLED, linkUrl: projectHref(flowProjectId) }
-    })).toBe(notificationCountBeforeCancel + 1);
-    const notificationsAfterCancel = await prisma.notification.findMany({
-      where: { userId: owner.id, type: NotificationType.REQUEST_HANDLED, linkUrl: projectHref(flowProjectId) },
-      select: { title: true, linkUrl: true }
-    });
-    expect(duplicateKeys(notificationsAfterCancel, (notification) => `${notification.title}:${notification.linkUrl}`)).toEqual([]);
-
-    await expectAdminListContains(null, true);
-    await expectAdminListContains("WAITING_USER", false);
-    await expectAdminListContains("WAITING_NEXT", true);
-    await adminPage.goto(`/admin/projects/${flowProjectId}`);
-    const detailText = await adminPage.locator("body").innerText();
-    expect(detailText).toContain(flowProjectTitle);
-    expect(detailText).toContain(activeUserActionTitle);
-    await expect(adminPage.locator('input[maxlength="40"]')).toHaveCount(1);
-    await expect(adminPage.locator("select")).toHaveCount(2);
+    await ownerPage.goto(projectHref(flowProjectId));
+    const body = ownerPage.locator("body");
+    await expect(body).toContainText("我们正在处理");
+    await expect(body).not.toContainText("PLATFORM");
   });
 
-  test("outsider cannot read owner private project, submit owner action, or access admin projects", async () => {
+  test("outsider cannot read owner project, submit owner action, or access admin controls", async () => {
     await login(outsiderPage, outsiderEmail);
 
     const privateResponse = await outsiderPage.goto(projectHref(flowProjectId));
     expect(privateResponse?.status()).toBe(404);
     await expect(outsiderPage.locator("body")).not.toContainText(flowProjectTitle);
     await expect(outsiderPage.locator("body")).not.toContainText(ownerEmail);
-    await expect(outsiderPage.locator("body")).not.toContainText(activeUserActionTitle);
 
-    const submitAttempt = await browserJson(outsiderPage, `/api/me/projects/collaboration/${flowProjectId}/actions/${cancelledUserActionId}/submit`, {
+    const submitAttempt = await browserJson(outsiderPage, `/api/me/projects/collaboration/${flowProjectId}/actions/${platformActionId}/submit`, {
       completionNote: "Outsider should not be able to submit this owner action."
     });
     expect(submitAttempt.status).toBe(404);
     expect(JSON.stringify(submitAttempt.json ?? submitAttempt.text)).not.toContain(flowProjectTitle);
     expect(JSON.stringify(submitAttempt.json ?? submitAttempt.text)).not.toContain(ownerEmail);
-    expect(JSON.stringify(submitAttempt.json ?? submitAttempt.text)).not.toContain(activeUserActionTitle);
 
     const adminApiAttempt = await browserJson(outsiderPage, `/api/admin/projects/${flowProjectId}/actions`, {
       type: CollaborationProjectActionType.DESIGN_CLARIFICATION,
@@ -545,63 +610,44 @@ test.describe.serial("V2.0B.4.2.5 P1-03 operational acceptance", () => {
     });
     expect(adminApiAttempt.status).toBe(403);
     expect(JSON.stringify(adminApiAttempt.json ?? adminApiAttempt.text)).not.toContain(flowProjectTitle);
-    expect(JSON.stringify(adminApiAttempt.json ?? adminApiAttempt.text)).not.toContain(ownerEmail);
 
     await outsiderPage.goto("/admin/projects");
     await expect(outsiderPage.locator("body")).toContainText("403");
     await expect(outsiderPage.locator("body")).not.toContainText(flowProjectTitle);
   });
 
-  test("concurrent current-action creation leaves one open action and no duplicate event or notification", async () => {
-    expect(await countOpenActions()).toBe(0);
-    const eventCountBefore = await prisma.collaborationProjectEvent.count({
-      where: { projectId: flowProjectId, eventType: CollaborationProjectEventType.ACTION_CREATED }
-    });
-
+  test("concurrent duplicate launch creates exactly one project and one unfinished first action", async () => {
+    concurrentIntakeId = await createCompleteIntake(ownerPage, `e2e-v205-concurrent-${runId}`, concurrentProjectTitle);
     const [first, second] = await Promise.all([
-      browserJson(adminPage, `/api/admin/projects/${flowProjectId}/actions`, {
-        type: CollaborationProjectActionType.PRODUCTION_FEASIBILITY,
-        responsibility: CollaborationProjectActionResponsibility.PLATFORM,
-        title: concurrentActionTitleA,
-        instructions: "One of the concurrent E2E actions may become the current action."
-      }),
-      browserJson(adminPage, `/api/admin/projects/${flowProjectId}/actions`, {
-        type: CollaborationProjectActionType.SAMPLE_BRIEF,
-        responsibility: CollaborationProjectActionResponsibility.PLATFORM,
-        title: concurrentActionTitleB,
-        instructions: "The second concurrent E2E action must not create a second open action."
-      })
+      browserJson(ownerPage, `/api/start-projects/${concurrentIntakeId}/submit`, {}),
+      browserJson(ownerPage, `/api/start-projects/${concurrentIntakeId}/submit`, {})
     ]);
-    const successful = [first, second].filter((response) => response.status >= 200 && response.status < 300);
-    const rejected = [first, second].filter((response) => response.status >= 400);
-    expect(successful).toHaveLength(1);
-    expect(rejected).toHaveLength(1);
-    expect(rejected[0].status).toBe(409);
-    concurrentActionId = successful[0].json.action.id;
-    expect(successful[0].json.action.responsibility).toBe(CollaborationProjectActionResponsibility.PLATFORM);
-    expect([CollaborationProjectActionType.PRODUCTION_FEASIBILITY, CollaborationProjectActionType.SAMPLE_BRIEF]).toContain(successful[0].json.action.type);
-    expect([concurrentActionTitleA, concurrentActionTitleB]).toContain(successful[0].json.action.title);
+    expect([first.status, second.status].every((status) => status >= 200 && status < 300)).toBe(true);
+    concurrentProjectId = first.json.project.id;
+    expect(second.json.project.id).toBe(concurrentProjectId);
 
-    const project = await getFlowProject();
-    const openActions = project.actions.filter((action) =>
-      [CollaborationProjectActionStatus.ACTIVE, CollaborationProjectActionStatus.WAITING_PLATFORM_CONFIRMATION].includes(action.status)
-    );
-    expect(openActions).toHaveLength(1);
-    expect(openActions[0].id).toBe(concurrentActionId);
+    const intake = await getIntake(concurrentIntakeId);
+    const project = await getFlowProject(concurrentProjectId);
+    expect(intake.linkedCollaborationProjectId).toBe(concurrentProjectId);
+    expect(await prisma.collaborationProject.count({ where: { projectIntake: { id: concurrentIntakeId } } })).toBe(1);
+    expect(await countOpenActions(concurrentProjectId)).toBe(1);
+    expect(project.actions.filter((action) => action.status === CollaborationProjectActionStatus.ACTIVE)).toHaveLength(1);
+    expect(project.events.filter((event) => event.eventType === CollaborationProjectEventType.PROJECT_CREATED)).toHaveLength(1);
+    expect(project.events.filter((event) => event.eventType === CollaborationProjectEventType.ACTION_CREATED)).toHaveLength(1);
+    await expectSimpleNotificationDedup(concurrentProjectId);
+  });
 
-    const actionCreatedEvents = project.events.filter((event) => event.eventType === CollaborationProjectEventType.ACTION_CREATED);
-    expect(actionCreatedEvents.length).toBe(eventCountBefore + 1);
-    expect(duplicateKeys(actionCreatedEvents, (event) => `${event.actionId}:${event.eventType}`)).toEqual([]);
-
-    const notifications = await prisma.notification.findMany({
-      where: {
-        userId: owner.id,
-        type: NotificationType.REQUEST_HANDLED,
-        linkUrl: projectHref(flowProjectId)
-      },
-      select: { id: true, title: true, linkUrl: true }
-    });
-    expect(duplicateKeys(notifications, (notification) => `${notification.title}:${notification.linkUrl}`)).toEqual([]);
-    expect(await countOpenActions()).toBe(1);
+  test("responsive smoke has no horizontal overflow and keeps primary actions visible", async () => {
+    for (const viewport of [
+      { width: 375, height: 812 },
+      { width: 390, height: 844 },
+      { width: 430, height: 932 },
+      { width: 1440, height: 900 }
+    ]) {
+      await ownerPage.setViewportSize(viewport);
+      await expectNoHorizontalOverflow(ownerPage, "/start");
+      await expectNoHorizontalOverflow(ownerPage, "/me/projects");
+      await expectNoHorizontalOverflow(ownerPage, projectHref(flowProjectId));
+    }
   });
 });

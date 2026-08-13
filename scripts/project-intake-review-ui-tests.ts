@@ -7,7 +7,7 @@ const adminList = readFileSync("src/app/admin/project-intakes/page.tsx", "utf8")
 const adminHome = readFileSync("src/app/admin/page.tsx", "utf8");
 
 assert.match(userFlow, /补充项目资料/, "user flow should expose one clear primary action");
-assert.match(userFlow, /确认提交平台评估？/, "submit should use custom confirmation");
+assert.match(userFlow, /确认启动项目？/, "submit should use the simple launch confirmation");
 assert.match(userFlow, /撤回并修改？/, "withdraw should use custom confirmation");
 assert.match(userFlow, /平台反馈/, "NEEDS_INFO and result feedback should be visible");
 assert.match(adminPanel, /通过评估/, "admin panel should expose accept action");

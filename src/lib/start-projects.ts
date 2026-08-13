@@ -1,4 +1,6 @@
 import {
+  CollaborationProjectActionResponsibility,
+  CollaborationProjectActionType,
   CollaborationProjectStatus,
   CollaborationProjectVisibility,
   NotificationType,
@@ -12,7 +14,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { safeNotificationSummary, sanitizeNotificationTargetUrl } from "@/lib/notifications";
-import { createProjectCreatedEventForConversion } from "@/lib/private-project-actions";
+import { createInitialPrivateProjectActionForIntake, createProjectCreatedEventForConversion } from "@/lib/private-project-actions";
 import {
   EXPECTED_PRICE_BAND_VALUES,
   LAUNCH_TIMING_VALUES,
@@ -339,8 +341,8 @@ export function projectIntakeNextAction(intake: Pick<ProjectIntakeListItem, "sta
 
   if (intake.status === ProjectIntakeStatus.SUBMITTED) {
     return {
-      label: "等待平台评估",
-      description: "项目已经提交，平台会根据当前资料给出通过、需要补充或暂不适合的反馈。"
+      label: "正在准备项目",
+      description: "我们正在根据当前资料准备项目工作台。"
     };
   }
 
@@ -353,13 +355,13 @@ export function projectIntakeNextAction(intake: Pick<ProjectIntakeListItem, "sta
   if (intake.status === ProjectIntakeStatus.ACCEPTED) {
     if (intake.linkedCollaborationProjectId) {
       return {
-        label: "进入项目工作台",
-        description: "正式项目已建立。原始启动资料和平台评估记录会继续保留。"
+        label: "继续",
+        description: "项目已经启动，可以继续推进当前这一步。"
       };
     }
     return {
-      label: "等待平台安排下一步",
-      description: "项目已通过评估。本轮不会自动生成正式项目，后续由平台安排受控转换。"
+      label: "正在准备下一步",
+      description: "我们会根据当前进度继续推进。"
     };
   }
 
@@ -372,8 +374,8 @@ export function projectIntakeNextAction(intake: Pick<ProjectIntakeListItem, "sta
 
   if (completion === 100) {
     return {
-      label: "提交平台评估",
-      description: "资料已经达到评估条件，提交后会进入等待平台评估状态。"
+      label: "启动项目",
+      description: "资料已经足够，启动后会直接进入项目工作台。"
     };
   }
 
@@ -461,8 +463,8 @@ async function createProjectIntakeNotification(tx: Prisma.TransactionClient, inp
 
 async function createProjectIntakeConvertedNotification(tx: Prisma.TransactionClient, input: { ownerId: string; projectId: string }) {
   const linkUrl = sanitizeNotificationTargetUrl(privateCollaborationProjectHref(input.projectId));
-  const title = safeNotificationSummary("正式项目已建立", 120);
-  const content = safeNotificationSummary("你的项目已经进入正式项目工作台，可以继续查看后续安排。", 240);
+  const title = safeNotificationSummary("项目已启动", 120);
+  const content = safeNotificationSummary("你的项目已经准备好，可以继续查看后续安排。", 240);
 
   const duplicate = await tx.notification.findFirst({
     where: {
@@ -497,6 +499,26 @@ function conversionProjectDescription(intake: ProjectIntakeListItem) {
   const idea = cleanText(intake.ideaText);
   const audience = cleanText(intake.targetAudience);
   return [idea, audience ? `目标用户：${audience}` : null].filter(Boolean).join("\n");
+}
+
+function initialActionForProjectIntake(intake: ProjectIntakeListItem) {
+  const category = categoryLabel(intake.category, intake.categoryOther);
+
+  if (intake.sourceType === "DESIGN") {
+    return {
+      type: CollaborationProjectActionType.DESIGN_CLARIFICATION,
+      responsibility: CollaborationProjectActionResponsibility.USER,
+      title: "确认开发目标",
+      instructions: `请确认这件${category}接下来最想解决的开发目标，例如版型方向、面料手感、样衣重点或目标穿着场景。`
+    };
+  }
+
+  return {
+    type: CollaborationProjectActionType.DESIGN_CLARIFICATION,
+    responsibility: CollaborationProjectActionResponsibility.USER,
+    title: "完善产品需求",
+    instructions: `补充你希望的${category}款式方向、颜色、使用场景和关键要求。也可以参考已有服装款式整理需求。`
+  };
 }
 
 function conversionConflictMessage() {
@@ -732,63 +754,171 @@ export async function updateProjectIntakeForViewer(id: string, user: Viewer, raw
 }
 
 export async function submitProjectIntakeReview(id: string, user: Viewer) {
-  return prisma.$transaction(async (tx) => {
-    const current = await tx.projectIntake.findUnique({
-      where: { id },
-      select: projectIntakeListSelect
-    });
+  const maxAttempts = 2;
 
-    if (!current) return { ok: false as const, status: 404, error: "启动草稿不存在。" };
-    if (user.status !== UserStatus.ACTIVE || current.ownerId !== user.id) return { ok: false as const, status: 403, error: "没有权限提交该项目。" };
-    if (current.status === ProjectIntakeStatus.SUBMITTED) {
-      const intake = await tx.projectIntake.findUniqueOrThrow({
-        where: { id },
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const current = await tx.projectIntake.findUnique({
+            where: { id },
+            select: projectIntakeListSelect
+          });
+
+          if (!current) return { ok: false as const, status: 404, error: "启动资料不存在。" };
+          if (user.status !== UserStatus.ACTIVE || current.ownerId !== user.id) return { ok: false as const, status: 403, error: "没有权限启动该项目。" };
+
+          if (current.linkedCollaborationProjectId) {
+            const project = current.linkedCollaborationProject;
+            if (!project) return { ok: false as const, status: 409, error: "项目关联暂不可用，请稍后再试。" };
+            const intake = await tx.projectIntake.findUniqueOrThrow({
+              where: { id },
+              select: projectIntakeDetailSelect
+            });
+            return { ok: true as const, intake: withComputedState(intake), project, idempotent: true };
+          }
+
+          if (current.status === ProjectIntakeStatus.DECLINED) {
+            return { ok: false as const, status: 409, error: "该项目暂不适合继续推进，可以重新启动一个新项目。" };
+          }
+          const launchableStatuses: ProjectIntakeStatus[] = [
+            ProjectIntakeStatus.READY_FOR_REVIEW,
+            ProjectIntakeStatus.NEEDS_INFO,
+            ProjectIntakeStatus.SUBMITTED,
+            ProjectIntakeStatus.ACCEPTED
+          ];
+          if (!launchableStatuses.includes(current.status)) {
+            return { ok: false as const, status: 409, error: "请先补充完整资料，再启动项目。" };
+          }
+
+          const completion = calculateProjectIntakeCompletion(current);
+          if (completion !== 100) {
+            return { ok: false as const, status: 400, error: `还需要补充：${projectIntakeMissingFields(current).join("、")}。` };
+          }
+
+          const now = new Date();
+          const project = await tx.collaborationProject.create({
+            data: {
+              title: projectIntakeTitle(current),
+              ownerUserId: current.ownerId,
+              createdById: user.id,
+              description: conversionProjectDescription(current) || null,
+              summary: conversionProjectSummary(current) || null,
+              status: CollaborationProjectStatus.DRAFT,
+              visibility: CollaborationProjectVisibility.PRIVATE,
+              internalNote: `Auto-created from ProjectIntake ${current.id}`
+            },
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              visibility: true,
+              createdAt: true,
+              updatedAt: true
+            }
+          });
+
+          const updated = await tx.projectIntake.updateMany({
+            where: {
+              id,
+              ownerId: user.id,
+              linkedCollaborationProjectId: null,
+              convertedAt: null,
+              status: current.status,
+              updatedAt: current.updatedAt
+            },
+            data: {
+              status: ProjectIntakeStatus.ACCEPTED,
+              completion,
+              submittedForReviewAt: current.submittedForReviewAt ?? now,
+              reviewedById: null,
+              reviewedAt: current.reviewedAt ?? now,
+              reviewNote: current.reviewNote ?? "项目已自动启动。",
+              linkedCollaborationProjectId: project.id,
+              convertedAt: now,
+              convertedById: user.id
+            }
+          });
+
+          if (updated.count !== 1) {
+            throw new ProjectIntakeConversionConflictError();
+          }
+
+          if (current.status !== ProjectIntakeStatus.SUBMITTED && current.status !== ProjectIntakeStatus.ACCEPTED) {
+            await tx.projectIntakeEvent.create({
+              data: {
+                intakeId: id,
+                actorId: user.id,
+                eventType: current.status === ProjectIntakeStatus.NEEDS_INFO ? ProjectIntakeEventType.RESUBMITTED : ProjectIntakeEventType.SUBMITTED,
+                note: "用户启动项目"
+              }
+            });
+          }
+
+          await tx.projectIntakeEvent.create({
+            data: {
+              intakeId: id,
+              actorId: user.id,
+              eventType: ProjectIntakeEventType.ACCEPTED,
+              note: "系统自动进入项目工作台"
+            }
+          });
+
+          await tx.projectIntakeEvent.create({
+            data: {
+              intakeId: id,
+              actorId: user.id,
+              eventType: ProjectIntakeEventType.CONVERTED,
+              note: "项目已自动建立"
+            }
+          });
+
+          await createProjectCreatedEventForConversion(tx, {
+            projectId: project.id,
+            actorId: user.id
+          });
+
+          const initialAction = initialActionForProjectIntake(current);
+          await createInitialPrivateProjectActionForIntake(tx, {
+            projectId: project.id,
+            ownerId: current.ownerId,
+            actorId: user.id,
+            ...initialAction
+          });
+
+          await createProjectIntakeConvertedNotification(tx, {
+            ownerId: current.ownerId,
+            projectId: project.id
+          });
+
+          const intake = await tx.projectIntake.findUniqueOrThrow({
+            where: { id },
+            select: projectIntakeDetailSelect
+          });
+
+          return { ok: true as const, intake: withComputedState(intake), project, idempotent: false };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+    } catch (error) {
+      const latest = await prisma.projectIntake.findFirst({
+        where: { id, ownerId: user.id },
         select: projectIntakeDetailSelect
       });
-      return { ok: true as const, intake: withComputedState(intake), idempotent: true };
-    }
-    if (current.status === ProjectIntakeStatus.ACCEPTED || current.status === ProjectIntakeStatus.DECLINED) {
-      return { ok: false as const, status: 409, error: "该项目已有评估结果，不能重复提交。" };
-    }
-    if (current.status !== ProjectIntakeStatus.READY_FOR_REVIEW && current.status !== ProjectIntakeStatus.NEEDS_INFO) {
-      return { ok: false as const, status: 409, error: "请先补充完整资料，再提交平台评估。" };
-    }
-
-    const completion = calculateProjectIntakeCompletion(current);
-    if (completion !== 100) {
-      return { ok: false as const, status: 400, error: `还需要补充：${projectIntakeMissingFields(current).join("、")}。` };
-    }
-
-    const eventType = current.status === ProjectIntakeStatus.NEEDS_INFO ? ProjectIntakeEventType.RESUBMITTED : ProjectIntakeEventType.SUBMITTED;
-    const now = new Date();
-    await tx.projectIntake.update({
-      where: { id },
-      data: {
-        status: ProjectIntakeStatus.SUBMITTED,
-        completion,
-        submittedForReviewAt: now,
-        reviewedById: null,
-        reviewedAt: null,
-        reviewNote: null
-      },
-    });
-
-    await tx.projectIntakeEvent.create({
-      data: {
-        intakeId: id,
-        actorId: user.id,
-        eventType,
-        note: eventType === ProjectIntakeEventType.RESUBMITTED ? "用户补充资料后重新提交评估" : "用户提交平台评估"
+      const project = latest?.linkedCollaborationProject as ConvertedProjectShape | null | undefined;
+      if (project) {
+        return { ok: true as const, intake: withComputedState(latest!), project, idempotent: true };
       }
-    });
+      if (isRetryableConversionError(error) && attempt < maxAttempts) continue;
+      if (isRetryableConversionError(error)) {
+        return { ok: false as const, status: 409, error: conversionConflictMessage() };
+      }
+      console.error("Project intake launch failed", { errorType: error instanceof Error ? error.name : typeof error });
+      return { ok: false as const, status: 500, error: "项目启动失败，请稍后再试。" };
+    }
+  }
 
-    const intake = await tx.projectIntake.findUniqueOrThrow({
-      where: { id },
-      select: projectIntakeDetailSelect
-    });
-
-    return { ok: true as const, intake: withComputedState(intake), idempotent: false };
-  });
+  return { ok: false as const, status: 409, error: conversionConflictMessage() };
 }
 
 export async function withdrawProjectIntakeReview(id: string, user: Viewer) {

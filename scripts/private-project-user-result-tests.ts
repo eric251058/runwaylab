@@ -10,7 +10,7 @@ assert.match(service, /status:\s*CollaborationProjectActionStatus\.WAITING_PLATF
 assert.match(service, /userResultNote:\s*parsed\.data\.completionNote/, "user result note should be stored on the action");
 assert.match(service, /userResultSubmittedAt:\s*new Date\(\)/, "user result submit time should be server generated");
 assert.match(route, /submitPrivateProjectActionResult\(id,\s*actionId,\s*user,\s*body\)/, "route should delegate to service with session user");
-assert.match(component, /提交完成结果/, "user UI should expose the single completion CTA");
+assert.match(component, /继续[\s\S]*完成/, "user UI should expose one simple continue-then-complete flow");
 assert.doesNotMatch(component, /window\.confirm|alert\(/, "user action UI should avoid browser modal prompts");
 
 console.log("private project user result tests passed");

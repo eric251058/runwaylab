@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { projectIntakeNextAction, projectIntakeTitle, submitProjectIntakeReview } from "@/lib/start-projects";
+import { privateCollaborationProjectHref, projectIntakeNextAction, projectIntakeTitle, submitProjectIntakeReview } from "@/lib/start-projects";
 
 type StartProjectSubmitRouteContext = {
   params: Promise<{
@@ -17,17 +17,24 @@ export async function POST(_request: Request, context: StartProjectSubmitRouteCo
   }
 
   const result = await submitProjectIntakeReview(id, user);
-  if (!result.ok) {
+  if ("error" in result) {
     return NextResponse.json({ message: result.error }, { status: result.status });
   }
 
+  const success = result as {
+    intake: Parameters<typeof projectIntakeTitle>[0] & Parameters<typeof projectIntakeNextAction>[0] & { id: string };
+    project?: { id: string } | null;
+    idempotent?: boolean;
+  };
+
   return NextResponse.json({
     intake: {
-      ...result.intake,
-      title: projectIntakeTitle(result.intake),
-      nextAction: projectIntakeNextAction(result.intake)
+      ...success.intake,
+      title: projectIntakeTitle(success.intake),
+      nextAction: projectIntakeNextAction(success.intake)
     },
-    href: `/me/start-projects/${result.intake.id}`,
-    idempotent: result.idempotent
+    project: success.project ?? null,
+    href: success.project ? privateCollaborationProjectHref(success.project.id) : `/me/start-projects/${success.intake.id}`,
+    idempotent: success.idempotent
   });
 }

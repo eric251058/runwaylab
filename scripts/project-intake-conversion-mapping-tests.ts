@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 const schema = readFileSync("prisma/schema.prisma", "utf8");
 const service = readFileSync("src/lib/start-projects.ts", "utf8");
 
-const conversionCreateBlock = service.match(/tx\.collaborationProject\.create\(\{[\s\S]*?\n\s*\}\);\n\n\s*const updated/)?.[0] ?? "";
+const conversionCreateBlock = service.match(/tx\.collaborationProject\.create\(\{[\s\S]*?createdById:\s*admin\.id[\s\S]*?\n\s*\}\);\n\n\s*const updated/)?.[0] ?? "";
 
 assert.match(schema, /model CollaborationProject \{[\s\S]*workId\s+String\?/, "CollaborationProject workId should be optional for intake-converted projects");
 assert.match(schema, /projectIntake\s+ProjectIntake\?\s+@relation\("ProjectIntakeLinkedCollaborationProject"\)/, "CollaborationProject should have a one-to-one intake relation");
