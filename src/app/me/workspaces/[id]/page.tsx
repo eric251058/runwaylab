@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { WorkspaceMemberActions } from "./workspace-member-actions";
+import { WorkspaceMemberAdminActions } from "./workspace-member-admin-actions";
 
 export default async function WorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -47,7 +48,13 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
         <div className="mt-4 grid gap-3">{members.filter((member) => member.status === "ACTIVE").map((member) =>
           <div key={member.id} className="flex items-center justify-between gap-3">
             <div className="min-w-0"><p className="truncate text-sm font-semibold">{member.user.nickname}</p><p className="truncate text-xs text-ink/45">{member.user.email}</p></div>
-            <span className="text-xs text-ink/45">{member.role}</span>
+            <WorkspaceMemberAdminActions
+                    workspaceId={workspace.id}
+                    memberId={member.id}
+                    memberRole={member.role}
+                    actorRole={membership?.role}
+                    isSelf={member.userId === user.id}
+                  />
           </div>
         )}</div>
         <WorkspaceMemberActions
