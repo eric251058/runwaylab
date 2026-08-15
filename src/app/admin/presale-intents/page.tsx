@@ -54,9 +54,10 @@ export default async function AdminPresaleIntentsPage() {
           <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">预售意向管理</h1>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-ink/58">这里展示用户和买手对作品的预售兴趣。当前阶段不收款，只用于判断作品市场需求。</p>
         </div>
-        <Link href="/admin/presale-campaigns" className="inline-flex h-11 w-fit items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
-          返回预售活动
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/providers" className="inline-flex h-11 w-fit items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">寻找履约供应商</Link>
+          <Link href="/admin/presale-campaigns" className="inline-flex h-11 w-fit items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">返回预售活动</Link>
+        </div>
       </header>
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -77,7 +78,14 @@ export default async function AdminPresaleIntentsPage() {
                   {intent.user ? <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{USER_PERSONA_LABELS[intent.user.persona]}</span> : null}
                 </div>
                 <h2 className="mt-3 font-semibold text-ink">{intent.campaign.title}</h2>
-                <p className="mt-1 text-sm text-ink/52">作品：{intent.work.title}</p>
+                <p className="mt-1 text-sm text-ink/52">
+                  作品：<Link href={`/works/${intent.work.id}`} className="font-semibold text-ink underline underline-offset-4">{intent.work.title}</Link>
+                </p>
+                {intent.status === PresaleCampaignIntentStatus.CONFIRMED ? (
+                  <p className="mt-3 rounded-[6px] bg-paper px-3 py-2 text-xs leading-5 text-ink/58">
+                    已进入履约准备：先确认联系方式、规格与数量，再从供应商市场开展询价和打样；当前记录不是已收款订单。
+                  </p>
+                ) : null}
                 <p className="mt-2 text-sm leading-6 text-ink/58">
                   提交人：{intent.name ?? intent.user?.nickname ?? "匿名用户"} / {contactText(intent)}
                 </p>
