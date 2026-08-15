@@ -11,6 +11,8 @@ assert.match(publicRules, /work\.visibility\s*===\s*WorkVisibility\.PUBLIC/);
 
 const publicSelect = source("src/lib/works/public.ts");
 assert.match(publicSelect, /visibility:\s*true/);
+const publicQueries = source("src/lib/works/queries.ts");
+assert.match(publicQueries, /select:\s*\{[\s\S]*?visibility:\s*true[\s\S]*?images:/);
 const shareSelect = source("src/lib/work-share-data.ts");
 assert.match(shareSelect, /visibility:\s*true/);
 
