@@ -5,9 +5,12 @@ import {
   PresaleCampaignIntentStatus,
   PresaleCampaignStatus,
   ProjectDesignAuthorizationStatus,
+  UserRole,
+  UserStatus,
   type Prisma
 } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
+import { createNotificationForMany, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { isAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { optionalDate, optionalText, positiveInt, requiredText, splitOptions } from "@/lib/presale-campaign";
@@ -170,6 +173,26 @@ export async function submitPresaleCampaignIntent(formData: FormData) {
         }
       })
     ]);
+
+    const admins = await prisma.user.findMany({
+      where: {
+        role: UserRole.ADMIN,
+        status: UserStatus.ACTIVE
+      },
+      select: { id: true }
+    });
+    await createNotificationForMany(
+      admins.map((admin) => ({
+        recipientId: admin.id,
+        actorId: user?.id,
+        eventType: NOTIFICATION_EVENTS.PRESALE_INTENT_RECEIVED,
+        title: "收到新的预售意向",
+        body: `有用户对预售活动提交了 ${quantity} 件购买意向，请及时跟进。`,
+        targetUrl: "/admin/presale-intents",
+        allowSelfNotification: true,
+        dedupe: false
+      }))
+    );
   } catch (error) {
     console.error("Failed to submit presale campaign intent", error);
     return { ok: false, message: "提交失败，请稍后再试。" };
