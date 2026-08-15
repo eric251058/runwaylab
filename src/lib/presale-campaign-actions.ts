@@ -43,6 +43,38 @@ async function assertWorkCanEnterPublicPresale(workId: string) {
   }
 }
 
+type PresaleLaunchData = {
+  title: string;
+  description: string | null;
+  targetCount: number;
+  estimatedPrice: string | null;
+  sizeOptions: string[];
+  colorOptions: string[];
+  startDate: Date | null;
+  endDate: Date | null;
+};
+
+function assertCampaignCanLaunch(data: PresaleLaunchData) {
+  const missing: string[] = [];
+
+  if (data.title.trim().length < 6) missing.push("清晰的预售标题");
+  if (!data.description || data.description.trim().length < 20) missing.push("至少 20 字的预售说明");
+  if (!data.estimatedPrice) missing.push("预计价格");
+  if (!data.sizeOptions.length) missing.push("可选尺码");
+  if (!data.colorOptions.length) missing.push("可选颜色");
+  if (!data.startDate) missing.push("开始日期");
+  if (!data.endDate) missing.push("结束日期");
+  if (data.targetCount < 1) missing.push("有效的目标数量");
+
+  if (missing.length) {
+    throw new Error(`预售资料尚未完整：${missing.join("、")}。请先保存为草稿，补齐后再设为验证中。`);
+  }
+
+  if (data.startDate && data.endDate && data.endDate <= data.startDate) {
+    throw new Error("预售结束日期必须晚于开始日期；当前只能保存为草稿。");
+  }
+}
+
 export async function submitPresaleCampaignIntent(formData: FormData) {
   const campaignId = requiredText(formData.get("campaignId"), "预售活动");
   const workId = requiredText(formData.get("workId"), "作品");
@@ -153,6 +185,7 @@ export async function savePresaleCampaign(formData: FormData) {
 
   if (data.status === PresaleCampaignStatus.ACTIVE) {
     await assertWorkCanEnterPublicPresale(data.workId);
+    assertCampaignCanLaunch(data);
   }
 
   if (id) {
