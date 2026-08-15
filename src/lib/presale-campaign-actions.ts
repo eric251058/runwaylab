@@ -10,7 +10,7 @@ import {
   type Prisma
 } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
-import { createNotificationForMany, NOTIFICATION_EVENTS } from "@/lib/notifications";
+import { createNotificationForMany, createNotificationSafe, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { isAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { optionalDate, optionalText, positiveInt, requiredText, splitOptions } from "@/lib/presale-campaign";
@@ -250,12 +250,20 @@ export async function savePresaleCampaign(formData: FormData) {
 }
 
 export async function updatePresaleCampaignIntentStatus(formData: FormData) {
-  await requireAdminUser();
+  const admin = await requireAdminUser();
   const id = requiredText(formData.get("id"), "意向 ID");
   const status = enumValue(formData.get("status"), Object.values(PresaleCampaignIntentStatus), PresaleCampaignIntentStatus.SUBMITTED);
   const intent = await prisma.presaleCampaignIntent.findUnique({
     where: { id },
-    select: { id: true, campaignId: true, quantity: true, status: true }
+    select: {
+      id: true,
+      campaignId: true,
+      workId: true,
+      userId: true,
+      quantity: true,
+      status: true,
+      campaign: { select: { title: true } }
+    }
   });
   if (!intent) throw new Error("预售意向不存在");
   if (intent.status === status) return;
@@ -282,7 +290,40 @@ export async function updatePresaleCampaignIntentStatus(formData: FormData) {
     }
   });
 
+  if (intent.userId) {
+    const statusCopy: Record<PresaleCampaignIntentStatus, { title: string; body: string }> = {
+      SUBMITTED: {
+        title: "预售意向已恢复",
+        body: `你对“${intent.campaign.title}”的预售意向已恢复为待跟进状态。`
+      },
+      CONTACTED: {
+        title: "预售意向正在跟进",
+        body: `平台已开始跟进你对“${intent.campaign.title}”提交的预售意向。`
+      },
+      CONFIRMED: {
+        title: "预售意向已确认",
+        body: `你对“${intent.campaign.title}”的预售意向已确认，后续如进入打样或正式销售阶段，平台会继续通知你。`
+      },
+      CANCELLED: {
+        title: "预售意向已取消",
+        body: `你对“${intent.campaign.title}”的预售意向已取消，不再计入当前需求数量。`
+      }
+    };
+    const copy = statusCopy[status];
+    await createNotificationSafe({
+      recipientId: intent.userId,
+      actorId: admin.id,
+      eventType: NOTIFICATION_EVENTS.PRESALE_INTENT_UPDATED,
+      title: copy.title,
+      body: copy.body,
+      targetUrl: "/me/presale",
+      dedupe: false
+    });
+  }
+
   revalidatePath("/presale");
+  revalidatePath("/notifications");
+  revalidatePath("/me/presale");
   revalidatePath("/admin/presale-campaigns");
   revalidatePath("/admin/presale-intents");
   revalidatePath("/me/incubation");
