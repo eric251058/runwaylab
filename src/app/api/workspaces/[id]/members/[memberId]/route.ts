@@ -35,9 +35,15 @@ export async function PATCH(request: Request, context: Context) {
     return NextResponse.json({ error: "不能通过此操作修改所有者角色" }, { status: 409 });
   }
 
-  const member = await prisma.workspaceMember.update({
-    where: { id: target.id },
+  const updated = await prisma.workspaceMember.updateMany({
+    where: { id: target.id, workspaceId: id, status: "ACTIVE", role: { not: "OWNER" } },
     data: { role },
+  });
+  if (updated.count !== 1) {
+    return NextResponse.json({ error: "成员状态或空间所有权已经变化" }, { status: 409 });
+  }
+  const member = await prisma.workspaceMember.findUnique({
+    where: { id: target.id },
     select: { id: true, role: true, status: true },
   });
   return NextResponse.json({ member });
@@ -58,6 +64,13 @@ export async function DELETE(_request: Request, context: Context) {
     return NextResponse.json({ error: "管理员只能移除普通成员" }, { status: 403 });
   }
 
-  await prisma.workspaceMember.update({ where: { id: target.id }, data: { status: "REMOVED" } });
+  const removableRoles = actor.role === "ADMIN" ? ["MEMBER" as const] : ["ADMIN" as const, "MEMBER" as const];
+  const removed = await prisma.workspaceMember.updateMany({
+    where: { id: target.id, workspaceId: id, status: "ACTIVE", role: { in: removableRoles } },
+    data: { status: "REMOVED" },
+  });
+  if (removed.count !== 1) {
+    return NextResponse.json({ error: "成员状态或空间所有权已经变化" }, { status: 409 });
+  }
   return NextResponse.json({ status: "REMOVED" });
 }

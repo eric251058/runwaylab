@@ -16,6 +16,7 @@ export async function getPublicWorkShareInfo(workId: string): Promise<WorkShareI
       styleTags: true,
       reviewStatus: true,
       contentStatus: true,
+      visibility: true,
       images: {
         orderBy: { sortOrder: "asc" },
         select: { imageUrl: true },

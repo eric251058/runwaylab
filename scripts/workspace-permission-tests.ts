@@ -3,7 +3,9 @@ import {
   canCreateWorkspaceContent,
   canEditWorkspaceWork,
   canManageWorkspace,
-  canViewWork
+  canViewWork,
+  canViewWorkspace,
+  canViewWorkspaceMemberEmail
 } from "../src/lib/workspace-permissions";
 
 const owner = { role: "OWNER", status: "ACTIVE" } as const;
@@ -18,6 +20,16 @@ assert.equal(canManageWorkspace(leftMember), false);
 
 assert.equal(canCreateWorkspaceContent(member), true);
 assert.equal(canCreateWorkspaceContent(leftMember), false);
+
+assert.equal(canViewWorkspace({ visibility: "PUBLIC", isOwner: false, access: null }), true);
+assert.equal(canViewWorkspace({ visibility: "UNLISTED", isOwner: false, access: null }), true);
+assert.equal(canViewWorkspace({ visibility: "PRIVATE", isOwner: false, access: null }), false);
+assert.equal(canViewWorkspace({ visibility: "PRIVATE", isOwner: false, access: member }), true);
+assert.equal(canViewWorkspace({ visibility: "PRIVATE", isOwner: true, access: null }), true);
+assert.equal(canViewWorkspace({ visibility: "PRIVATE", isOwner: false, access: null, isGlobalAdmin: true }), true);
+assert.equal(canViewWorkspaceMemberEmail(member), true);
+assert.equal(canViewWorkspaceMemberEmail(leftMember), false);
+assert.equal(canViewWorkspaceMemberEmail(null), false);
 
 assert.equal(
   canEditWorkspaceWork({ actorUserId: "author", authorUserId: "author", access: null }),
@@ -54,6 +66,10 @@ assert.equal(
 );
 assert.equal(
   canViewWork({ actorUserId: "admin", authorUserId: "author", visibility: "PRIVATE", access: admin }),
+  true
+);
+assert.equal(
+  canViewWork({ actorUserId: "platform-admin", authorUserId: "author", visibility: "PRIVATE", access: null, isGlobalAdmin: true }),
   true
 );
 

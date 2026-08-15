@@ -29,10 +29,35 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "新所有者必须是其他活跃成员" }, { status: 400 });
   }
 
-  await prisma.$transaction([
-    prisma.workspace.update({ where: { id }, data: { ownerId: target.userId } }),
-    prisma.workspaceMember.update({ where: { id: actor.id }, data: { role: "ADMIN" } }),
-    prisma.workspaceMember.update({ where: { id: target.id }, data: { role: "OWNER" } }),
-  ]);
+  const transferred = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.workspace.updateMany({
+      where: { id, ownerId: user.id },
+      data: { ownerId: target.userId },
+    });
+    if (claimed.count !== 1) return false;
+
+    const promoted = await tx.workspaceMember.updateMany({
+      where: { id: target.id, workspaceId: id, status: "ACTIVE", role: { not: "OWNER" } },
+      data: { role: "OWNER" },
+    });
+    if (promoted.count !== 1) throw new Error("OWNERSHIP_TARGET_CHANGED");
+
+    await tx.workspaceMember.updateMany({
+      where: {
+        workspaceId: id,
+        status: "ACTIVE",
+        role: "OWNER",
+        id: { not: target.id },
+      },
+      data: { role: "ADMIN" },
+    });
+    return true;
+  }).catch((error) => {
+    if (error instanceof Error && error.message === "OWNERSHIP_TARGET_CHANGED") return false;
+    throw error;
+  });
+  if (!transferred) {
+    return NextResponse.json({ error: "空间所有权已变化，请刷新后重试" }, { status: 409 });
+  }
   return NextResponse.json({ ownerId: target.userId });
 }

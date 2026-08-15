@@ -49,15 +49,28 @@ export async function PATCH(
   }
 
   if (action === "decline") {
-    await prisma.workspaceInvitation.update({
-      where: { id: invitation.id },
+    const declined = await prisma.workspaceInvitation.updateMany({
+      where: { id: invitation.id, status: "PENDING" },
       data: { status: "DECLINED" },
     });
+    if (declined.count !== 1) {
+      return NextResponse.json({ error: "邀请已被其他操作处理" }, { status: 409 });
+    }
     return NextResponse.json({ status: "DECLINED" });
   }
 
-  await prisma.$transaction([
-    prisma.workspaceMember.upsert({
+  const accepted = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.workspaceInvitation.updateMany({
+      where: {
+        id: invitation.id,
+        status: "PENDING",
+        expiresAt: { gt: new Date() },
+      },
+      data: { status: "ACCEPTED" },
+    });
+    if (claimed.count !== 1) return false;
+
+    await tx.workspaceMember.upsert({
       where: {
         workspaceId_userId: {
           workspaceId: invitation.workspaceId,
@@ -71,12 +84,12 @@ export async function PATCH(
         status: "ACTIVE",
       },
       update: { role: invitation.role, status: "ACTIVE" },
-    }),
-    prisma.workspaceInvitation.update({
-      where: { id: invitation.id },
-      data: { status: "ACCEPTED" },
-    }),
-  ]);
+    });
+    return true;
+  });
+  if (!accepted) {
+    return NextResponse.json({ error: "邀请已被其他操作处理或已经过期" }, { status: 409 });
+  }
 
   return NextResponse.json({
     status: "ACCEPTED",
