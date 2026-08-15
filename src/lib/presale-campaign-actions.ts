@@ -253,12 +253,37 @@ export async function updatePresaleCampaignIntentStatus(formData: FormData) {
   await requireAdminUser();
   const id = requiredText(formData.get("id"), "意向 ID");
   const status = enumValue(formData.get("status"), Object.values(PresaleCampaignIntentStatus), PresaleCampaignIntentStatus.SUBMITTED);
-
-  await prisma.presaleCampaignIntent.update({
+  const intent = await prisma.presaleCampaignIntent.findUnique({
     where: { id },
-    data: { status }
+    select: { id: true, campaignId: true, quantity: true, status: true }
+  });
+  if (!intent) throw new Error("预售意向不存在");
+  if (intent.status === status) return;
+
+  const wasCounted = intent.status !== PresaleCampaignIntentStatus.CANCELLED;
+  const willBeCounted = status !== PresaleCampaignIntentStatus.CANCELLED;
+
+  await prisma.$transaction(async (tx) => {
+    const changed = await tx.presaleCampaignIntent.updateMany({
+      where: { id: intent.id, status: intent.status },
+      data: { status }
+    });
+    if (changed.count !== 1) throw new Error("预售意向状态已变化，请刷新后重试");
+
+    if (wasCounted !== willBeCounted) {
+      await tx.presaleCampaign.update({
+        where: { id: intent.campaignId },
+        data: {
+          currentCount: willBeCounted
+            ? { increment: intent.quantity }
+            : { decrement: intent.quantity }
+        }
+      });
+    }
   });
 
+  revalidatePath("/presale");
+  revalidatePath("/admin/presale-campaigns");
   revalidatePath("/admin/presale-intents");
   revalidatePath("/me/incubation");
 }
