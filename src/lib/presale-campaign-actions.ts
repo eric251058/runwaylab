@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { PresaleCampaignIntentStatus, PresaleCampaignStatus, type Prisma } from "@prisma/client";
+import {
+  PresaleCampaignIntentStatus,
+  PresaleCampaignStatus,
+  ProjectDesignAuthorizationStatus,
+  type Prisma
+} from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -40,6 +45,20 @@ async function assertWorkCanEnterPublicPresale(workId: string) {
 
   if (!work || !isPublicQualityWork(work)) {
     throw new Error("该作品尚未达到公开质量门槛，请先补齐图片、标题和作品说明并完成审核；当前只能保存为草稿。");
+  }
+}
+
+async function assertDesignerAuthorizedPublicPresale(workId: string) {
+  const authorizedProject = await prisma.collaborationProject.findFirst({
+    where: {
+      workId,
+      designerAuthorizationStatus: ProjectDesignAuthorizationStatus.ACCEPTED
+    },
+    select: { id: true }
+  });
+
+  if (!authorizedProject) {
+    throw new Error("作品作者尚未通过合作项目确认设计授权；管理员和项目主理人不能代签，当前只能保存为草稿。");
   }
 }
 
@@ -185,6 +204,7 @@ export async function savePresaleCampaign(formData: FormData) {
 
   if (data.status === PresaleCampaignStatus.ACTIVE) {
     await assertWorkCanEnterPublicPresale(data.workId);
+    await assertDesignerAuthorizedPublicPresale(data.workId);
     assertCampaignCanLaunch(data);
   }
 
