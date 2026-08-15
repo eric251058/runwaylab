@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { optionalDate, optionalText, positiveInt, requiredText, splitOptions } from "@/lib/presale-campaign";
+import { isPublicQualityWork } from "@/lib/works/rules";
 
 async function requireAdminUser() {
   const user = await getCurrentUser();
@@ -20,6 +21,26 @@ function boolValue(formData: FormData, key: string) {
 function enumValue<T extends string>(value: FormDataEntryValue | null, allowed: readonly T[], fallback: T) {
   const text = optionalText(value);
   return text && allowed.includes(text as T) ? (text as T) : fallback;
+}
+
+async function assertWorkCanEnterPublicPresale(workId: string) {
+  const work = await prisma.work.findUnique({
+    where: { id: workId },
+    select: {
+      title: true,
+      description: true,
+      reviewStatus: true,
+      contentStatus: true,
+      visibility: true,
+      images: {
+        select: { imageUrl: true }
+      }
+    }
+  });
+
+  if (!work || !isPublicQualityWork(work)) {
+    throw new Error("该作品尚未达到公开质量门槛，请先补齐图片、标题和作品说明并完成审核；当前只能保存为草稿。");
+  }
 }
 
 export async function submitPresaleCampaignIntent(formData: FormData) {
@@ -129,6 +150,10 @@ export async function savePresaleCampaign(formData: FormData) {
     status: enumValue(formData.get("status"), Object.values(PresaleCampaignStatus), PresaleCampaignStatus.DRAFT),
     isFeatured: boolValue(formData, "isFeatured")
   };
+
+  if (data.status === PresaleCampaignStatus.ACTIVE) {
+    await assertWorkCanEnterPublicPresale(data.workId);
+  }
 
   if (id) {
     await prisma.presaleCampaign.update({ where: { id }, data });
