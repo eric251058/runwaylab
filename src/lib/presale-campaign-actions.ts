@@ -328,3 +328,67 @@ export async function updatePresaleCampaignIntentStatus(formData: FormData) {
   revalidatePath("/admin/presale-intents");
   revalidatePath("/me/incubation");
 }
+
+export async function cancelOwnPresaleCampaignIntent(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("请先登录");
+  const id = requiredText(formData.get("id"), "意向 ID");
+  const intent = await prisma.presaleCampaignIntent.findFirst({
+    where: { id, userId: user.id },
+    select: {
+      id: true,
+      campaignId: true,
+      workId: true,
+      quantity: true,
+      status: true,
+      campaign: { select: { title: true } }
+    }
+  });
+  if (!intent) throw new Error("预售意向不存在");
+  if (intent.status === PresaleCampaignIntentStatus.CANCELLED) return;
+  if (intent.status === PresaleCampaignIntentStatus.CONFIRMED) {
+    throw new Error("已确认的预售意向不能直接撤回，请联系平台处理");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const changed = await tx.presaleCampaignIntent.updateMany({
+      where: {
+        id: intent.id,
+        userId: user.id,
+        status: { in: [PresaleCampaignIntentStatus.SUBMITTED, PresaleCampaignIntentStatus.CONTACTED] }
+      },
+      data: { status: PresaleCampaignIntentStatus.CANCELLED }
+    });
+    if (changed.count !== 1) throw new Error("预售意向状态已变化，请刷新后重试");
+    const campaignChanged = await tx.presaleCampaign.updateMany({
+      where: { id: intent.campaignId, currentCount: { gte: intent.quantity } },
+      data: { currentCount: { decrement: intent.quantity } }
+    });
+    if (campaignChanged.count !== 1) throw new Error("预售数量状态异常，请联系平台处理");
+  });
+
+  const admins = await prisma.user.findMany({
+    where: { role: UserRole.ADMIN, status: UserStatus.ACTIVE },
+    select: { id: true }
+  });
+  await createNotificationForMany(
+    admins.map((admin) => ({
+      recipientId: admin.id,
+      actorId: user.id,
+      eventType: NOTIFICATION_EVENTS.PRESALE_INTENT_UPDATED,
+      title: "用户撤回预售意向",
+      body: `用户已撤回对“${intent.campaign.title}”的 ${intent.quantity} 件预售意向，需求数量已同步扣减。`,
+      targetUrl: "/admin/presale-intents",
+      allowSelfNotification: true,
+      dedupe: false
+    }))
+  );
+
+  revalidatePath(`/works/${intent.workId}`);
+  revalidatePath("/presale");
+  revalidatePath("/notifications");
+  revalidatePath("/me/presale");
+  revalidatePath("/admin/presale-campaigns");
+  revalidatePath("/admin/presale-intents");
+  revalidatePath("/me/incubation");
+}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PresaleCampaignIntentStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
+import { cancelOwnPresaleCampaignIntent } from "@/lib/presale-campaign-actions";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -139,6 +140,27 @@ export default async function MyPresaleIntentsPage() {
                     ) : (
                       <p className="mt-4 rounded-[6px] bg-paper p-3 text-sm text-ink/50">该意向已取消，不再计入作品需求数量。</p>
                     )}
+                      {intent.status === PresaleCampaignIntentStatus.SUBMITTED ||
+                      intent.status === PresaleCampaignIntentStatus.CONTACTED ? (
+                        <details className="mt-4 border-t border-black/8 pt-4">
+                          <summary className="cursor-pointer text-sm font-semibold text-ink/52">管理我的意向</summary>
+                          <div className="mt-3 rounded-[6px] bg-paper p-3">
+                            <p className="text-sm leading-6 text-ink/55">
+                              撤回后，本次意向数量将立即从需求进度中扣除。若之后再次感兴趣，需要联系平台恢复。
+                            </p>
+                            <form action={cancelOwnPresaleCampaignIntent} className="mt-3">
+                              <input type="hidden" name="id" value={intent.id} />
+                              <button type="submit" className="inline-flex h-9 items-center justify-center rounded-full border border-red-200 px-4 text-sm font-semibold text-red-700 hover:bg-red-50">
+                                确认撤回意向
+                              </button>
+                            </form>
+                          </div>
+                        </details>
+                      ) : intent.status === PresaleCampaignIntentStatus.CONFIRMED ? (
+                        <p className="mt-4 text-xs leading-5 text-ink/42">
+                          该意向已经确认。如需变更，请联系平台，避免影响后续打样与交付安排。
+                        </p>
+                      ) : null}
                   </div>
                 </div>
               </article>
