@@ -324,6 +324,7 @@ export async function updatePresaleCampaignIntentStatus(formData: FormData) {
   revalidatePath("/presale");
   revalidatePath("/notifications");
   revalidatePath("/me/presale");
+
   revalidatePath("/admin/presale-campaigns");
   revalidatePath("/admin/presale-intents");
   revalidatePath("/me/incubation");

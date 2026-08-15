@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PresaleCampaignStatus } from "@prisma/client";
+import { PresaleCampaignStatus, ProjectDesignAuthorizationStatus } from "@prisma/client";
 import { savePresaleCampaign } from "@/lib/presale-campaign-actions";
 import { PRESALE_CAMPAIGN_STATUS_LABELS, presaleProgress } from "@/lib/presale-campaign";
 import { prisma } from "@/lib/prisma";
@@ -12,11 +12,14 @@ function dateInputValue(value?: Date | null) {
 }
 
 export default async function AdminPresaleCampaignsPage() {
-  const [campaigns, works] = await Promise.all([
+  const [campaigns, works, eligibleProjects] = await Promise.all([
     prisma.presaleCampaign.findMany({
       include: {
         work: { include: { user: true } },
         createdBy: true,
+        collaborationProjects: {
+          select: { id: true, title: true }
+        },
         _count: { select: { intents: true } }
       },
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
@@ -30,6 +33,21 @@ export default async function AdminPresaleCampaignsPage() {
         }
       },
       orderBy: { createdAt: "desc" },
+      take: 200
+    }),
+    prisma.collaborationProject.findMany({
+      where: {
+        workId: { not: null },
+        designerAuthorizationStatus: ProjectDesignAuthorizationStatus.ACCEPTED
+      },
+      select: {
+        id: true,
+        title: true,
+        workId: true,
+        presaleCampaignId: true,
+        work: { select: { title: true } }
+      },
+      orderBy: { updatedAt: "desc" },
       take: 200
     })
   ]);
@@ -75,6 +93,14 @@ export default async function AdminPresaleCampaignsPage() {
             </option>
           ))}
         </select>
+        <select name="collaborationProjectId" className={inputClass}>
+          <option value="">选择已授权协作项目（公开验证前必选）</option>
+          {eligibleProjects.map((project) => (
+            <option key={project.id} value={project.id} disabled={Boolean(project.presaleCampaignId)}>
+              {project.work?.title ?? "未命名作品"} / {project.title}{project.presaleCampaignId ? " / 已关联" : ""}
+            </option>
+          ))}
+        </select>
         <input name="targetCount" type="number" min={1} defaultValue={50} placeholder="目标人数" className={inputClass} />
         <input name="estimatedPrice" placeholder="预计价格，例如 ¥699-899" className={inputClass} />
         <input name="priceNote" placeholder="价格说明，可选" className={inputClass} />
@@ -110,6 +136,15 @@ export default async function AdminPresaleCampaignsPage() {
                   </option>
                 ))}
               </select>
+              <select name="collaborationProjectId" defaultValue={campaign.collaborationProjects[0]?.id ?? ""} className={smallInputClass}>
+                <option value="">选择已授权协作项目</option>
+                {eligibleProjects.map((project) => (
+                  <option key={project.id} value={project.id} disabled={Boolean(project.presaleCampaignId && project.presaleCampaignId !== campaign.id)}>
+                    {project.work?.title ?? "未命名作品"} / {project.title}
+                    {project.presaleCampaignId && project.presaleCampaignId !== campaign.id ? " / 已关联其他活动" : ""}
+                  </option>
+                ))}
+              </select>
               <input name="targetCount" type="number" min={1} defaultValue={campaign.targetCount} className={smallInputClass} />
               <input name="estimatedPrice" defaultValue={campaign.estimatedPrice ?? ""} placeholder="预计价格" className={smallInputClass} />
               <input name="priceNote" defaultValue={campaign.priceNote ?? ""} placeholder="价格说明" className={smallInputClass} />
@@ -122,6 +157,11 @@ export default async function AdminPresaleCampaignsPage() {
               <button className="h-10 rounded-full border border-black/10 px-4 text-sm font-semibold">保存</button>
               <p className="text-xs leading-5 text-ink/45 md:col-span-4">
                 作品：{campaign.work.title} / 创建人：{campaign.createdBy?.nickname ?? "后台"} / 意向 {campaign._count.intents} 条 / 当前 {campaign.currentCount} / {campaign.targetCount}（{progress}%）
+              </p>
+              <p className="text-xs leading-5 text-ink/45 md:col-span-4">
+                承接项目：{campaign.collaborationProjects.length
+                  ? campaign.collaborationProjects.map((project) => project.title).join("、")
+                  : "尚未关联；公开验证前必须选择一个已取得设计授权的协作项目。"}
               </p>
               <p className={"text-xs font-semibold md:col-span-4 " + (publicEligible ? "text-emerald-700" : "text-amber-700")}>
                 {publicEligible ? "前台可见：作品已通过公开质量门槛。" : "前台隐藏：作品未达到公开质量门槛，只能保存为草稿。"}
