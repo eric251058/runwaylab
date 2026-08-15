@@ -43,6 +43,7 @@ export async function POST(request: Request) {
         description: true,
         reviewStatus: true,
         contentStatus: true,
+        visibility: true,
         images: {
           select: {
             imageUrl: true

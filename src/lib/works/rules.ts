@@ -1,4 +1,4 @@
-import { ContentStatus, ReviewStatus, type Prisma } from "@prisma/client";
+import { ContentStatus, ReviewStatus, WorkVisibility, type Prisma } from "@prisma/client";
 
 export const approvedVisibleWorkWhere: Prisma.WorkWhereInput = {
   reviewStatus: ReviewStatus.APPROVED,
@@ -7,6 +7,7 @@ export const approvedVisibleWorkWhere: Prisma.WorkWhereInput = {
 
 export const publicQualityWorkWhere: Prisma.WorkWhereInput = {
   ...approvedVisibleWorkWhere,
+  visibility: WorkVisibility.PUBLIC,
   images: {
     some: {
       imageUrl: {
@@ -28,6 +29,7 @@ export const publicChallengeEntryWhere: Prisma.ChallengeEntryWhereInput = {
 type PublicQualityWorkLike = {
   reviewStatus: string;
   contentStatus: string;
+  visibility: string;
   title: string;
   description: string;
   images?: Array<{ imageUrl?: string | null }> | null;
@@ -55,6 +57,7 @@ export function isPublicQualityWork(work: PublicQualityWorkLike) {
   return (
     work.reviewStatus === ReviewStatus.APPROVED &&
     work.contentStatus === ContentStatus.VISIBLE &&
+    work.visibility === WorkVisibility.PUBLIC &&
     hasUsableCover(work.images) &&
     !isWeakTitle(work.title) &&
     description.length >= 16 &&

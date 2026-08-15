@@ -35,7 +35,7 @@ import {
   INCUBATION_BATCH_TYPE_LABELS,
   publicBatchWhere
 } from "@/lib/incubation-batches";
-import { canViewWorkDetail } from "@/lib/permissions";
+import { canViewWorkDetail, isAdmin } from "@/lib/permissions";
 import { getProviderForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
 import { PROVIDER_PROPOSAL_STATUS_LABELS, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
@@ -43,6 +43,7 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site-config";
 import { getPublicWorkShareInfo } from "@/lib/work-share-data";
 import { workCanonicalUrl, workShareDescription, workShareTitle } from "@/lib/work-share";
 import { getWorkDetailById } from "@/lib/works/queries";
+import { canViewWork } from "@/lib/workspace-permissions";
 import {
   AiDiagnosisReviewStatus,
   AiDiagnosisStatus,
@@ -302,7 +303,29 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
     notFound();
   }
 
-  if (!canViewWorkDetail(currentUser, work)) {
+  const workspaceAccess = work.workspaceId && currentUser
+    ? await prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: work.workspaceId,
+            userId: currentUser.id
+          }
+        },
+        select: { role: true, status: true }
+      })
+    : null;
+  const canViewScopedWork = canViewWork({
+    actorUserId: currentUser?.id,
+    authorUserId: work.userId,
+    visibility: work.visibility,
+    access: workspaceAccess,
+    isGlobalAdmin: isAdmin(currentUser)
+  });
+  const canViewDetail = work.visibility === "PUBLIC"
+    ? canViewWorkDetail(currentUser, work)
+    : canViewScopedWork;
+
+  if (!canViewDetail) {
     notFound();
   }
 

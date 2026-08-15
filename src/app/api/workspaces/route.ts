@@ -18,7 +18,15 @@ export async function GET() {
   if (!user) return NextResponse.json({ message: "请先登录。" }, { status: 401 });
   const items = await prisma.workspace.findMany({
     where: { OR: [{ ownerId: user.id }, { members: { some: { userId: user.id, status: "ACTIVE" } } }] },
-    include: { _count: { select: { members: true, works: true, projects: true } } },
+    include: {
+      _count: {
+        select: {
+          members: { where: { status: "ACTIVE" } },
+          works: true,
+          projects: true
+        }
+      }
+    },
     orderBy: { updatedAt: "desc" }
   });
   return NextResponse.json({ items });

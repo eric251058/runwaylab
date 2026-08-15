@@ -26,10 +26,16 @@ export async function DELETE(
     );
   }
 
-  await prisma.workspaceMember.update({
-    where: { id: membership.id },
+  const left = await prisma.workspaceMember.updateMany({
+    where: { id: membership.id, status: "ACTIVE", role: { not: "OWNER" } },
     data: { status: "LEFT" },
   });
+  if (left.count !== 1) {
+    return NextResponse.json(
+      { error: "成员角色已经变化，请刷新后重试" },
+      { status: 409 }
+    );
+  }
 
   return NextResponse.json({ status: "LEFT" });
 }

@@ -1,7 +1,21 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import {
+  CollaborationProjectVisibility,
+  ContentStatus,
+  ReviewStatus,
+  UserRole,
+  WorkVisibility,
+  type Prisma
+} from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_PROJECT_STATUSES } from "@/lib/projects/rules";
+import {
+  canViewWorkspace,
+  canViewWorkspaceMemberEmail,
+  type WorkspaceAccess
+} from "@/lib/workspace-permissions";
 import { WorkspaceMemberActions } from "./workspace-member-actions";
 import { WorkspaceMemberAdminActions } from "./workspace-member-admin-actions";
 
@@ -11,15 +25,63 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
   if (!user) redirect("/login?next=/me/workspaces/" + id);
   const workspace = await prisma.workspace.findUnique({ where: { id } });
   if (!workspace) notFound();
+  const membership = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId: id, userId: user.id } },
+    select: { role: true, status: true }
+  });
+  const isOwner = workspace.ownerId === user.id;
+  const isGlobalAdmin = user.role === UserRole.ADMIN;
+  const access: WorkspaceAccess = membership?.status === "ACTIVE"
+    ? membership
+    : isOwner
+      ? { role: "OWNER", status: "ACTIVE" }
+      : null;
+  if (!canViewWorkspace({ visibility: workspace.visibility, isOwner, access, isGlobalAdmin })) notFound();
+
+  const canSeeMemberEmail = isGlobalAdmin || canViewWorkspaceMemberEmail(access);
+  const canManagePrivateWorks = isGlobalAdmin || access?.role === "OWNER" || access?.role === "ADMIN";
+  const workWhere: Prisma.WorkWhereInput = canManagePrivateWorks
+    ? { workspaceId: id }
+    : access
+      ? {
+          workspaceId: id,
+          OR: [
+            { visibility: { in: [WorkVisibility.PUBLIC, WorkVisibility.COLLABORATORS] } },
+            { userId: user.id }
+          ]
+        }
+      : {
+          workspaceId: id,
+          visibility: WorkVisibility.PUBLIC,
+          reviewStatus: ReviewStatus.APPROVED,
+          contentStatus: ContentStatus.VISIBLE
+        };
+  const projectWhere: Prisma.CollaborationProjectWhereInput = isGlobalAdmin
+    ? { workspaceId: id }
+    : {
+        workspaceId: id,
+        OR: [
+          {
+            visibility: CollaborationProjectVisibility.PUBLIC,
+            status: { in: [...PUBLIC_PROJECT_STATUSES] }
+          },
+          { designerId: user.id },
+          { ownerUserId: user.id },
+          { createdById: user.id },
+          { work: { userId: user.id } }
+        ]
+      };
   const [members, works, projects, workCount, projectCount] = await Promise.all([
-    prisma.workspaceMember.findMany({ where: { workspaceId: id }, include: { user: { select: { id: true, nickname: true, email: true } } }, orderBy: { joinedAt: "asc" } }),
-    prisma.work.findMany({ where: { workspaceId: id }, select: { id: true, title: true, reviewStatus: true }, orderBy: { createdAt: "desc" }, take: 8 }),
-    prisma.collaborationProject.findMany({ where: { workspaceId: id }, select: { id: true, title: true, status: true }, orderBy: { createdAt: "desc" }, take: 8 }),
-    prisma.work.count({ where: { workspaceId: id } }),
-    prisma.collaborationProject.count({ where: { workspaceId: id } })
+    prisma.workspaceMember.findMany({
+      where: { workspaceId: id, status: "ACTIVE" },
+      include: { user: { select: { id: true, nickname: true, email: true } } },
+      orderBy: { joinedAt: "asc" }
+    }),
+    prisma.work.findMany({ where: workWhere, select: { id: true, title: true, reviewStatus: true }, orderBy: { createdAt: "desc" }, take: 8 }),
+    prisma.collaborationProject.findMany({ where: projectWhere, select: { id: true, title: true, status: true }, orderBy: { createdAt: "desc" }, take: 8 }),
+    prisma.work.count({ where: workWhere }),
+    prisma.collaborationProject.count({ where: projectWhere })
   ]);
-  const membership = members.find((member) => member.userId === user.id && member.status === "ACTIVE");
-  if (workspace.visibility === "PRIVATE" && workspace.ownerId !== user.id && !membership) notFound();
 
   return <main className="mx-auto min-h-screen max-w-6xl px-5 py-10">
     <Link href="/me/workspaces" className="text-sm text-ink/55">← 返回我的空间</Link>
@@ -47,20 +109,20 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
         <h2 className="text-lg font-semibold">成员 · {members.filter((member) => member.status === "ACTIVE").length}</h2>
         <div className="mt-4 grid gap-3">{members.filter((member) => member.status === "ACTIVE").map((member) =>
           <div key={member.id} className="flex items-center justify-between gap-3">
-            <div className="min-w-0"><p className="truncate text-sm font-semibold">{member.user.nickname}</p><p className="truncate text-xs text-ink/45">{member.user.email}</p></div>
+            <div className="min-w-0"><p className="truncate text-sm font-semibold">{member.user.nickname}</p>{canSeeMemberEmail ? <p className="truncate text-xs text-ink/45">{member.user.email}</p> : null}</div>
             <WorkspaceMemberAdminActions
                     workspaceId={workspace.id}
                     memberId={member.id}
                     memberRole={member.role}
-                    actorRole={membership?.role}
+                    actorRole={access?.role}
                     isSelf={member.userId === user.id}
                   />
           </div>
         )}</div>
         <WorkspaceMemberActions
           workspaceId={workspace.id}
-          canInvite={membership?.role === "OWNER" || membership?.role === "ADMIN"}
-          canLeave={Boolean(membership && membership.role !== "OWNER")}
+          canInvite={access?.role === "OWNER" || access?.role === "ADMIN"}
+          canLeave={Boolean(access && access.role !== "OWNER")}
         />
       </aside>
     </div>

@@ -9,7 +9,15 @@ export default async function WorkspacesPage() {
   if (!user) redirect("/login?next=/me/workspaces");
   const spaces = await prisma.workspace.findMany({
     where: { OR: [{ ownerId: user.id }, { members: { some: { userId: user.id, status: "ACTIVE" } } }] },
-    include: { _count: { select: { members: true, works: true, projects: true } } },
+    include: {
+      _count: {
+        select: {
+          members: { where: { status: "ACTIVE" } },
+          works: true,
+          projects: true
+        }
+      }
+    },
     orderBy: { updatedAt: "desc" }
   });
   return <main className="mx-auto min-h-screen max-w-6xl px-5 py-10">
