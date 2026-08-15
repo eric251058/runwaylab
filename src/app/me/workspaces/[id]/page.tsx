@@ -39,6 +39,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
   if (!canViewWorkspace({ visibility: workspace.visibility, isOwner, access, isGlobalAdmin })) notFound();
 
   const canSeeMemberEmail = isGlobalAdmin || canViewWorkspaceMemberEmail(access);
+  const canOpenTeaching = isGlobalAdmin || access?.role === "OWNER" || access?.role === "ADMIN";
   const canManagePrivateWorks = isGlobalAdmin || access?.role === "OWNER" || access?.role === "ADMIN";
   const workWhere: Prisma.WorkWhereInput = canManagePrivateWorks
     ? { workspaceId: id }
@@ -89,6 +90,7 @@ export default async function WorkspacePage({ params }: { params: Promise<{ id: 
       <p className="text-sm font-semibold uppercase tracking-[.18em] text-ink/45">{workspace.visibility}</p>
       <h1 className="mt-2 text-4xl font-semibold tracking-tight">{workspace.name}</h1>
       <p className="mt-3 max-w-2xl text-ink/60">{workspace.description || "从共同目标开始，把作品、伙伴和项目逐步连接起来。"}</p>
+      {canOpenTeaching ? <Link href={`/me/workspaces/${workspace.id}/teaching`} className="mt-5 inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-semibold text-white">进入教学操作台</Link> : null}
     </div>
     <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_340px]">
       <section className="grid gap-6">
