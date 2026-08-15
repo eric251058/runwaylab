@@ -208,8 +208,9 @@ export default async function MePage({ searchParams }: MePageProps) {
     work: mapWork(application.work)
   }));
 
-  const [receivedPresaleCount, receivedFabricProposalCount, receivedSampleProposalCount, receivedFactoryProposalCount, receivedBuyerIntentCount, incubatingWorkCount] = await Promise.all([
+  const [receivedPresaleCount, submittedPresaleIntentCount, receivedFabricProposalCount, receivedSampleProposalCount, receivedFactoryProposalCount, receivedBuyerIntentCount, incubatingWorkCount] = await Promise.all([
     prisma.presaleIntent.count({ where: { work: { userId: user.id } } }),
+    prisma.presaleCampaignIntent.count({ where: { userId: user.id } }),
     prisma.fabricProposal.count({ where: { work: { userId: user.id } } }),
     prisma.sampleProposal.count({ where: { work: { userId: user.id } } }),
     prisma.factoryProposal.count({ where: { work: { userId: user.id } } }),
@@ -326,7 +327,8 @@ export default async function MePage({ searchParams }: MePageProps) {
             ["参赛作品", `${entryItems.length} 件作品参加挑战`, "/challenges"],
             ["面料需求", `${fabricItems.length} 条记录`, "/me/projects"],
             ["打样需求", `${sampleItems.length} 条记录`, "/me/projects"],
-            ["预售意向", `${receivedPresaleCount} 条收到的意向`, "/me/incubation"],
+            ["我提交的预售", `${submittedPresaleIntentCount} 条购买意向`, "/me/presale"],
+            ["作品收到的预售", `${receivedPresaleCount} 条收到的意向`, "/me/incubation"],
             ["合作方案", `${receivedSampleProposalCount + receivedFactoryProposalCount + receivedBuyerIntentCount} 条待查看`, "/me/projects"]
           ].map(([title, description, href]) => (
             <Link key={title} href={href} className="rounded-[8px] border border-black/8 bg-white p-4 transition hover:border-ink/35">

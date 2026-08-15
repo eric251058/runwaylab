@@ -17,6 +17,7 @@ export const NOTIFICATION_EVENTS = {
   PROVIDER_PROPOSAL_RECEIVED: "PROVIDER_PROPOSAL_RECEIVED",
   PROVIDER_PROPOSAL_UPDATED: "PROVIDER_PROPOSAL_UPDATED",
   PRESALE_INTENT_RECEIVED: "PRESALE_INTENT_RECEIVED",
+  PRESALE_INTENT_UPDATED: "PRESALE_INTENT_UPDATED",
   REQUEST_HANDLED: "REQUEST_HANDLED",
   CHALLENGE_RESULT: "CHALLENGE_RESULT"
 } as const;
@@ -87,6 +88,7 @@ function eventToStoredType(eventType: NotificationEventType): NotificationType |
       NOTIFICATION_EVENTS.PROVIDER_PROPOSAL_RECEIVED,
       NOTIFICATION_EVENTS.PROVIDER_PROPOSAL_UPDATED,
       NOTIFICATION_EVENTS.PRESALE_INTENT_RECEIVED,
+      NOTIFICATION_EVENTS.PRESALE_INTENT_UPDATED,
       NOTIFICATION_EVENTS.REQUEST_HANDLED
     ].includes(eventType)
   ) {
@@ -102,6 +104,9 @@ function virtualNotificationType(notification: Pick<Notification, "type" | "titl
   }
   if (notification.type === NotificationType.WORK_REJECTED && notification.title === "作品已下架") {
     return NOTIFICATION_EVENTS.WORK_OFFLINED;
+  }
+  if (notification.type === NotificationType.REQUEST_HANDLED && notification.title.startsWith("预售意向")) {
+    return NOTIFICATION_EVENTS.PRESALE_INTENT_UPDATED;
   }
   return notification.type;
 }
