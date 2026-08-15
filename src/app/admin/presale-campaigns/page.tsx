@@ -3,6 +3,7 @@ import { PresaleCampaignStatus } from "@prisma/client";
 import { savePresaleCampaign } from "@/lib/presale-campaign-actions";
 import { PRESALE_CAMPAIGN_STATUS_LABELS, presaleProgress } from "@/lib/presale-campaign";
 import { prisma } from "@/lib/prisma";
+import { isPublicQualityWork } from "@/lib/works/rules";
 
 export const dynamic = "force-dynamic";
 
@@ -22,12 +23,18 @@ export default async function AdminPresaleCampaignsPage() {
       take: 120
     }),
     prisma.work.findMany({
-      include: { user: true },
+      include: {
+        user: true,
+        images: {
+          select: { imageUrl: true }
+        }
+      },
       orderBy: { createdAt: "desc" },
       take: 200
     })
   ]);
 
+  const publicEligibleWorkIds = new Set(works.filter(isPublicQualityWork).map((work) => work.id));
   const inputClass = "h-11 rounded-[6px] border border-black/10 px-3 text-sm";
   const smallInputClass = "h-10 rounded-[6px] border border-black/10 px-3 text-sm";
 
@@ -43,14 +50,21 @@ export default async function AdminPresaleCampaignsPage() {
         </Link>
       </header>
 
+      <div className="mb-4 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+        只有已审核、公开可见、包含有效图片、标题和说明完整的作品才能进入“验证中”并展示在前台。未达标作品仍可保存为草稿。
+      </div>
+
       <form action={savePresaleCampaign} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-5 md:grid-cols-2">
         <select name="workId" required className={inputClass}>
           <option value="">选择作品</option>
-          {works.map((work) => (
-            <option key={work.id} value={work.id}>
-              {work.title} / {work.user.nickname}
-            </option>
-          ))}
+          {works.map((work) => {
+            const eligible = publicEligibleWorkIds.has(work.id);
+            return (
+              <option key={work.id} value={work.id}>
+                {work.title} / {work.user.nickname} / {eligible ? "可公开验证" : "仅可保存草稿"}
+              </option>
+            );
+          })}
         </select>
         <input name="title" required placeholder="预售活动标题" className={inputClass} />
         <input name="slug" placeholder="slug，可选" className={inputClass} />
@@ -76,6 +90,7 @@ export default async function AdminPresaleCampaignsPage() {
       <section className="mt-8 space-y-3">
         {campaigns.length ? campaigns.map((campaign) => {
           const progress = presaleProgress(campaign.currentCount, campaign.targetCount);
+          const publicEligible = publicEligibleWorkIds.has(campaign.workId);
           return (
             <form key={campaign.id} action={savePresaleCampaign} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-4 md:grid-cols-4">
               <input type="hidden" name="id" value={campaign.id} />
@@ -107,6 +122,9 @@ export default async function AdminPresaleCampaignsPage() {
               <button className="h-10 rounded-full border border-black/10 px-4 text-sm font-semibold">保存</button>
               <p className="text-xs leading-5 text-ink/45 md:col-span-4">
                 作品：{campaign.work.title} / 创建人：{campaign.createdBy?.nickname ?? "后台"} / 意向 {campaign._count.intents} 条 / 当前 {campaign.currentCount} / {campaign.targetCount}（{progress}%）
+              </p>
+              <p className={"text-xs font-semibold md:col-span-4 " + (publicEligible ? "text-emerald-700" : "text-amber-700")}>
+                {publicEligible ? "前台可见：作品已通过公开质量门槛。" : "前台隐藏：作品未达到公开质量门槛，只能保存为草稿。"}
               </p>
             </form>
           );
