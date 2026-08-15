@@ -2,7 +2,9 @@ import Link from "next/link";
 import { CrowdSubmissionForm } from "@/components/incubation/CrowdSubmissionForm";
 import { visualFor } from "@/components/works/work-visuals";
 import { PRESALE_CAMPAIGN_STATUS_LABELS, presaleProgress } from "@/lib/presale-campaign";
+import { publicProjectWhere } from "@/lib/commercial-collaboration";
 import { prisma } from "@/lib/prisma";
+import { canOpenLimitedPreorder } from "@/lib/projects/rules";
 import { getPublicQualityWorkIds } from "@/lib/works/queries";
 import { isPublicQualityWork } from "@/lib/works/rules";
 import { PresaleCampaignStatus } from "@prisma/client";
@@ -37,6 +39,16 @@ async function getActiveCampaigns() {
         select: {
           intents: true
         }
+      },
+      collaborationProjects: {
+        where: publicProjectWhere(),
+        include: {
+          products: {
+            select: { status: true },
+            orderBy: { createdAt: "asc" }
+          }
+        },
+        orderBy: { updatedAt: "desc" }
       }
     },
     orderBy: [{ isFeatured: "desc" }, { currentCount: "desc" }, { createdAt: "desc" }],
@@ -101,6 +113,11 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {campaigns.map((campaign, index) => {
               const progress = presaleProgress(campaign.currentCount, campaign.targetCount);
+              const preorderProject = campaign.collaborationProjects.find((project) =>
+                project.products.some((product) =>
+                  canOpenLimitedPreorder(project.status, product.status, project.designerAuthorizationStatus)
+                )
+              );
               return (
                 <article key={campaign.id} className="overflow-hidden rounded-[8px] bg-white shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
                   <img src={visualFor(index, campaign.work.images[0])} alt={campaign.work.title} className="aspect-[4/3] w-full object-cover" />
@@ -123,8 +140,11 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
                       </div>
                     </div>
                     <p className="text-sm text-ink/55">预计价格：{campaign.estimatedPrice ?? "待定"}</p>
-                    <Link href={`/works/${campaign.workId}`} className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">
-                      查看作品并提交意向
+                    <Link
+                      href={preorderProject ? `/projects/${preorderProject.slug ?? preorderProject.id}` : `/works/${campaign.workId}`}
+                      className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white"
+                    >
+                      {preorderProject ? "进入项目并选择规格" : "查看作品并提交意向"}
                     </Link>
                   </div>
                 </article>
