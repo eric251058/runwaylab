@@ -436,6 +436,38 @@ enum CollaborationProjectVisibility {
   PUBLIC
 }
 
+enum WorkspaceVisibility {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum WorkspaceMemberStatus {
+  ACTIVE
+  LEFT
+  REMOVED
+}
+
+enum WorkspaceInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+enum WorkVisibility {
+  PUBLIC
+  COLLABORATORS
+  PRIVATE
+}
+
 enum ProjectDesignAuthorizationStatus {
   PENDING
   ACCEPTED
@@ -635,6 +667,9 @@ model User {
   designerProfile              DesignerProfile?
   sessions                     AuthSession[]
   works                        Work[]
+  ownedWorkspaces              Workspace[]                @relation("WorkspaceOwner")
+  workspaceMemberships         WorkspaceMember[]
+  sentWorkspaceInvitations     WorkspaceInvitation[]      @relation("WorkspaceInvitationSender")
   comments                     Comment[]
   likes                        Like[]
   favorites                    Favorite[]
@@ -729,6 +764,9 @@ model DesignerProfile {
 model Work {
   id               String            @id @default(cuid())
   userId           String
+  workspaceId      String?
+  visibility       WorkVisibility    @default(PUBLIC)
+  workspace        Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   schoolId         String?
   teacherId        String?
   title            String
@@ -808,6 +846,8 @@ model Work {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([workspaceId])
+  @@index([visibility])
   @@index([schoolId])
   @@index([teacherId])
   @@index([reviewStatus, contentStatus])
@@ -1962,6 +2002,8 @@ model CollaborationProject {
   targetLaunchDate            DateTime?
   internalNote                String?
   createdById                 String?
+  workspaceId                 String?
+  workspace                   Workspace?                       @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 
   work                  Work?                        @relation(fields: [workId], references: [id], onDelete: Cascade)
   designer              User?                        @relation("CollaborationProjectDesigner", fields: [designerId], references: [id], onDelete: SetNull)
@@ -1997,11 +2039,67 @@ model CollaborationProject {
   @@index([providerId])
   @@index([fabricId])
   @@index([presaleCampaignId])
+  @@index([workspaceId])
   @@index([status])
   @@index([visibility])
   @@index([reviewStatus])
   @@index([designerAuthorizationStatus])
   @@index([priority])
+}
+
+model Workspace {
+  id          String              @id @default(cuid())
+  ownerId     String
+  name        String
+  slug        String              @unique
+  description String?
+  visibility  WorkspaceVisibility @default(PUBLIC)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  owner       User                   @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     WorkspaceMember[]
+  invitations WorkspaceInvitation[]
+  works       Work[]
+  projects    CollaborationProject[]
+
+  @@index([ownerId])
+  @@index([visibility])
+}
+
+model WorkspaceMember {
+  id          String                @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole         @default(MEMBER)
+  status      WorkspaceMemberStatus @default(ACTIVE)
+  joinedAt    DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId, status])
+}
+
+model WorkspaceInvitation {
+  id          String                    @id @default(cuid())
+  workspaceId String
+  email       String
+  role        WorkspaceRole             @default(MEMBER)
+  status      WorkspaceInvitationStatus @default(PENDING)
+  token       String                    @unique
+  invitedById String
+  expiresAt   DateTime
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy User      @relation("WorkspaceInvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([email, status])
 }
 
 model CollaborationProjectAction {
@@ -2281,6 +2379,8 @@ model ProjectOrder {
   estimatedShipDate       DateTime?
   exceptionNote           String?
   note                    String?
+  paymentAttempts         CommercePaymentAttempt[]
+  refunds                 CommerceRefund[]
 
   project  CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   work     Work?                @relation(fields: [workId], references: [id], onDelete: SetNull)
@@ -2553,4 +2653,124 @@ model AdminLog {
 
   @@index([adminId])
   @@index([targetType, targetId])
+}
+
+enum CommercePaymentAttemptStatus {
+  CREATED
+  PROCESSING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  CANCELLED
+}
+
+enum CommerceRefundStatus {
+  REQUESTED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum CommerceIdempotencyStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum CommerceAggregateType {
+  CAMPAIGN
+  ORDER
+  PAYMENT
+  REFUND
+  FULFILLMENT
+}
+
+model CommercePaymentAttempt {
+  id                String                       @id @default(cuid())
+  orderId           String
+  provider          String
+  providerAttemptId String?
+  idempotencyKey    String                       @unique
+  amount            Int
+  currency          String                       @default("CNY")
+  status            CommercePaymentAttemptStatus @default(CREATED)
+  failureCode       String?
+  failureMessage    String?
+  authorizedAt      DateTime?
+  capturedAt        DateTime?
+  failedAt          DateTime?
+  order             ProjectOrder                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refunds           CommerceRefund[]
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+
+  @@unique([provider, providerAttemptId])
+  @@index([orderId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CommerceRefund {
+  id               String                  @id @default(cuid())
+  orderId          String
+  paymentAttemptId String?
+  provider         String
+  providerRefundId String?
+  idempotencyKey   String                  @unique
+  amount           Int
+  currency         String                  @default("CNY")
+  status           CommerceRefundStatus    @default(REQUESTED)
+  reason           String?
+  failureCode      String?
+  failureMessage   String?
+  requestedAt      DateTime                @default(now())
+  completedAt      DateTime?
+  order            ProjectOrder            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentAttempt   CommercePaymentAttempt? @relation(fields: [paymentAttemptId], references: [id], onDelete: SetNull)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@unique([provider, providerRefundId])
+  @@index([orderId])
+  @@index([paymentAttemptId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CommerceIdempotencyRecord {
+  id           String                    @id @default(cuid())
+  scope        String
+  key          String
+  requestHash  String
+  status       CommerceIdempotencyStatus @default(PROCESSING)
+  responseCode Int?
+  responseBody Json?
+  lockedAt     DateTime                  @default(now())
+  completedAt  DateTime?
+  expiresAt    DateTime
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  @@unique([scope, key])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model CommerceStateEvent {
+  id             String                @id @default(cuid())
+  aggregateType  CommerceAggregateType
+  aggregateId    String
+  fromState      String?
+  toState        String
+  actorId        String?
+  reason         String?
+  metadata       Json?
+  idempotencyKey String?
+  createdAt      DateTime              @default(now())
+
+  @@unique([aggregateType, aggregateId, idempotencyKey])
+  @@index([aggregateType, aggregateId, createdAt])
+  @@index([actorId])
+  @@index([createdAt])
 }

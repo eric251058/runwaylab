@@ -9,11 +9,13 @@ function reasonFor(work: {
   description: string;
   reviewStatus: string;
   contentStatus: string;
+  visibility: string;
   images: Array<{ imageUrl: string }>;
 }) {
   const reasons: string[] = [];
   if (work.reviewStatus !== "APPROVED") reasons.push("未审核通过");
   if (work.contentStatus !== "VISIBLE") reasons.push("不可见");
+  if (work.visibility !== "PUBLIC") reasons.push("非公开作品");
   if (!work.images.length) reasons.push("无封面");
   if (work.title.trim().length < 2) reasons.push("标题过短");
   if (/^\d+$/.test(work.title.trim())) reasons.push("纯数字标题");

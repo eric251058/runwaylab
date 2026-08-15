@@ -6,6 +6,7 @@ function makeWork(overrides: Partial<WorkLike> = {}): WorkLike {
   return {
     reviewStatus: "APPROVED",
     contentStatus: "VISIBLE",
+    visibility: "PUBLIC",
     title: "Structured denim jacket",
     description: "A complete student design concept with silhouette, material direction, and styling notes.",
     images: [{ imageUrl: "/uploads/works/look-1.jpg" }],
@@ -28,6 +29,8 @@ function main() {
   assertQuality("valid remote cover", makeWork({ images: [{ imageUrl: "https://example.com/work.jpg" }] }), true);
   assertQuality("pending review rejected", makeWork({ reviewStatus: "PENDING" }), false);
   assertQuality("hidden content rejected", makeWork({ contentStatus: "HIDDEN" }), false);
+  assertQuality("collaborator work rejected", makeWork({ visibility: "COLLABORATORS" }), false);
+  assertQuality("private work rejected", makeWork({ visibility: "PRIVATE" }), false);
   assertQuality("missing images rejected", makeWork({ images: [] }), false);
   assertQuality("blank cover rejected", makeWork({ images: [{ imageUrl: "   " }] }), false);
   assertQuality("placeholder cover rejected", makeWork({ images: [{ imageUrl: "undefined" }] }), false);

@@ -183,6 +183,7 @@ export const getPublicQualityWorkIds = cache(async () => {
       description: true,
       reviewStatus: true,
       contentStatus: true,
+      visibility: true,
       images: {
         select: {
           imageUrl: true

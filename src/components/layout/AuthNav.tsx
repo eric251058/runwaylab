@@ -53,6 +53,7 @@ function isProviderUser(user: AuthUser | null) {
 
 function navItems(providerMode: boolean) {
   return [
+    { label: "平台", href: "/platform" },
     { label: "作品", href: "/works" },
     { label: "面料", href: "/fabrics" },
     { label: "服务商", href: "/providers" },
@@ -214,6 +215,9 @@ export function AuthNav() {
                   <details className="group relative">
                     <summary className="list-none rounded-full px-3 py-2 transition hover:bg-paper [&::-webkit-details-marker]:hidden">{accountLabel}</summary>
                     <div className="absolute right-0 mt-2 grid min-w-40 gap-1 rounded-[12px] border border-black/8 bg-white p-2 shadow-[0_18px_50px_rgba(16,16,16,0.10)]">
+                  <Link href="/me/platform" className="rounded-[8px] px-3 py-2 text-ink/65 hover:bg-paper hover:text-ink">
+                    全链路工作台
+                  </Link>
                       <Link href="/me/dashboard" className="rounded-[8px] px-3 py-2 text-ink/65 hover:bg-paper hover:text-ink">
                         个人工作台
                       </Link>
