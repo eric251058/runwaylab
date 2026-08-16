@@ -208,7 +208,7 @@ export default async function MePage({ searchParams }: MePageProps) {
     work: mapWork(application.work)
   }));
 
-  const [receivedPresaleCount, submittedPresaleIntentCount, receivedFabricProposalCount, receivedSampleProposalCount, receivedFactoryProposalCount, receivedBuyerIntentCount, incubatingWorkCount] = await Promise.all([
+  const [receivedPresaleCount, submittedPresaleIntentCount, receivedFabricProposalCount, receivedSampleProposalCount, receivedFactoryProposalCount, receivedBuyerIntentCount, incubatingWorkCount, unreadNotificationCount] = await Promise.all([
     prisma.presaleIntent.count({ where: { work: { userId: user.id } } }),
     prisma.presaleCampaignIntent.count({ where: { userId: user.id } }),
     prisma.fabricProposal.count({ where: { work: { userId: user.id } } }),
@@ -224,12 +224,14 @@ export default async function MePage({ searchParams }: MePageProps) {
           { wantsIncubation: true }
         ]
       }
-    })
+    }),
+    prisma.notification.count({ where: { userId: user.id, isRead: false } })
   ]);
   const pendingAuthorizationCount = await prisma.projectDesignAuthorization.count({ where: { designerUserId: user.id, status: "PENDING" } });
   const totalLikes = works.reduce((sum, work) => sum + work.likeCount, 0);
   const totalFavorites = works.reduce((sum, work) => sum + work.favoriteCount, 0);
   const totalComments = works.reduce((sum, work) => sum + work.commentCount, 0);
+  const unreadNotificationLabel = unreadNotificationCount > 99 ? "99+" : String(unreadNotificationCount);
 
   return (
     <div className="mx-auto max-w-5xl px-3 py-5 md:px-8 md:py-12">
@@ -239,6 +241,9 @@ export default async function MePage({ searchParams }: MePageProps) {
           <p className="mt-3 text-sm text-ink/58 md:mt-4">管理作品、进展、收藏和个人资料。</p>
         </div>
         <div className="grid gap-2 sm:flex sm:flex-wrap">
+          <Link href="/notifications" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink sm:px-5">
+            {unreadNotificationCount > 0 ? `消息中心（${unreadNotificationLabel} 条未读）` : "消息中心"}
+          </Link>
           <Link href="/me/profile" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink sm:px-5">
             账号与资料
           </Link>
