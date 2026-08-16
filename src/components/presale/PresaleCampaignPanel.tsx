@@ -59,7 +59,7 @@ export function PresaleCampaignPanel({ campaign, workTitle, source, compact = fa
 
       <div className="mt-5">
         <div className="mb-2 flex flex-col gap-1 text-xs font-semibold text-ink/45 sm:flex-row sm:items-center sm:justify-between">
-          <span>已有 {campaign.currentCount} 人表达意向，目标 {campaign.targetCount} 人</span>
+          <span>已有 {campaign.currentCount} 件购买意向，目标 {campaign.targetCount} 件</span>
           <span>{progress}%</span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-paper">
