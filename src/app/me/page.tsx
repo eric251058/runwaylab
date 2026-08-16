@@ -226,6 +226,7 @@ export default async function MePage({ searchParams }: MePageProps) {
       }
     })
   ]);
+  const pendingAuthorizationCount = await prisma.projectDesignAuthorization.count({ where: { designerUserId: user.id, status: "PENDING" } });
   const totalLikes = works.reduce((sum, work) => sum + work.likeCount, 0);
   const totalFavorites = works.reduce((sum, work) => sum + work.favoriteCount, 0);
   const totalComments = works.reduce((sum, work) => sum + work.commentCount, 0);
@@ -296,7 +297,7 @@ export default async function MePage({ searchParams }: MePageProps) {
           ["我的作品", works.length],
           ["总点赞", totalLikes],
           ["总收藏", totalFavorites],
-          ["进行中", incubatingWorkCount + receivedPresaleCount + receivedFabricProposalCount + receivedSampleProposalCount + receivedFactoryProposalCount + receivedBuyerIntentCount]
+          ["进行中", pendingAuthorizationCount + incubatingWorkCount + receivedPresaleCount + receivedFabricProposalCount + receivedSampleProposalCount + receivedFactoryProposalCount + receivedBuyerIntentCount]
         ].map(([label, value], index) => (
           <div key={label} className="rounded-[8px] border border-black/8 bg-white p-3">
             <p className="text-2xl font-semibold text-ink">{value}</p>
@@ -329,6 +330,7 @@ export default async function MePage({ searchParams }: MePageProps) {
             ["打样需求", `${sampleItems.length} 条记录`, "/me/projects"],
             ["我提交的预售", `${submittedPresaleIntentCount} 条购买意向`, "/me/presale"],
             ["作品收到的预售", `${receivedPresaleCount} 条收到的意向`, "/me/incubation"],
+            ["设计授权", `${pendingAuthorizationCount} 条待处理`, "/me/authorizations"],
             ["合作方案", `${receivedSampleProposalCount + receivedFactoryProposalCount + receivedBuyerIntentCount} 条待查看`, "/me/projects"]
           ].map(([title, description, href]) => (
             <Link key={title} href={href} className="rounded-[8px] border border-black/8 bg-white p-4 transition hover:border-ink/35">
