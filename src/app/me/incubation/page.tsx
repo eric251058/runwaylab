@@ -17,7 +17,11 @@ import {
   INCUBATION_BATCH_TYPE_LABELS,
   publicBatchWhere
 } from "@/lib/incubation-batches";
-import { PRESALE_CAMPAIGN_STATUS_LABELS, presaleProgress } from "@/lib/presale-campaign";
+import {
+  PRESALE_CAMPAIGN_STATUS_LABELS,
+  PRESALE_INTENT_STATUS_LABELS,
+  presaleProgress
+} from "@/lib/presale-campaign";
 import { prisma } from "@/lib/prisma";
 import { maskContact, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
 import { WorkVoteStatus, WorkVoteType } from "@prisma/client";
@@ -76,7 +80,15 @@ export default async function MeIncubationPage() {
         include: {
           intents: {
             orderBy: { createdAt: "desc" },
-            take: 5
+            take: 5,
+            select: {
+              id: true,
+              status: true,
+              size: true,
+              color: true,
+              quantity: true,
+              createdAt: true
+            }
           }
         },
         orderBy: { createdAt: "desc" }
@@ -494,7 +506,7 @@ export default async function MeIncubationPage() {
                   <p className="mt-1 text-sm text-ink/52">{campaign.workTitle}</p>
                   <div className="mt-4">
                     <div className="mb-2 flex items-center justify-between text-xs font-semibold text-ink/45">
-                      <span>{campaign.currentCount} / {campaign.targetCount} 人</span>
+                      <span>{campaign.currentCount} / {campaign.targetCount} 件购买意向</span>
                       <span>{progress}%</span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-white">
@@ -502,8 +514,26 @@ export default async function MeIncubationPage() {
                     </div>
                   </div>
                   <p className="mt-3 text-xs leading-5 text-ink/50">
-                    最近意向 {campaign.intents.length} 条。预计价格：{campaign.estimatedPrice ?? "待定"}
+                    最近信号 {campaign.intents.length} 条。预计价格：{campaign.estimatedPrice ?? "待定"}
                   </p>
+                  {campaign.intents.length ? (
+                    <div className="mt-3 space-y-2 rounded-[8px] bg-white p-3">
+                      <p className="text-xs font-semibold text-ink/55">最近市场信号（不展示购买者联系方式）</p>
+                      {campaign.intents.map((intent) => (
+                        <div key={intent.id} className="flex flex-col gap-1 text-xs text-ink/55 sm:flex-row sm:items-start sm:justify-between">
+                          <span>{sentence([
+                            intent.size && `尺码 ${intent.size}`,
+                            intent.color && `颜色 ${intent.color}`,
+                            `数量 ${intent.quantity} 件`
+                          ])}</span>
+                          <span className="shrink-0 text-ink/35">
+                            {PRESALE_INTENT_STATUS_LABELS[intent.status]} · {formatDateTime(intent.createdAt)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <p className="mt-3 text-xs leading-5 text-ink/40">以上仅为市场购买意向，不代表订单或已付款交易。</p>
                 </article>
               );
             })}
