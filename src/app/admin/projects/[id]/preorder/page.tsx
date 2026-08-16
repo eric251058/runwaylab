@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ProjectProductStatus } from "@prisma/client";
+import { ProjectDesignAuthorizationStatus, ProjectProductStatus } from "@prisma/client";
 import { saveProjectProduct } from "@/lib/commercial-collaboration-actions";
 import { dateInputValue } from "@/lib/commercial-collaboration";
+import { requestProjectDesignAuthorization } from "@/lib/projects/actions";
 import { PROJECT_AUTHORIZATION_LABELS, PROJECT_PRODUCT_STATUS_LABELS, formatMoneyCents } from "@/lib/projects/rules";
 import { prisma } from "@/lib/prisma";
 
@@ -23,6 +24,7 @@ export default async function AdminPreorderPreparationPage({ params }: PageProps
     }
   });
   if (!project) notFound();
+  const authorizationReady = project.designerAuthorizationStatus === ProjectDesignAuthorizationStatus.ACCEPTED;
 
   const input = "h-10 rounded-[6px] border border-black/10 px-3 text-sm";
   const textarea = "min-h-20 rounded-[6px] border border-black/10 px-3 py-3 text-sm";
@@ -47,7 +49,7 @@ export default async function AdminPreorderPreparationPage({ params }: PageProps
       <textarea name="description" maxLength={1000} defaultValue={product?.description ?? ""} placeholder="商品说明" className={textarea} />
       <textarea name="materialDescription" maxLength={500} defaultValue={product?.materialDescription ?? ""} placeholder="面料与工艺说明" className={textarea} />
       <textarea name="careInstructions" maxLength={500} defaultValue={product?.careInstructions ?? ""} placeholder="护理说明" className={textarea} />
-      <button className="h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white md:col-span-2">{product ? "保存商品准备" : "创建商品草稿"}</button>
+      <button disabled={!authorizationReady} className="h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-ink/25 md:col-span-2">{authorizationReady ? (product ? "保存商品准备" : "创建商品草稿") : "等待设计师授权"}</button>
     </>
   );
 
@@ -73,6 +75,23 @@ export default async function AdminPreorderPreparationPage({ params }: PageProps
           这里创建的是商品草稿与人工审核状态，不会自动创建订单、扣款、生产任务或收入。价格以最小货币单位填写：CNY ¥199.00 应填写 19900。
         </p>
       </section>
+
+      {!authorizationReady ? (
+        <section className="mt-6 rounded-[8px] border border-amber-200 bg-amber-50 p-5">
+          <h2 className="text-xl font-semibold text-amber-950">先取得设计师授权</h2>
+          <p className="mt-2 text-sm leading-6 text-amber-900/75">当前状态为 {PROJECT_AUTHORIZATION_LABELS[project.designerAuthorizationStatus]}。项目方可以发起请求，但不能代替作品作者同意。授权接受前，商品保存已禁用。</p>
+          <form action={requestProjectDesignAuthorization} className="mt-4 grid gap-3 md:grid-cols-2">
+            <input type="hidden" name="projectId" value={project.id} />
+            <input name="termsVersion" required maxLength={40} defaultValue="v1" aria-label="条款版本" className={input} />
+            <input name="scope" required maxLength={500} defaultValue="围绕该作品推进打样、预售验证和合作沟通。" aria-label="授权范围" className={input} />
+            <button className="min-h-11 rounded-full bg-amber-900 px-5 text-sm font-semibold text-white md:col-span-2">向作品作者发送授权请求</button>
+          </form>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Link href="/me/authorizations" className="text-sm font-semibold text-amber-900 underline underline-offset-4">设计师授权中心</Link>
+            <Link href={projectHref} className="text-sm font-semibold text-amber-900 underline underline-offset-4">查看公开项目</Link>
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-6">
         <h2 className="text-xl font-semibold text-ink">新增商品草稿</h2>
