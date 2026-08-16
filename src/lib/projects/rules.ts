@@ -171,6 +171,21 @@ export function canOpenLimitedPreorder(status: CollaborationProjectStatus, produ
   return projectReady && productReady && canOpenPreorderByAuthorization(authorizationStatus);
 }
 
+export function canSetProjectProductStatus(
+  projectStatus: CollaborationProjectStatus,
+  productStatus: ProjectProductStatus,
+  authorizationStatus: ProjectDesignAuthorizationStatus | null | undefined
+) {
+  if (!canOpenPreorderByAuthorization(authorizationStatus)) return false;
+  if (productStatus === ProjectProductStatus.APPROVED) {
+    return projectStatus === CollaborationProjectStatus.PREORDER_READY || projectStatus === CollaborationProjectStatus.PREORDER_OPEN;
+  }
+  if (productStatus === ProjectProductStatus.PREORDER_OPEN) {
+    return projectStatus === CollaborationProjectStatus.PREORDER_OPEN;
+  }
+  return true;
+}
+
 export function canTransitionProjectStatus(nextStatus: CollaborationProjectStatus, authorizationStatus: ProjectDesignAuthorizationStatus | null | undefined) {
   if (nextStatus === CollaborationProjectStatus.PREORDER_READY || nextStatus === CollaborationProjectStatus.PREORDER_OPEN) {
     return canOpenPreorderByAuthorization(authorizationStatus);

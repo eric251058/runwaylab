@@ -6,6 +6,7 @@ import {
   CollaborationProjectPriority,
   CollaborationProjectStatus,
   ProjectOrderStatus,
+  ProjectProductStatus,
   ReviewStatus,
   ReviewTargetType,
   VerificationStatus,
@@ -20,7 +21,7 @@ import {
   requiredText
 } from "@/lib/commercial-collaboration";
 import { isAdmin } from "@/lib/permissions";
-import { canTransitionProjectStatus } from "@/lib/projects/rules";
+import { canSetProjectProductStatus, canTransitionProjectStatus } from "@/lib/projects/rules";
 import { prisma } from "@/lib/prisma";
 
 async function requireAdminUser() {
@@ -113,6 +114,66 @@ export async function saveCollaborationProject(formData: FormData) {
   revalidatePath("/projects");
   revalidatePath("/me/projects");
   revalidatePath("/admin/projects");
+}
+
+function integerValue(value: FormDataEntryValue | null, label: string, { min = 0, max = 10_000_000 }: { min?: number; max?: number } = {}) {
+  const raw = optionalText(value);
+  if (raw === null) return null;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) throw new Error(`${label}填写有误`);
+  return parsed;
+}
+
+export async function saveProjectProduct(formData: FormData) {
+  await requireAdminUser();
+  const id = optionalText(formData.get("id"));
+  const projectId = requiredText(formData.get("projectId"), "承接项目");
+  const project = await prisma.collaborationProject.findUnique({
+    where: { id: projectId },
+    select: {
+      id: true,
+      workId: true,
+      status: true,
+      designerAuthorizationStatus: true
+    }
+  });
+  if (!project) throw new Error("承接项目不存在");
+
+  const status = enumValue(formData.get("status"), Object.values(ProjectProductStatus), ProjectProductStatus.DRAFT);
+  if (!canSetProjectProductStatus(project.status, status, project.designerAuthorizationStatus)) {
+    throw new Error("商品状态与项目阶段或设计授权不匹配。");
+  }
+
+  const title = requiredText(formData.get("title"), "商品标题");
+  if (title.length > 100) throw new Error("商品标题不能超过 100 个字符");
+
+  const data = {
+    projectId,
+    workId: project.workId,
+    title,
+    description: optionalText(formData.get("description"))?.slice(0, 1000) ?? null,
+    materialDescription: optionalText(formData.get("materialDescription"))?.slice(0, 500) ?? null,
+    careInstructions: optionalText(formData.get("careInstructions"))?.slice(0, 500) ?? null,
+    price: integerValue(formData.get("price"), "价格", { min: 0, max: 100_000_000 }) ?? 0,
+    currency: enumValue(formData.get("currency"), ["CNY", "USD", "EUR"] as const, "CNY"),
+    targetQuantity: integerValue(formData.get("targetQuantity"), "目标数量", { min: 1, max: 1_000_000 }),
+    preorderDeadline: optionalDate(formData.get("preorderDeadline")),
+    estimatedShipDate: optionalDate(formData.get("estimatedShipDate")),
+    imageStage: optionalText(formData.get("imageStage"))?.slice(0, 80) ?? null,
+    status
+  };
+
+  if (id) {
+    const existing = await prisma.projectProduct.findUnique({ where: { id }, select: { projectId: true } });
+    if (!existing || existing.projectId !== projectId) throw new Error("商品不属于该承接项目");
+    await prisma.projectProduct.update({ where: { id }, data });
+  } else {
+    await prisma.projectProduct.create({ data });
+  }
+
+  revalidatePath(`/admin/projects/${projectId}/preorder`);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/admin/presale-campaigns");
 }
 
 export async function saveProjectOrder(formData: FormData) {

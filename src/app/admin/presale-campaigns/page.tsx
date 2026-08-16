@@ -190,9 +190,12 @@ export default async function AdminPresaleCampaignsPage() {
                   <p className="mt-1 text-xl font-semibold text-ink">{confirmationRate}%</p>
                 </div>
                 {linkedProject ? (
-                  <Link href={"/projects/" + (linkedProject.slug ?? linkedProject.id)} className="inline-flex min-h-10 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink">
-                    打开承接项目
-                  </Link>
+                  <div className="flex flex-col gap-2">
+                    <Link href={"/projects/" + (linkedProject.slug ?? linkedProject.id)} className="inline-flex min-h-10 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink">
+                      打开承接项目
+                    </Link>
+                    {targetReached ? <Link href={"/admin/projects/" + linkedProject.id + "/preorder"} className="inline-flex min-h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">准备限量预订</Link> : null}
+                  </div>
                 ) : null}
                 <p className={"text-sm font-semibold leading-6 md:col-span-4 " + (targetReached ? "text-emerald-700" : "text-ink/55")}>
                   {decisionLabel}
