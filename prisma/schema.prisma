@@ -347,6 +347,23 @@ enum CollaborationProjectStatus {
   CANCELLED
 }
 
+enum ProjectApplicationRole {
+  PROJECT_LEAD
+  FABRIC_PARTNER
+  SAMPLE_PARTNER
+  PRODUCTION_PARTNER
+  BUYER
+  MARKETING_PARTNER
+  OTHER
+}
+
+enum ProjectApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
 enum CollaborationProjectPriority {
   LOW
   NORMAL
@@ -703,6 +720,8 @@ model User {
   collaborationProjects                 CollaborationProject[]       @relation("CollaborationProjectDesigner")
   ownedCollaborationProjects            CollaborationProject[]       @relation("CollaborationProjectOwner")
   createdProjects                       CollaborationProject[]       @relation("CollaborationProjectCreatedBy")
+  projectApplications                   ProjectApplication[]         @relation("ProjectApplicationApplicant")
+  reviewedProjectApplications           ProjectApplication[]         @relation("ProjectApplicationReviewer")
   demandIntents                         WorkDemandIntent[]
   projectDesignAuthorizationsAsDesigner ProjectDesignAuthorization[] @relation("ProjectDesignAuthorizationDesigner")
   projectDesignAuthorizationsAsOwner    ProjectDesignAuthorization[] @relation("ProjectDesignAuthorizationOwner")
@@ -2026,6 +2045,7 @@ model CollaborationProject {
   projectIntake         ProjectIntake?               @relation("ProjectIntakeLinkedCollaborationProject")
   actions               CollaborationProjectAction[]
   events                CollaborationProjectEvent[]
+  applications          ProjectApplication[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2045,6 +2065,29 @@ model CollaborationProject {
   @@index([reviewStatus])
   @@index([designerAuthorizationStatus])
   @@index([priority])
+}
+
+model ProjectApplication {
+  id           String                   @id @default(cuid())
+  projectId    String
+  applicantId  String
+  role         ProjectApplicationRole
+  message      String
+  experience   String?
+  status       ProjectApplicationStatus @default(PENDING)
+  reviewNote   String?
+  reviewedAt   DateTime?
+  reviewedById String?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  project      CollaborationProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  applicant    User                     @relation("ProjectApplicationApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
+  reviewedBy   User?                    @relation("ProjectApplicationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, applicantId, role])
+  @@index([projectId, status])
+  @@index([applicantId, status])
+  @@index([reviewedById])
 }
 
 model Workspace {
