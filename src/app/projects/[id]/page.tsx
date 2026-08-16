@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ReviewStatus } from "@prisma/client";
+import { PresaleCampaignIntentStatus, ReviewStatus } from "@prisma/client";
 import { LimitedPreorderPanel } from "@/components/projects/LimitedPreorderPanel";
 import { ProjectIssueForm } from "@/components/projects/ProjectIssueForm";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -34,7 +34,16 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
       teacher: true,
       provider: true,
       fabric: true,
-      presaleCampaign: true,
+      presaleCampaign: {
+        include: {
+          intents: {
+            select: {
+              status: true,
+              quantity: true
+            }
+          }
+        }
+      },
       products: { include: { skus: { where: { enabled: true }, orderBy: { createdAt: "asc" } } }, orderBy: { createdAt: "asc" } },
       milestones: { orderBy: { createdAt: "asc" } },
       orders: { orderBy: { createdAt: "desc" }, take: 8 },
@@ -46,6 +55,14 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
   const preorderProducts = project.products.filter((product) => canOpenLimitedPreorder(project.status, product.status, project.designerAuthorizationStatus));
   const work = project.work;
   const designerName = project.designer?.nickname ?? work?.user.nickname ?? "待关联";
+  const presaleCampaign = project.presaleCampaign;
+  const confirmedIntents = presaleCampaign?.intents.filter(
+    (intent) => intent.status === PresaleCampaignIntentStatus.CONFIRMED
+  ) ?? [];
+  const confirmedQuantity = confirmedIntents.reduce((total, intent) => total + intent.quantity, 0);
+  const demandProgress = presaleCampaign
+    ? Math.min(100, Math.round((presaleCampaign.currentCount / Math.max(1, presaleCampaign.targetCount)) * 100))
+    : 0;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12">
@@ -89,6 +106,39 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
           <p className="mt-1 text-sm leading-6 text-ink/58">下一步：继续确认资源、打样和市场反馈。</p>
         </section>
       </div>
+
+      {presaleCampaign ? (
+        <section className="mt-8 rounded-[8px] border border-black/8 bg-white p-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Market validation</p>
+              <h2 className="mt-2 text-2xl font-semibold text-ink">市场验证</h2>
+            </div>
+            <p className="text-sm font-semibold text-ink/45">{presaleCampaign.title}</p>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[6px] bg-paper p-4">
+              <p className="text-xs font-semibold text-ink/40">有效意向数量</p>
+              <p className="mt-2 text-3xl font-semibold text-ink">{presaleCampaign.currentCount}</p>
+            </div>
+            <div className="rounded-[6px] bg-paper p-4">
+              <p className="text-xs font-semibold text-ink/40">已人工确认</p>
+              <p className="mt-2 text-3xl font-semibold text-ink">{confirmedQuantity}</p>
+              <p className="mt-1 text-xs text-ink/40">{confirmedIntents.length} 位意向用户</p>
+            </div>
+            <div className="rounded-[6px] bg-paper p-4">
+              <p className="text-xs font-semibold text-ink/40">目标数量</p>
+              <p className="mt-2 text-3xl font-semibold text-ink">{presaleCampaign.targetCount}</p>
+            </div>
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/8" aria-label={`市场验证进度 ${demandProgress}%`}>
+            <div className="h-full rounded-full bg-ink" style={{ width: `${demandProgress}%` }} />
+          </div>
+          <p className="mt-3 text-xs leading-5 text-ink/45">
+            当前进度 {demandProgress}%。以上数据为未付款购买意向及人工确认结果，不代表已成交订单或平台收入；正式交易以项目开启预订并完成付款为准。
+          </p>
+        </section>
+      ) : null}
 
       {preorderEnabled && preorderProducts.length ? (
         <div className="mt-8">
