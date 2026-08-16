@@ -11,6 +11,7 @@ import {
 } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isFeatureEnabled } from "@/lib/features";
+import { createNotificationSafe, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { isAdmin } from "@/lib/permissions";
 import {
   canDesignerRespondToAuthorization,
@@ -87,7 +88,7 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
   const projectId = requiredText(formData.get("projectId"), "项目 ID");
   const project = await prisma.collaborationProject.findUnique({
     where: { id: projectId },
-    include: { work: { select: { id: true, userId: true } } }
+    include: { work: { select: { id: true, userId: true, title: true } } }
   });
 
   if (!project || !canManageProject(user, project)) throw new Error("无权申请该项目的设计授权");
@@ -132,6 +133,16 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
     }
   });
 
+  await createNotificationSafe({
+    recipientId: project.work.userId,
+    actorId: user.id,
+    eventType: NOTIFICATION_EVENTS.REQUEST_HANDLED,
+    title: "新的设计授权请求",
+    body: project.title + " 希望围绕《" + project.work.title + "》推进合作，请你独立核对授权范围与条款。",
+    targetUrl: "/me/authorizations",
+    dedupe: true
+  });
+  revalidatePath("/me/authorizations");
   revalidatePath("/me/projects");
   revalidatePath(`/me/projects/${projectId}`);
   revalidatePath("/admin/projects");
