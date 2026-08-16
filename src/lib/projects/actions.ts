@@ -187,7 +187,50 @@ export async function respondProjectDesignAuthorization(formData: FormData) {
 
   revalidatePath("/me/projects");
   revalidatePath(`/me/projects/${projectId}`);
+  revalidatePath("/me/authorizations");
   revalidatePath("/admin/projects");
+  revalidatePath(`/admin/projects/${projectId}/preorder`);
+}
+
+export async function revokeProjectDesignAuthorization(formData: FormData) {
+  if (!(await isFeatureEnabled("feature.project_marketplace_v22"))) throw new Error("项目市场功能尚未开放");
+  const user = await getCurrentUser();
+  if (!user) throw new Error("请先登录");
+
+  const projectId = requiredText(formData.get("projectId"), "项目ID");
+  const authorization = await prisma.projectDesignAuthorization.findUnique({ where: { projectId } });
+  if (!authorization) throw new Error("授权记录不存在");
+  if (!canDesignerRespondToAuthorization(user, authorization)) throw new Error("只有作品作者本人可以撤销设计授权");
+  if (authorization.status !== ProjectDesignAuthorizationStatus.ACCEPTED) throw new Error("只有已接受的设计授权可以撤销");
+
+  const updated = await prisma.projectDesignAuthorization.update({
+    where: { projectId },
+    data: { status: ProjectDesignAuthorizationStatus.REVOKED, revokedAt: new Date() }
+  });
+
+  await prisma.collaborationProject.update({
+    where: { id: projectId },
+    data: {
+      designerAuthorizationStatus: ProjectDesignAuthorizationStatus.REVOKED,
+      status: { set: CollaborationProjectStatus.PLANNING }
+    }
+  });
+
+  await prisma.adminLog.create({
+    data: {
+      adminId: user.id,
+      action: "PROJECT_DESIGN_AUTHORIZATION_REVOKE",
+      targetType: "ProjectDesignAuthorization",
+      targetId: updated.id,
+      detail: { projectId, status: updated.status }
+    }
+  });
+
+  revalidatePath("/me/projects");
+  revalidatePath(`/me/projects/${projectId}`);
+  revalidatePath("/me/authorizations");
+  revalidatePath("/admin/projects");
+  revalidatePath(`/admin/projects/${projectId}/preorder`);
 }
 
 export async function updateProjectOrder(formData: FormData) {
