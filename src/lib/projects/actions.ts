@@ -196,6 +196,17 @@ export async function respondProjectDesignAuthorization(formData: FormData) {
     }
   });
 
+  await createNotificationSafe({
+    recipientId: authorization.ownerUserId,
+    actorId: user.id,
+    eventType: NOTIFICATION_EVENTS.REQUEST_HANDLED,
+    title: status === ProjectDesignAuthorizationStatus.ACCEPTED ? "设计授权已接受" : "设计授权未接受",
+    body: status === ProjectDesignAuthorizationStatus.ACCEPTED
+      ? "作品作者已接受本次设计授权。你可以回到项目工作台，按双方约定继续推进。"
+      : "作品作者未接受本次设计授权。请尊重该决定，并仅在获得新意愿后重新协商。",
+    targetUrl: "/me/projects/" + projectId,
+    dedupe: true
+  });
   revalidatePath("/me/projects");
   revalidatePath(`/me/projects/${projectId}`);
   revalidatePath("/me/authorizations");
@@ -237,6 +248,15 @@ export async function revokeProjectDesignAuthorization(formData: FormData) {
     }
   });
 
+  await createNotificationSafe({
+    recipientId: authorization.ownerUserId,
+    actorId: user.id,
+    eventType: NOTIFICATION_EVENTS.REQUEST_HANDLED,
+    title: "设计授权已撤销",
+    body: "作品作者已撤销本次设计授权。项目已回到规划阶段，请停止依赖该授权继续推进并重新沟通。",
+    targetUrl: "/me/projects/" + projectId,
+    dedupe: true
+  });
   revalidatePath("/me/projects");
   revalidatePath(`/me/projects/${projectId}`);
   revalidatePath("/me/authorizations");
