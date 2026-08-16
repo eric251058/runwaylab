@@ -2422,6 +2422,15 @@ model ProjectOrder {
   estimatedShipDate       DateTime?
   exceptionNote           String?
   note                    String?
+  idempotencyKey          String?                       @unique
+  productSnapshot         Json?
+  skuSnapshot             Json?
+  preorderDeadlineSnapshot DateTime?
+  capacitySnapshot        Int?
+  termsVersion            String                        @default("limited-preorder-v1")
+  reservationExpiresAt    DateTime?
+  cancelledAt             DateTime?
+  cancellationReason      String?
   paymentAttempts         CommercePaymentAttempt[]
   refunds                 CommerceRefund[]
 
@@ -2444,6 +2453,7 @@ model ProjectOrder {
   @@index([status])
   @@index([paymentStatus])
   @@index([fulfillmentStatus])
+  @@index([reservationExpiresAt])
 }
 
 model Review {

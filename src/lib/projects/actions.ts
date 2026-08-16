@@ -16,6 +16,8 @@ import { isAdmin } from "@/lib/permissions";
 import {
   canDesignerRespondToAuthorization,
   canManageProject,
+  canTransitionFulfillmentStatus,
+  canTransitionOrderStatus,
   nextAuthorizationRequestData,
   ownerCannotRespondToAuthorization,
   resolveManualPaymentStatusUpdate
@@ -276,12 +278,13 @@ export async function updateProjectOrder(formData: FormData) {
   const fulfillmentStatus = enumValue(formData.get("fulfillmentStatus"), Object.values(ProjectOrderFulfillmentStatus), ProjectOrderFulfillmentStatus.NOT_STARTED);
   const order = await prisma.projectOrder.findUnique({
     where: { id },
-    select: { paymentStatus: true }
+    select: { status: true, paymentStatus: true, fulfillmentStatus: true }
   });
   if (!order) throw new Error("订单不存在");
 
   const requestedPaymentStatus = enumValue(formData.get("paymentStatus"), Object.values(ProjectOrderPaymentStatus), order.paymentStatus);
   const paymentReason = optionalText(formData.get("paymentReason"));
+  const statusReason = optionalText(formData.get("statusReason"));
   const manualPaymentPilotEnabled = await isFeatureEnabled("feature.manual_payment_pilot");
   const paymentUpdate = resolveManualPaymentStatusUpdate({
     actor: { ...user, manualPaymentPilotEnabled },
@@ -290,22 +293,39 @@ export async function updateProjectOrder(formData: FormData) {
     reason: paymentReason
   });
   if (!paymentUpdate.ok) throw new Error(paymentUpdate.error);
+  if (!canTransitionOrderStatus(order.status, status)) throw new Error("订单状态不允许这样跳转");
+  if (!canTransitionFulfillmentStatus(order.fulfillmentStatus, fulfillmentStatus)) throw new Error("履约状态不允许这样跳转");
+  if (status !== order.status && !statusReason) throw new Error("修改订单状态必须填写原因");
+  if (fulfillmentStatus !== order.fulfillmentStatus && !statusReason) throw new Error("修改履约状态必须填写原因");
 
-  await prisma.projectOrder.update({
-    where: { id },
-    data: {
-      status,
-      paymentStatus: paymentUpdate.status,
-      fulfillmentStatus,
-      trackingCompany: optionalText(formData.get("trackingCompany")),
-      trackingNumber: optionalText(formData.get("trackingNumber")),
-      exceptionNote: optionalText(formData.get("exceptionNote")),
-      note: optionalText(formData.get("note"))
+  await prisma.$transaction(async (tx) => {
+    await tx.projectOrder.update({
+      where: { id },
+      data: {
+        status,
+        paymentStatus: paymentUpdate.status,
+        fulfillmentStatus,
+        trackingCompany: optionalText(formData.get("trackingCompany")),
+        trackingNumber: optionalText(formData.get("trackingNumber")),
+        exceptionNote: optionalText(formData.get("exceptionNote")),
+        note: optionalText(formData.get("note")),
+        cancelledAt: status === ProjectOrderStatus.CANCELLED ? new Date() : undefined,
+        cancellationReason: status === ProjectOrderStatus.CANCELLED ? statusReason : undefined
+      }
+    });
+    if (status !== order.status) {
+      await tx.commerceStateEvent.create({ data: {
+        aggregateType: "ORDER",
+        aggregateId: id,
+        fromState: order.status,
+        toState: status,
+        actorId: user.id,
+        reason: statusReason,
+        metadata: { oldFulfillmentStatus: order.fulfillmentStatus, newFulfillmentStatus: fulfillmentStatus }
+      } });
     }
-  });
-
-  await prisma.adminLog.create({
-    data: {
+    await tx.adminLog.create({
+      data: {
       adminId: user.id,
       action: "PROJECT_ORDER_UPDATE",
       targetType: "ProjectOrder",
@@ -324,7 +344,8 @@ export async function updateProjectOrder(formData: FormData) {
             }
           : { paymentStatus: paymentUpdate.status })
       }
-    }
+      }
+    });
   });
 
   revalidatePath("/admin/orders");

@@ -227,6 +227,61 @@ export function orderIsEditable(status: ProjectOrderStatus) {
   return status === ProjectOrderStatus.RESERVATION || status === ProjectOrderStatus.INTENT || status === ProjectOrderStatus.PENDING_PAYMENT;
 }
 
+const ORDER_TRANSITIONS: Record<ProjectOrderStatus, readonly ProjectOrderStatus[]> = {
+  INTENT: [ProjectOrderStatus.RESERVATION, ProjectOrderStatus.CANCELLED],
+  RESERVATION: [ProjectOrderStatus.PENDING_PAYMENT, ProjectOrderStatus.CONFIRMED, ProjectOrderStatus.CANCELLED],
+  PENDING_PAYMENT: [ProjectOrderStatus.CONFIRMED, ProjectOrderStatus.CANCELLED, ProjectOrderStatus.REFUND_PENDING],
+  CONFIRMED: [ProjectOrderStatus.IN_PROGRESS, ProjectOrderStatus.PRODUCTION, ProjectOrderStatus.CANCELLED, ProjectOrderStatus.REFUND_PENDING],
+  IN_PROGRESS: [ProjectOrderStatus.PRODUCTION, ProjectOrderStatus.CANCELLED, ProjectOrderStatus.REFUND_PENDING],
+  PRODUCTION: [ProjectOrderStatus.SHIPPED, ProjectOrderStatus.REFUND_PENDING],
+  SHIPPED: [ProjectOrderStatus.COMPLETED],
+  COMPLETED: [],
+  CANCELLED: [ProjectOrderStatus.REFUND_PENDING],
+  REFUND_PENDING: [ProjectOrderStatus.REFUNDED],
+  REFUNDED: []
+};
+
+const PAYMENT_TRANSITIONS: Record<ProjectOrderPaymentStatus, readonly ProjectOrderPaymentStatus[]> = {
+  UNPAID: [ProjectOrderPaymentStatus.PENDING, ProjectOrderPaymentStatus.PAID, ProjectOrderPaymentStatus.FAILED],
+  PENDING: [ProjectOrderPaymentStatus.PAID, ProjectOrderPaymentStatus.FAILED],
+  PAID: [ProjectOrderPaymentStatus.PARTIALLY_REFUNDED, ProjectOrderPaymentStatus.REFUNDED],
+  FAILED: [ProjectOrderPaymentStatus.PENDING, ProjectOrderPaymentStatus.PAID],
+  PARTIALLY_REFUNDED: [ProjectOrderPaymentStatus.REFUNDED],
+  REFUNDED: []
+};
+
+const FULFILLMENT_TRANSITIONS: Record<ProjectOrderFulfillmentStatus, readonly ProjectOrderFulfillmentStatus[]> = {
+  NOT_STARTED: [ProjectOrderFulfillmentStatus.PRODUCTION, ProjectOrderFulfillmentStatus.EXCEPTION],
+  PRODUCTION: [ProjectOrderFulfillmentStatus.QUALITY_CHECK, ProjectOrderFulfillmentStatus.EXCEPTION],
+  QUALITY_CHECK: [ProjectOrderFulfillmentStatus.PRODUCTION, ProjectOrderFulfillmentStatus.READY_TO_SHIP, ProjectOrderFulfillmentStatus.EXCEPTION],
+  READY_TO_SHIP: [ProjectOrderFulfillmentStatus.SHIPPED, ProjectOrderFulfillmentStatus.EXCEPTION],
+  SHIPPED: [ProjectOrderFulfillmentStatus.DELIVERED, ProjectOrderFulfillmentStatus.EXCEPTION],
+  DELIVERED: [],
+  EXCEPTION: [ProjectOrderFulfillmentStatus.PRODUCTION, ProjectOrderFulfillmentStatus.QUALITY_CHECK, ProjectOrderFulfillmentStatus.READY_TO_SHIP]
+};
+
+export function canTransitionOrderStatus(from: ProjectOrderStatus, to: ProjectOrderStatus) {
+  return from === to || ORDER_TRANSITIONS[from].includes(to);
+}
+
+export function canTransitionPaymentStatus(from: ProjectOrderPaymentStatus, to: ProjectOrderPaymentStatus) {
+  return from === to || PAYMENT_TRANSITIONS[from].includes(to);
+}
+
+export function canTransitionFulfillmentStatus(from: ProjectOrderFulfillmentStatus, to: ProjectOrderFulfillmentStatus) {
+  return from === to || FULFILLMENT_TRANSITIONS[from].includes(to);
+}
+
+export const ACTIVE_RESERVATION_STATUSES = [
+  ProjectOrderStatus.RESERVATION,
+  ProjectOrderStatus.PENDING_PAYMENT,
+  ProjectOrderStatus.CONFIRMED,
+  ProjectOrderStatus.IN_PROGRESS,
+  ProjectOrderStatus.PRODUCTION,
+  ProjectOrderStatus.SHIPPED,
+  ProjectOrderStatus.COMPLETED
+] as const;
+
 export function isManualPaymentStatus(value: unknown): value is ProjectOrderPaymentStatus {
   return typeof value === "string" && MANUAL_PAYMENT_STATUSES.includes(value as (typeof MANUAL_PAYMENT_STATUSES)[number]);
 }
@@ -264,6 +319,9 @@ export function resolveManualPaymentStatusUpdate({
 
   const access = assertManualPaymentAdminAccess(actor, requestedStatus, reason);
   if (!access.ok) return access;
+  if (!canTransitionPaymentStatus(oldStatus, requestedStatus)) {
+    return { ok: false as const, error: "付款状态不允许这样跳转。" };
+  }
 
   return { ok: true as const, changed: true as const, status: requestedStatus };
 }

@@ -76,8 +76,9 @@ async function main() {
   await assertEqual("manual payment logs reason", actionSource.includes("reason: paymentReason"), true);
   const preorderRoute = readFileSync("src/app/api/projects/[id]/preorders/route.ts", "utf8");
   await assertEqual("preorder route does not read client paymentStatus", preorderRoute.includes("body?.paymentStatus"), false);
-  await assertEqual("preorder route only system sets pending", preorderRoute.includes("ProjectOrderPaymentStatus.PENDING"), true);
-  await assertEqual("preorder route only system sets unpaid", preorderRoute.includes("ProjectOrderPaymentStatus.UNPAID"), true);
+  await assertEqual("preorder route requires idempotency key", preorderRoute.includes('request.headers.get("Idempotency-Key")'), true);
+  await assertEqual("preorder route delegates transaction", preorderRoute.includes("createLimitedPreorder"), true);
+  await assertEqual("preorder route never calls payment before order", preorderRoute.includes("createPaymentProvider"), false);
 
   const sms = createSmsProvider({});
   const smsResult = await sms.send({ to: "+8613800138000", template: "preorder", variables: { code: "1234" } });

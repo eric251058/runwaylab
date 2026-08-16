@@ -26,6 +26,7 @@ export function LimitedPreorderPanel({ projectId, products, isLoggedIn }: Limite
   const [skuId, setSkuId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const product = products.find((item) => item.id === productId) ?? products[0];
 
   function submit(formData: FormData) {
@@ -33,7 +34,7 @@ export function LimitedPreorderPanel({ projectId, products, isLoggedIn }: Limite
     startTransition(async () => {
       const response = await fetch(`/api/projects/${projectId}/preorders`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
         body: JSON.stringify({
           productId,
           skuId,
@@ -43,6 +44,7 @@ export function LimitedPreorderPanel({ projectId, products, isLoggedIn }: Limite
       });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       setMessage(response.ok ? "已提交预订意向，平台后续人工确认。" : data?.error ?? "提交失败，请稍后再试。");
+      if (response.ok) setIdempotencyKey(crypto.randomUUID());
     });
   }
 

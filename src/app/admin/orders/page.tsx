@@ -64,6 +64,7 @@ export default async function AdminOrdersPage() {
               <input name="trackingNumber" defaultValue={order.trackingNumber ?? ""} placeholder="物流单号，仅备注" className={input} />
               <input name="exceptionNote" defaultValue={order.exceptionNote ?? ""} placeholder="异常说明" className={`${input} lg:col-span-2`} />
               <input name="paymentReason" placeholder="付款状态变更原因，未变更可不填" className={`${input} lg:col-span-2`} />
+              <input name="statusReason" placeholder="订单或履约状态变更原因，未变更可不填" className={`${input} lg:col-span-3`} />
               <input name="note" defaultValue={order.note ?? ""} placeholder="内部备注" className={`${input} lg:col-span-5`} />
             </form>
           ))}
