@@ -330,6 +330,7 @@ export default async function MePage({ searchParams }: MePageProps) {
         <section className="grid gap-3 md:grid-cols-2">
           {[
             ["项目工作台", `${incubatingWorkCount} 件作品正在推进`, "/me/projects"],
+            ["项目参与中心", "管理申请、审核与工作区加入", "/me/project-applications"],
             ["参赛作品", `${entryItems.length} 件作品参加挑战`, "/challenges"],
             ["面料需求", `${fabricItems.length} 条记录`, "/me/projects"],
             ["打样需求", `${sampleItems.length} 条记录`, "/me/projects"],

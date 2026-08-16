@@ -4,6 +4,8 @@ import { PresaleCampaignIntentStatus, ReviewStatus } from "@prisma/client";
 import { LimitedPreorderPanel } from "@/components/projects/LimitedPreorderPanel";
 import { ProjectIssueForm } from "@/components/projects/ProjectIssueForm";
 import { getCurrentUser } from "@/lib/auth/session";
+import { submitProjectApplication } from "@/lib/project-application-actions";
+import { PROJECT_APPLICATION_ROLE_LABELS, PROJECT_APPLICATION_ROLES, projectOpportunityNeeds } from "@/lib/project-applications";
 import { PROJECT_ORDER_STATUS_LABELS, PROJECT_PRIORITY_LABELS, PROJECT_STATUS_LABELS, publicProjectWhere } from "@/lib/commercial-collaboration";
 import { isFeatureEnabled } from "@/lib/features";
 import { canOpenLimitedPreorder, PROJECT_MILESTONE_STATUS_LABELS } from "@/lib/projects/rules";
@@ -172,6 +174,49 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
               </article>
             ))}
           </div>
+        </section>
+      ) : null}
+      {marketplaceEnabled ? (
+        <section className="mt-8 rounded-[8px] border border-black/8 bg-white p-5 md:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold tracking-[0.16em] text-ink/38">OPEN COLLABORATION</p>
+              <h2 className="mt-2 text-2xl font-semibold text-ink">参与这个项目</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/58">选择你能贡献的角色，直接向项目主理人说明合作价值。申请不是雇佣、订单或付款承诺，合作条件由双方后续自主确认。</p>
+            </div>
+            <Link href="/me/project-applications" className="inline-flex min-h-10 items-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">我的申请与审核</Link>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {projectOpportunityNeeds(project).map((need) => (
+              <span key={need.key} className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">{need.label}</span>
+            ))}
+          </div>
+          {currentUser ? (
+            [project.designerId, project.ownerUserId, project.createdById, project.work?.userId].includes(currentUser.id) ? (
+              <p className="mt-5 rounded-[8px] bg-black/[0.025] p-4 text-sm text-ink/58">你是该项目的发起或负责方，可前往“我的申请与审核”管理参与者。</p>
+            ) : (
+              <form action={submitProjectApplication} className="mt-5 grid gap-4">
+                <input type="hidden" name="projectId" value={project.id} />
+                <label className="grid gap-2 text-sm font-semibold text-ink">
+                  希望参与的角色
+                  <select name="role" required className="min-h-11 rounded-[8px] border border-black/10 bg-white px-3 text-sm font-normal outline-none focus:border-ink/40">
+                    {PROJECT_APPLICATION_ROLES.map((role) => <option key={role} value={role}>{PROJECT_APPLICATION_ROLE_LABELS[role]}</option>)}
+                  </select>
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-ink">
+                  你能带来的合作价值
+                  <textarea name="message" required minLength={10} maxLength={500} rows={4} placeholder="例如：可承接小单快反打样，并提供预计周期与过往品类经验。" className="rounded-[8px] border border-black/10 p-3 text-sm font-normal leading-6 outline-none focus:border-ink/40" />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold text-ink">
+                  相关经验（可选）
+                  <textarea name="experience" maxLength={500} rows={3} placeholder="描述能力与经历即可；无需在此公开手机号、邮箱或微信。" className="rounded-[8px] border border-black/10 p-3 text-sm font-normal leading-6 outline-none focus:border-ink/40" />
+                </label>
+                <button className="inline-flex min-h-11 w-fit items-center rounded-full bg-ink px-6 text-sm font-semibold text-white">提交参与申请</button>
+              </form>
+            )
+          ) : (
+            <Link href={"/login?next=/projects/" + (project.slug ?? project.id)} className="mt-5 inline-flex min-h-11 items-center rounded-full bg-ink px-6 text-sm font-semibold text-white">登录后申请参与</Link>
+          )}
         </section>
       ) : null}
 
