@@ -12,7 +12,7 @@ function text(value: unknown, max = 500) {
 
 function positiveQuantity(value: unknown) {
   const number = Number(value);
-  return Number.isInteger(number) && number >= 1 && number <= 20 ? number : 1;
+  return Number.isInteger(number) && number >= 1 && number <= 20 ? number : null;
 }
 
 export async function POST(request: Request, context: RouteContext) {
@@ -33,6 +33,10 @@ export async function POST(request: Request, context: RouteContext) {
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   const productId = text(body?.productId, 80);
   if (!productId) return NextResponse.json({ error: "请选择预订商品。" }, { status: 400 });
+  const quantity = positiveQuantity(body?.quantity);
+  if (quantity === null) {
+    return NextResponse.json({ error: "预订数量必须是 1 至 20 的整数。", code: "INVALID_QUANTITY" }, { status: 400 });
+  }
 
   try {
     const result = await createLimitedPreorder({
@@ -40,9 +44,10 @@ export async function POST(request: Request, context: RouteContext) {
       projectRef: id,
       productId,
       skuId: text(body?.skuId, 80) || null,
-      quantity: positiveQuantity(body?.quantity),
+      quantity,
       buyerNote: text(body?.buyerNote, 500) || null,
-      idempotencyKey
+      idempotencyKey,
+      termsAccepted: body?.acceptPreorderTerms === true
     });
     return NextResponse.json({ order: result.order, repeated: result.repeated }, { status: result.repeated ? 200 : 201 });
   } catch (error) {

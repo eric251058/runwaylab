@@ -229,11 +229,11 @@ export function orderIsEditable(status: ProjectOrderStatus) {
 
 const ORDER_TRANSITIONS: Record<ProjectOrderStatus, readonly ProjectOrderStatus[]> = {
   INTENT: [ProjectOrderStatus.RESERVATION, ProjectOrderStatus.CANCELLED],
-  RESERVATION: [ProjectOrderStatus.PENDING_PAYMENT, ProjectOrderStatus.CONFIRMED, ProjectOrderStatus.CANCELLED],
+  RESERVATION: [ProjectOrderStatus.PENDING_PAYMENT, ProjectOrderStatus.CONFIRMED, ProjectOrderStatus.CANCELLED, ProjectOrderStatus.REFUND_PENDING],
   PENDING_PAYMENT: [ProjectOrderStatus.CONFIRMED, ProjectOrderStatus.CANCELLED, ProjectOrderStatus.REFUND_PENDING],
   CONFIRMED: [ProjectOrderStatus.IN_PROGRESS, ProjectOrderStatus.PRODUCTION, ProjectOrderStatus.CANCELLED, ProjectOrderStatus.REFUND_PENDING],
   IN_PROGRESS: [ProjectOrderStatus.PRODUCTION, ProjectOrderStatus.CANCELLED, ProjectOrderStatus.REFUND_PENDING],
-  PRODUCTION: [ProjectOrderStatus.SHIPPED, ProjectOrderStatus.REFUND_PENDING],
+  PRODUCTION: [ProjectOrderStatus.SHIPPED, ProjectOrderStatus.CANCELLED, ProjectOrderStatus.REFUND_PENDING],
   SHIPPED: [ProjectOrderStatus.COMPLETED],
   COMPLETED: [],
   CANCELLED: [ProjectOrderStatus.REFUND_PENDING],
@@ -279,7 +279,8 @@ export const ACTIVE_RESERVATION_STATUSES = [
   ProjectOrderStatus.IN_PROGRESS,
   ProjectOrderStatus.PRODUCTION,
   ProjectOrderStatus.SHIPPED,
-  ProjectOrderStatus.COMPLETED
+  ProjectOrderStatus.COMPLETED,
+  ProjectOrderStatus.REFUND_PENDING
 ] as const;
 
 export function isManualPaymentStatus(value: unknown): value is ProjectOrderPaymentStatus {

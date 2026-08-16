@@ -11,11 +11,14 @@ export default async function MeProjectOrdersPage() {
 
   const orders = await prisma.projectOrder.findMany({
     where: {
-      OR: [
-        { buyerId: user.id },
-        { work: { userId: user.id } },
-        { project: { designerId: user.id } },
-        { project: { work: { userId: user.id } } }
+      AND: [
+        { preorderCampaignId: null },
+        { OR: [
+          { buyerId: user.id },
+          { work: { userId: user.id } },
+          { project: { designerId: user.id } },
+          { project: { work: { userId: user.id } } }
+        ] }
       ]
     },
     include: { project: true, provider: true, work: true },
