@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PresaleCampaignStatus, ProjectDesignAuthorizationStatus } from "@prisma/client";
+import { PresaleCampaignIntentStatus, PresaleCampaignStatus, ProjectDesignAuthorizationStatus } from "@prisma/client";
 import { savePresaleCampaign } from "@/lib/presale-campaign-actions";
 import { PRESALE_CAMPAIGN_STATUS_LABELS, presaleProgress } from "@/lib/presale-campaign";
 import { prisma } from "@/lib/prisma";
@@ -18,8 +18,9 @@ export default async function AdminPresaleCampaignsPage() {
         work: { include: { user: true } },
         createdBy: true,
         collaborationProjects: {
-          select: { id: true, title: true }
+          select: { id: true, slug: true, title: true }
         },
+        intents: { select: { status: true, quantity: true } },
         _count: { select: { intents: true } }
       },
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
@@ -117,6 +118,18 @@ export default async function AdminPresaleCampaignsPage() {
         {campaigns.length ? campaigns.map((campaign) => {
           const progress = presaleProgress(campaign.currentCount, campaign.targetCount);
           const publicEligible = publicEligibleWorkIds.has(campaign.workId);
+          const confirmedIntents = campaign.intents.filter((intent) => intent.status === PresaleCampaignIntentStatus.CONFIRMED);
+          const confirmedQuantity = confirmedIntents.reduce((total, intent) => total + intent.quantity, 0);
+          const confirmationRate = campaign.currentCount > 0 ? Math.round((confirmedQuantity / campaign.currentCount) * 100) : 0;
+          const targetReached = confirmedQuantity >= campaign.targetCount;
+          const decisionLabel = targetReached
+            ? "确认需求已达到目标，可评估打样或预订准备。"
+            : confirmedQuantity > 0
+              ? "已有确认需求，继续跟进并验证履约条件。"
+              : campaign.currentCount > 0
+                ? "已有意向，等待人工确认后再推进。"
+                : "继续收集市场信号，暂不进入履约。";
+          const linkedProject = campaign.collaborationProjects[0] ?? null;
           return (
             <form key={campaign.id} action={savePresaleCampaign} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-4 md:grid-cols-4">
               <input type="hidden" name="id" value={campaign.id} />
@@ -163,6 +176,29 @@ export default async function AdminPresaleCampaignsPage() {
                   ? campaign.collaborationProjects.map((project) => project.title).join("、")
                   : "尚未关联；公开验证前必须选择一个已取得设计授权的协作项目。"}
               </p>
+              <div className="grid gap-3 rounded-[8px] bg-paper p-4 md:col-span-4 md:grid-cols-[repeat(3,minmax(0,1fr))_auto] md:items-center">
+                <div>
+                  <p className="text-xs font-semibold text-ink/40">有效意向数量</p>
+                  <p className="mt-1 text-xl font-semibold text-ink">{campaign.currentCount}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-ink/40">人工确认数量</p>
+                  <p className="mt-1 text-xl font-semibold text-ink">{confirmedQuantity}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-ink/40">确认率</p>
+                  <p className="mt-1 text-xl font-semibold text-ink">{confirmationRate}%</p>
+                </div>
+                {linkedProject ? (
+                  <Link href={"/projects/" + (linkedProject.slug ?? linkedProject.id)} className="inline-flex min-h-10 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink">
+                    打开承接项目
+                  </Link>
+                ) : null}
+                <p className={"text-sm font-semibold leading-6 md:col-span-4 " + (targetReached ? "text-emerald-700" : "text-ink/55")}>
+                  {decisionLabel}
+                </p>
+                <p className="text-xs leading-5 text-ink/40 md:col-span-4">决策提示仅基于未付款意向与人工确认数据，不会自动创建订单、生产任务或收入记录。</p>
+              </div>
               <p className={"text-xs font-semibold md:col-span-4 " + (publicEligible ? "text-emerald-700" : "text-amber-700")}>
                 {publicEligible ? "前台可见：作品已通过公开质量门槛。" : "前台隐藏：作品未达到公开质量门槛，只能保存为草稿。"}
               </p>
