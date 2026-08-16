@@ -107,8 +107,10 @@ export async function submitPresaleCampaignIntent(formData: FormData) {
     where: { id: campaignId },
     select: {
       id: true,
+      title: true,
       workId: true,
-      status: true
+      status: true,
+      work: { select: { userId: true } }
     }
   });
 
@@ -193,6 +195,15 @@ export async function submitPresaleCampaignIntent(formData: FormData) {
         dedupe: false
       }))
     );
+    await createNotificationSafe({
+      recipientId: campaign.work.userId,
+      actorId: user?.id,
+      eventType: NOTIFICATION_EVENTS.PRESALE_INTENT_RECEIVED,
+      title: "作品收到新的预售意向",
+      body: `“${campaign.title}”新增 ${quantity} 件购买意向。这是市场意向，不是订单或已付款交易。`,
+      targetUrl: "/me/incubation",
+      dedupe: false
+    });
   } catch (error) {
     console.error("Failed to submit presale campaign intent", error);
     return { ok: false, message: "提交失败，请稍后再试。" };
@@ -342,7 +353,8 @@ export async function cancelOwnPresaleCampaignIntent(formData: FormData) {
       workId: true,
       quantity: true,
       status: true,
-      campaign: { select: { title: true } }
+      campaign: { select: { title: true } },
+      work: { select: { userId: true } }
     }
   });
   if (!intent) throw new Error("预售意向不存在");
@@ -384,6 +396,16 @@ export async function cancelOwnPresaleCampaignIntent(formData: FormData) {
       dedupe: false
     }))
   );
+
+  await createNotificationSafe({
+    recipientId: intent.work.userId,
+    actorId: user.id,
+    eventType: NOTIFICATION_EVENTS.PRESALE_INTENT_UPDATED,
+    title: "作品预售意向已撤回",
+    body: `“${intent.campaign.title}”减少 ${intent.quantity} 件购买意向，需求数量已同步更新。这是市场意向变化，不是退款或订单取消。`,
+    targetUrl: "/me/incubation",
+    dedupe: false
+  });
 
   revalidatePath(`/works/${intent.workId}`);
   revalidatePath("/presale");
