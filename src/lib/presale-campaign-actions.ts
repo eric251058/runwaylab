@@ -4,10 +4,11 @@ import { revalidatePath } from "next/cache";
 import {
   PresaleCampaignIntentStatus,
   PresaleCampaignStatus,
+  LimitedPreorderStatus,
   ProjectDesignAuthorizationStatus,
+  Prisma,
   UserRole,
-  UserStatus,
-  type Prisma
+  UserStatus
 } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createNotificationForMany, createNotificationSafe, NOTIFICATION_EVENTS } from "@/lib/notifications";
@@ -22,6 +23,18 @@ async function requireAdminUser() {
   return user;
 }
 
+async function runPresaleCampaignSaveTransaction<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(operation, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034" && attempt < 2) continue;
+      throw error;
+    }
+  }
+  throw new Error("活动资料并发冲突，请刷新后重试");
+}
+
 function boolValue(formData: FormData, key: string) {
   return formData.get(key) === "on";
 }
@@ -29,40 +42,6 @@ function boolValue(formData: FormData, key: string) {
 function enumValue<T extends string>(value: FormDataEntryValue | null, allowed: readonly T[], fallback: T) {
   const text = optionalText(value);
   return text && allowed.includes(text as T) ? (text as T) : fallback;
-}
-
-async function assertWorkCanEnterPublicPresale(workId: string) {
-  const work = await prisma.work.findUnique({
-    where: { id: workId },
-    select: {
-      title: true,
-      description: true,
-      reviewStatus: true,
-      contentStatus: true,
-      visibility: true,
-      images: {
-        select: { imageUrl: true }
-      }
-    }
-  });
-
-  if (!work || !isPublicQualityWork(work)) {
-    throw new Error("该作品尚未达到公开质量门槛，请先补齐图片、标题和作品说明并完成审核；当前只能保存为草稿。");
-  }
-}
-
-async function assertDesignerAuthorizedPublicPresale(workId: string) {
-  const authorizedProject = await prisma.collaborationProject.findFirst({
-    where: {
-      workId,
-      designerAuthorizationStatus: ProjectDesignAuthorizationStatus.ACCEPTED
-    },
-    select: { id: true }
-  });
-
-  if (!authorizedProject) {
-    throw new Error("作品作者尚未通过合作项目确认设计授权；管理员和项目主理人不能代签，当前只能保存为草稿。");
-  }
 }
 
 type PresaleLaunchData = {
@@ -220,6 +199,7 @@ export async function submitPresaleCampaignIntent(formData: FormData) {
 export async function savePresaleCampaign(formData: FormData) {
   const admin = await requireAdminUser();
   const id = optionalText(formData.get("id"));
+  const collaborationProjectId = optionalText(formData.get("collaborationProjectId"));
   const data = {
     workId: requiredText(formData.get("workId"), "作品"),
     title: requiredText(formData.get("title"), "预售标题"),
@@ -237,21 +217,82 @@ export async function savePresaleCampaign(formData: FormData) {
   };
 
   if (data.status === PresaleCampaignStatus.ACTIVE) {
-    await assertWorkCanEnterPublicPresale(data.workId);
-    await assertDesignerAuthorizedPublicPresale(data.workId);
+    if (!collaborationProjectId) throw new Error("公开需求验证必须关联一个已取得设计授权的协作项目。");
     assertCampaignCanLaunch(data);
   }
 
-  if (id) {
-    await prisma.presaleCampaign.update({ where: { id }, data });
-  } else {
-    await prisma.presaleCampaign.create({
-      data: {
-        ...data,
-        createdById: admin.id
+  await runPresaleCampaignSaveTransaction(async (tx) => {
+    if (collaborationProjectId) {
+      const selectedProject = await tx.collaborationProject.findUnique({
+        where: { id: collaborationProjectId },
+        select: {
+          workId: true,
+          presaleCampaignId: true,
+          designerAuthorizationStatus: true,
+          work: {
+            select: {
+              userId: true,
+              title: true,
+              description: true,
+              reviewStatus: true,
+              contentStatus: true,
+              visibility: true,
+              images: { select: { imageUrl: true } }
+            }
+          },
+          designAuthorizations: {
+            select: { status: true, workId: true, designerUserId: true },
+            take: 1
+          }
+        }
+      });
+      if (!selectedProject || selectedProject.workId !== data.workId) throw new Error("协作项目与预售作品不一致");
+      const authorization = selectedProject.designAuthorizations[0];
+      if (
+        selectedProject.designerAuthorizationStatus !== ProjectDesignAuthorizationStatus.ACCEPTED
+        || authorization?.status !== ProjectDesignAuthorizationStatus.ACCEPTED
+        || authorization.workId !== data.workId
+        || authorization.designerUserId !== selectedProject.work?.userId
+      ) {
+        throw new Error("协作项目尚未取得与当前作品及作者一致的真实设计授权");
       }
+      if (data.status === PresaleCampaignStatus.ACTIVE && (!selectedProject.work || !isPublicQualityWork(selectedProject.work))) {
+        throw new Error("该作品尚未达到公开质量门槛，请先补齐图片、标题和作品说明并完成审核；当前只能保存为草稿。");
+      }
+      if (selectedProject.presaleCampaignId && selectedProject.presaleCampaignId !== id) throw new Error("协作项目已关联其他预售活动");
+    }
+
+    let campaign;
+    if (id) {
+      const changed = await tx.presaleCampaign.updateMany({
+        where: { id, preorderStatus: LimitedPreorderStatus.NOT_STARTED },
+        data
+      });
+      if (changed.count !== 1) {
+        const existing = await tx.presaleCampaign.findUnique({ where: { id }, select: { preorderStatus: true } });
+        if (!existing) throw new Error("预售活动不存在");
+        throw new Error("限量预售开始后活动资料与项目关联已锁定，请到生命周期工作台操作。");
+      }
+      campaign = await tx.presaleCampaign.findUniqueOrThrow({ where: { id } });
+    } else {
+      campaign = await tx.presaleCampaign.create({ data: { ...data, createdById: admin.id } });
+    }
+
+    await tx.collaborationProject.updateMany({
+      where: {
+        presaleCampaignId: campaign.id,
+        ...(collaborationProjectId ? { id: { not: collaborationProjectId } } : {})
+      },
+      data: { presaleCampaignId: null }
     });
-  }
+    if (collaborationProjectId) {
+      const linked = await tx.collaborationProject.updateMany({
+        where: { id: collaborationProjectId, OR: [{ presaleCampaignId: null }, { presaleCampaignId: campaign.id }] },
+        data: { presaleCampaignId: campaign.id }
+      });
+      if (linked.count !== 1) throw new Error("协作项目关联状态已变化，请刷新后重试");
+    }
+  });
 
   revalidatePath("/");
   revalidatePath("/presale");

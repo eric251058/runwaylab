@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PresaleCampaignIntentStatus, ReviewStatus } from "@prisma/client";
+import { LimitedPreorderStatus, PresaleCampaignIntentStatus, ReviewStatus } from "@prisma/client";
 import { LimitedPreorderPanel } from "@/components/projects/LimitedPreorderPanel";
 import { ProjectIssueForm } from "@/components/projects/ProjectIssueForm";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -8,15 +8,53 @@ import { submitProjectApplication } from "@/lib/project-application-actions";
 import { PROJECT_APPLICATION_ROLE_LABELS, PROJECT_APPLICATION_ROLES, projectOpportunityNeeds } from "@/lib/project-applications";
 import { PROJECT_ORDER_STATUS_LABELS, PROJECT_PRIORITY_LABELS, PROJECT_STATUS_LABELS, publicProjectWhere } from "@/lib/commercial-collaboration";
 import { isFeatureEnabled } from "@/lib/features";
+import { LIMITED_PREORDER_QUALIFICATION_LABELS, LIMITED_PREORDER_STATUS_LABELS } from "@/lib/projects/preorder-lifecycle";
 import { canOpenLimitedPreorder, PROJECT_MILESTONE_STATUS_LABELS } from "@/lib/projects/rules";
 import { prisma } from "@/lib/prisma";
 import { visualFor } from "@/components/works/work-visuals";
+import { isPublicQualityWork } from "@/lib/works/rules";
 
 export const dynamic = "force-dynamic";
 
 type ProjectDetailPageProps = {
   params: Promise<{ id: string }>;
 };
+
+function formatPreorderDateTime(value?: Date | null) {
+  if (!value) return "未记录";
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short"
+  }).format(value);
+}
+
+function limitedPreorderPublicNotice(status: LimitedPreorderStatus, submissionEnabled: boolean) {
+  switch (status) {
+    case LimitedPreorderStatus.OPEN:
+      return submissionEnabled
+        ? "本期正在接收限量预售订单，请先核对商品、规格、截止时间、预计发货与条款正文。"
+        : "活动状态仍为开放，但新提交入口当前已关闭；已有订单及付款、退款和履约义务不受影响。";
+    case LimitedPreorderStatus.PAUSED:
+      return "本期已暂停接单。已有订单继续保留并按订单中心状态处理，恢复时间以平台后续说明为准。";
+    case LimitedPreorderStatus.GOAL_REACHED:
+      return "本期已达到成团目标，正在等待平台确认进入生产；达标不等于已经发货。";
+    case LimitedPreorderStatus.FAILED:
+      return "本期未达到成团目标。未付款订单将关闭；已付款订单进入退款待处理，退款完成以订单中的实际退款记录为准。";
+    case LimitedPreorderStatus.CANCELLED:
+      return "本期已取消。未付款订单将关闭；已付款订单进入退款待处理，退款完成以订单中的实际退款记录为准。";
+    case LimitedPreorderStatus.PRODUCTION:
+      return "本期已进入生产。预计发货仍是计划时间，具体生产、质检和发货进度以个人订单记录为准。";
+    case LimitedPreorderStatus.CLOSED:
+      return "本期已结束归档，不再接收新订单；历史订单及其付款、退款和履约记录仍可在个人订单中心查看。";
+    case LimitedPreorderStatus.NOT_STARTED:
+      return "本期尚未开始。";
+  }
+}
 
 export default async function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const { id } = await params;
@@ -48,16 +86,28 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
       },
       products: { include: { skus: { where: { enabled: true }, orderBy: { createdAt: "asc" } } }, orderBy: { createdAt: "asc" } },
       milestones: { orderBy: { createdAt: "asc" } },
-      orders: { orderBy: { createdAt: "desc" }, take: 8 },
+      orders: { where: { preorderCampaignId: null }, orderBy: { createdAt: "desc" }, take: 8 },
       reviews: { where: { status: ReviewStatus.PUBLISHED }, include: { reviewer: true }, orderBy: { createdAt: "desc" }, take: 8 }
     }
   });
 
   if (!project) notFound();
-  const preorderProducts = project.products.filter((product) => canOpenLimitedPreorder(project.status, product.status, project.designerAuthorizationStatus));
   const work = project.work;
   const designerName = project.designer?.nickname ?? work?.user.nickname ?? "待关联";
   const presaleCampaign = project.presaleCampaign;
+  const workPublicReady = Boolean(work && isPublicQualityWork(work));
+  const preorderProducts = presaleCampaign?.preorderStatus === LimitedPreorderStatus.OPEN && workPublicReady
+    ? project.products.filter((product) => canOpenLimitedPreorder(project.status, product.status, project.designerAuthorizationStatus))
+    : [];
+  const preorderLifecycleStarted = Boolean(presaleCampaign && presaleCampaign.preorderStatus !== LimitedPreorderStatus.NOT_STARTED);
+  const preorderDeadlinePassed = Boolean(presaleCampaign?.preorderDeadline && presaleCampaign.preorderDeadline <= new Date());
+  const canSubmitLimitedPreorder = Boolean(
+    preorderEnabled
+    && presaleCampaign?.preorderStatus === LimitedPreorderStatus.OPEN
+    && presaleCampaign.preorderDeadline
+    && presaleCampaign.preorderDeadline > new Date()
+    && preorderProducts.length
+  );
   const confirmedIntents = presaleCampaign?.intents.filter(
     (intent) => intent.status === PresaleCampaignIntentStatus.CONFIRMED
   ) ?? [];
@@ -142,25 +192,65 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
         </section>
       ) : null}
 
-      {preorderEnabled && preorderProducts.length ? (
+      {canSubmitLimitedPreorder ? (
         <div className="mt-8">
           <LimitedPreorderPanel
             projectId={project.slug ?? project.id}
             isLoggedIn={Boolean(currentUser)}
+            campaign={{
+              title: presaleCampaign!.title,
+              targetQuantity: presaleCampaign!.preorderTargetQuantity!,
+              capacity: presaleCampaign!.preorderCapacity!,
+              deadline: presaleCampaign!.preorderDeadline!.toISOString(),
+              qualificationMode: presaleCampaign!.preorderQualificationMode,
+              termsVersion: presaleCampaign!.preorderTermsVersion,
+              termsText: presaleCampaign!.preorderTermsText!,
+              paymentInstructions: presaleCampaign!.preorderPaymentInstructions
+            }}
             products={preorderProducts.map((product) => ({
               id: product.id,
               title: product.title,
+              description: product.description,
+              materialDescription: product.materialDescription,
+              careInstructions: product.careInstructions,
               price: product.price,
               currency: product.currency,
+              preorderLimit: product.preorderLimit!,
+              estimatedShipDate: product.estimatedShipDate?.toISOString() ?? null,
               skus: product.skus.map((sku) => ({
                 id: sku.id,
                 size: sku.size,
                 color: sku.color,
-                priceOverride: sku.priceOverride
+                priceOverride: sku.priceOverride,
+                capacity: sku.capacity
               }))
             }))}
           />
         </div>
+      ) : preorderLifecycleStarted && presaleCampaign ? (
+        <section className="mt-8 rounded-[8px] border border-black/8 bg-white p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Limited Preorder</p>
+              <h2 className="mt-2 text-2xl font-semibold text-ink">{presaleCampaign.title}</h2>
+            </div>
+            <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">{LIMITED_PREORDER_STATUS_LABELS[presaleCampaign.preorderStatus]}</span>
+          </div>
+          <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-[6px] bg-paper p-3"><p className="text-xs text-ink/40">成团目标</p><p className="mt-1 font-semibold">{presaleCampaign.preorderTargetQuantity !== null ? `${presaleCampaign.preorderTargetQuantity} 件` : "未记录"}</p></div>
+            <div className="rounded-[6px] bg-paper p-3"><p className="text-xs text-ink/40">成团口径</p><p className="mt-1 font-semibold">{LIMITED_PREORDER_QUALIFICATION_LABELS[presaleCampaign.preorderQualificationMode]}</p></div>
+            <div className="rounded-[6px] bg-paper p-3"><p className="text-xs text-ink/40">本期总限量</p><p className="mt-1 font-semibold">{presaleCampaign.preorderCapacity !== null ? `${presaleCampaign.preorderCapacity} 件` : "未记录"}</p></div>
+            <div className="rounded-[6px] bg-paper p-3"><p className="text-xs text-ink/40">预售截止</p><p className="mt-1 font-semibold">{formatPreorderDateTime(presaleCampaign.preorderDeadline)}</p></div>
+          </div>
+          <p className="mt-4 rounded-[6px] border border-black/8 bg-paper p-3 text-sm leading-6 text-ink/58">
+            {presaleCampaign.preorderStatus === LimitedPreorderStatus.OPEN && preorderDeadlinePassed
+              ? "本期预售已截止，正在等待平台按真实订单意向结算；当前不再接受新提交。"
+              : limitedPreorderPublicNotice(presaleCampaign.preorderStatus, canSubmitLimitedPreorder)}
+          </p>
+          {presaleCampaign.preorderPublicNotice ? <p className="mt-3 text-sm leading-6 text-ink/58"><span className="font-semibold text-ink">平台状态说明：</span>{presaleCampaign.preorderPublicNotice}</p> : null}
+          {presaleCampaign.preorderStatus === LimitedPreorderStatus.OPEN && preorderEnabled && workPublicReady && !preorderProducts.length ? <p className="mt-3 text-sm font-semibold text-red-700">当前没有可下单商品，请联系 RunwayLab 平台核对活动配置。</p> : null}
+          {presaleCampaign.preorderStatus === LimitedPreorderStatus.OPEN && !workPublicReady ? <p className="mt-3 text-sm font-semibold text-red-700">关联作品当前未达到公开质量或审核要求，本期已停止接受新提交，等待平台处理。</p> : null}
+        </section>
       ) : null}
 
       {marketplaceEnabled && project.milestones.length ? (

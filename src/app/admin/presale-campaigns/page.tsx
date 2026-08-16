@@ -3,6 +3,7 @@ import { PresaleCampaignIntentStatus, PresaleCampaignStatus, ProjectDesignAuthor
 import { savePresaleCampaign } from "@/lib/presale-campaign-actions";
 import { PRESALE_CAMPAIGN_STATUS_LABELS, presaleProgress } from "@/lib/presale-campaign";
 import { prisma } from "@/lib/prisma";
+import { LIMITED_PREORDER_STATUS_LABELS } from "@/lib/projects/preorder-lifecycle";
 import { isPublicQualityWork } from "@/lib/works/rules";
 
 export const dynamic = "force-dynamic";
@@ -70,7 +71,7 @@ export default async function AdminPresaleCampaignsPage() {
       </header>
 
       <div className="mb-4 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
-        只有已审核、公开可见、包含有效图片、标题和说明完整的作品才能进入“验证中”并展示在前台。未达标作品仍可保存为草稿。
+        这里管理 V2.1 需求验证资料；V2.3 限量预售使用独立状态机并在项目工作台操作。只有已审核、公开可见且资料完整的作品才能进入“验证中”。
       </div>
 
       <form action={savePresaleCampaign} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-5 md:grid-cols-2">
@@ -130,6 +131,7 @@ export default async function AdminPresaleCampaignsPage() {
                 ? "已有意向，等待人工确认后再推进。"
                 : "继续收集市场信号，暂不进入履约。";
           const linkedProject = campaign.collaborationProjects[0] ?? null;
+          const lifecycleLocked = campaign.preorderStatus !== "NOT_STARTED";
           return (
             <form key={campaign.id} action={savePresaleCampaign} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-4 md:grid-cols-4">
               <input type="hidden" name="id" value={campaign.id} />
@@ -167,7 +169,7 @@ export default async function AdminPresaleCampaignsPage() {
               <input name="endDate" type="date" defaultValue={dateInputValue(campaign.endDate)} className={smallInputClass} />
               <label className="flex items-center gap-2 text-sm"><input name="isFeatured" type="checkbox" defaultChecked={campaign.isFeatured} />推荐</label>
               <textarea name="description" defaultValue={campaign.description ?? ""} className="min-h-20 rounded-[6px] border border-black/10 px-3 py-3 text-sm md:col-span-3" />
-              <button className="h-10 rounded-full border border-black/10 px-4 text-sm font-semibold">保存</button>
+              <button disabled={lifecycleLocked} className="h-10 rounded-full border border-black/10 px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-35">{lifecycleLocked ? "V2.3 生命周期中已锁定" : "保存需求验证资料"}</button>
               <p className="text-xs leading-5 text-ink/45 md:col-span-4">
                 作品：{campaign.work.title} / 创建人：{campaign.createdBy?.nickname ?? "后台"} / 意向 {campaign._count.intents} 条 / 当前 {campaign.currentCount} / {campaign.targetCount}（{progress}%）
               </p>
@@ -176,6 +178,7 @@ export default async function AdminPresaleCampaignsPage() {
                   ? campaign.collaborationProjects.map((project) => project.title).join("、")
                   : "尚未关联；公开验证前必须选择一个已取得设计授权的协作项目。"}
               </p>
+              <p className="text-xs font-semibold leading-5 text-ink/55 md:col-span-4">V2.3 限量预售：{LIMITED_PREORDER_STATUS_LABELS[campaign.preorderStatus]}</p>
               <div className="grid gap-3 rounded-[8px] bg-paper p-4 md:col-span-4 md:grid-cols-[repeat(3,minmax(0,1fr))_auto] md:items-center">
                 <div>
                   <p className="text-xs font-semibold text-ink/40">有效意向数量</p>
@@ -194,7 +197,7 @@ export default async function AdminPresaleCampaignsPage() {
                     <Link href={"/projects/" + (linkedProject.slug ?? linkedProject.id)} className="inline-flex min-h-10 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink">
                       打开承接项目
                     </Link>
-                    {targetReached ? <Link href={"/admin/projects/" + linkedProject.id + "/preorder"} className="inline-flex min-h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">准备限量预订</Link> : null}
+                    <Link href={"/admin/projects/" + linkedProject.id + "/preorder"} className="inline-flex min-h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">准备限量预订 / 进入工作台</Link>
                   </div>
                 ) : null}
                 <p className={"text-sm font-semibold leading-6 md:col-span-4 " + (targetReached ? "text-emerald-700" : "text-ink/55")}>

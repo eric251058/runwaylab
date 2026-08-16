@@ -48,7 +48,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
       provider: true,
       school: true,
       teacher: true,
-      _count: { select: { orders: true, reviews: true, applications: true } }
+      _count: { select: { orders: { where: { preorderCampaignId: null } }, reviews: true, applications: true } }
     },
     orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
     take: 60

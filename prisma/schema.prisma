@@ -302,6 +302,22 @@ enum PresaleCampaignStatus {
   CANCELLED
 }
 
+enum LimitedPreorderStatus {
+  NOT_STARTED
+  OPEN
+  PAUSED
+  GOAL_REACHED
+  FAILED
+  PRODUCTION
+  CANCELLED
+  CLOSED
+}
+
+enum LimitedPreorderQualificationMode {
+  CONFIRMED_ORDER
+  PAID_ORDER
+}
+
 enum PresaleCampaignIntentStatus {
   SUBMITTED
   CONTACTED
@@ -1898,27 +1914,44 @@ model PresaleIntent {
 }
 
 model PresaleCampaign {
-  id             String                @id @default(cuid())
-  workId         String
-  title          String
-  slug           String?               @unique
-  description    String?
-  targetCount    Int                   @default(50)
-  currentCount   Int                   @default(0)
-  estimatedPrice String?
-  priceNote      String?
-  sizeOptions    String[]
-  colorOptions   String[]
-  startDate      DateTime?
-  endDate        DateTime?
-  status         PresaleCampaignStatus @default(DRAFT)
-  isFeatured     Boolean               @default(false)
-  createdById    String?
+  id                          String                           @id @default(cuid())
+  workId                      String
+  title                       String
+  slug                        String?                          @unique
+  description                 String?
+  targetCount                 Int                              @default(50)
+  currentCount                Int                              @default(0)
+  estimatedPrice              String?
+  priceNote                   String?
+  sizeOptions                 String[]
+  colorOptions                String[]
+  startDate                   DateTime?
+  endDate                     DateTime?
+  status                      PresaleCampaignStatus            @default(DRAFT)
+  isFeatured                  Boolean                          @default(false)
+  createdById                 String?
+  preorderStatus              LimitedPreorderStatus            @default(NOT_STARTED)
+  preorderQualificationMode   LimitedPreorderQualificationMode @default(CONFIRMED_ORDER)
+  preorderTargetQuantity      Int?
+  preorderCapacity            Int?
+  preorderDeadline            DateTime?
+  preorderTermsVersion        String                           @default("limited-preorder-v1")
+  preorderTermsText           String?
+  preorderPaymentInstructions String?
+  preorderOpenedAt            DateTime?
+  preorderPausedAt            DateTime?
+  preorderDecidedAt           DateTime?
+  preorderProductionStartedAt DateTime?
+  preorderClosedAt            DateTime?
+  preorderDecisionReason      String?
+  preorderPublicNotice        String?
 
   work                  Work                    @relation(fields: [workId], references: [id], onDelete: Cascade)
   createdBy             User?                   @relation("PresaleCampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   intents               PresaleCampaignIntent[]
   collaborationProjects CollaborationProject[]
+  preorderProducts      ProjectProduct[]        @relation("PresaleCampaignProducts")
+  preorderOrders        ProjectOrder[]          @relation("PresaleCampaignOrders")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1926,6 +1959,7 @@ model PresaleCampaign {
   @@index([workId])
   @@index([createdById])
   @@index([status])
+  @@index([preorderStatus])
   @@index([isFeatured])
 }
 
@@ -2349,6 +2383,7 @@ model ProjectIssue {
 model ProjectProduct {
   id                  String               @id @default(cuid())
   projectId           String
+  preorderCampaignId  String?
   workId              String?
   title               String
   description         String?
@@ -2357,20 +2392,23 @@ model ProjectProduct {
   price               Int
   currency            String               @default("CNY")
   targetQuantity      Int?
+  preorderLimit       Int?
   preorderDeadline    DateTime?
   estimatedShipDate   DateTime?
   imageStage          String?
   status              ProjectProductStatus @default(DRAFT)
 
-  project CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  work    Work?                @relation(fields: [workId], references: [id], onDelete: SetNull)
-  skus    ProjectSku[]
-  orders  ProjectOrder[]
+  project          CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  preorderCampaign PresaleCampaign?     @relation("PresaleCampaignProducts", fields: [preorderCampaignId], references: [id], onDelete: SetNull)
+  work             Work?                @relation(fields: [workId], references: [id], onDelete: SetNull)
+  skus             ProjectSku[]
+  orders           ProjectOrder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([projectId])
+  @@index([preorderCampaignId, status])
   @@index([workId])
   @@index([status])
 }
@@ -2397,45 +2435,60 @@ model ProjectSku {
 }
 
 model ProjectOrder {
-  id                      String                        @id @default(cuid())
-  projectId               String
-  workId                  String?
-  productId               String?
-  skuId                   String?
-  buyerId                 String?
-  providerId              String?
-  title                   String
-  quantity                Int                           @default(1)
-  unitPrice               Int?
-  totalAmount             Int?
-  currency                String                        @default("CNY")
-  quantityNote            String?
-  amountNote              String?
-  deliveryNote            String?
-  status                  ProjectOrderStatus            @default(INTENT)
-  paymentStatus           ProjectOrderPaymentStatus     @default(UNPAID)
-  fulfillmentStatus       ProjectOrderFulfillmentStatus @default(NOT_STARTED)
-  shippingAddressSnapshot Json?
-  buyerNote               String?
-  trackingCompany         String?
-  trackingNumber          String?
-  estimatedShipDate       DateTime?
-  exceptionNote           String?
-  note                    String?
-  paymentAttempts         CommercePaymentAttempt[]
-  refunds                 CommerceRefund[]
+  id                          String                        @id @default(cuid())
+  projectId                   String
+  preorderCampaignId          String?
+  workId                      String?
+  productId                   String?
+  skuId                       String?
+  buyerId                     String?
+  providerId                  String?
+  title                       String
+  quantity                    Int                           @default(1)
+  unitPrice                   Int?
+  totalAmount                 Int?
+  currency                    String                        @default("CNY")
+  quantityNote                String?
+  amountNote                  String?
+  deliveryNote                String?
+  status                      ProjectOrderStatus            @default(INTENT)
+  paymentStatus               ProjectOrderPaymentStatus     @default(UNPAID)
+  fulfillmentStatus           ProjectOrderFulfillmentStatus @default(NOT_STARTED)
+  shippingAddressSnapshot     Json?
+  buyerNote                   String?
+  trackingCompany             String?
+  trackingNumber              String?
+  estimatedShipDate           DateTime?
+  exceptionNote               String?
+  note                        String?
+  idempotencyKey              String?                       @unique
+  productSnapshot             Json?
+  skuSnapshot                 Json?
+  preorderDeadlineSnapshot    DateTime?
+  capacitySnapshot            Int?
+  termsVersion                String                        @default("limited-preorder-v1")
+  termsTextSnapshot           String?
+  paymentInstructionsSnapshot String?
+  termsAcceptedAt             DateTime?
+  reservationExpiresAt        DateTime?
+  cancelledAt                 DateTime?
+  cancellationReason          String?
+  paymentAttempts             CommercePaymentAttempt[]
+  refunds                     CommerceRefund[]
 
-  project  CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  work     Work?                @relation(fields: [workId], references: [id], onDelete: SetNull)
-  product  ProjectProduct?      @relation(fields: [productId], references: [id], onDelete: SetNull)
-  sku      ProjectSku?          @relation(fields: [skuId], references: [id], onDelete: SetNull)
-  buyer    User?                @relation("ProjectOrderBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
-  provider Provider?            @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  project          CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  preorderCampaign PresaleCampaign?     @relation("PresaleCampaignOrders", fields: [preorderCampaignId], references: [id], onDelete: SetNull)
+  work             Work?                @relation(fields: [workId], references: [id], onDelete: SetNull)
+  product          ProjectProduct?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  sku              ProjectSku?          @relation(fields: [skuId], references: [id], onDelete: SetNull)
+  buyer            User?                @relation("ProjectOrderBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
+  provider         Provider?            @relation(fields: [providerId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([projectId])
+  @@index([preorderCampaignId, status])
   @@index([workId])
   @@index([productId])
   @@index([skuId])
@@ -2444,6 +2497,7 @@ model ProjectOrder {
   @@index([status])
   @@index([paymentStatus])
   @@index([fulfillmentStatus])
+  @@index([reservationExpiresAt])
 }
 
 model Review {

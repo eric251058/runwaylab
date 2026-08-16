@@ -1,8 +1,8 @@
-import { ProjectOrderPaymentStatus, UserRole, UserStatus } from "@prisma/client";
+import { ProjectOrderPaymentStatus, ProjectOrderStatus, UserRole, UserStatus } from "@prisma/client";
 import { readFileSync } from "node:fs";
 import { createPaymentProvider } from "@/lib/payments/provider";
 import { createSmsProvider } from "@/lib/notifications/sms";
-import { resolveManualPaymentStatusUpdate } from "@/lib/projects/rules";
+import { canTransitionOrderStatus, resolveManualPaymentStatusUpdate } from "@/lib/projects/rules";
 
 async function assertEqual(label: string, actual: unknown, expected: unknown) {
   if (actual !== expected) throw new Error(`${label}: expected ${String(expected)}, got ${String(actual)}`);
@@ -69,6 +69,7 @@ async function main() {
   });
   await assertEqual("admin with flag and reason can confirm", manualPaid.ok, true);
   await assertEqual("manual confirmation marks changed", manualPaid.ok && manualPaid.changed, true);
+  await assertEqual("unpaid production order can enter audited cancellation", canTransitionOrderStatus(ProjectOrderStatus.PRODUCTION, ProjectOrderStatus.CANCELLED), true);
   const actionSource = readFileSync("src/lib/projects/actions.ts", "utf8");
   await assertEqual("manual payment writes AdminLog action", actionSource.includes("PROJECT_ORDER_UPDATE"), true);
   await assertEqual("manual payment logs old status", actionSource.includes("oldPaymentStatus"), true);
@@ -76,8 +77,9 @@ async function main() {
   await assertEqual("manual payment logs reason", actionSource.includes("reason: paymentReason"), true);
   const preorderRoute = readFileSync("src/app/api/projects/[id]/preorders/route.ts", "utf8");
   await assertEqual("preorder route does not read client paymentStatus", preorderRoute.includes("body?.paymentStatus"), false);
-  await assertEqual("preorder route only system sets pending", preorderRoute.includes("ProjectOrderPaymentStatus.PENDING"), true);
-  await assertEqual("preorder route only system sets unpaid", preorderRoute.includes("ProjectOrderPaymentStatus.UNPAID"), true);
+  await assertEqual("preorder route requires idempotency key", preorderRoute.includes('request.headers.get("Idempotency-Key")'), true);
+  await assertEqual("preorder route delegates transaction", preorderRoute.includes("createLimitedPreorder"), true);
+  await assertEqual("preorder route never calls payment before order", preorderRoute.includes("createPaymentProvider"), false);
 
   const sms = createSmsProvider({});
   const smsResult = await sms.send({ to: "+8613800138000", template: "preorder", variables: { code: "1234" } });

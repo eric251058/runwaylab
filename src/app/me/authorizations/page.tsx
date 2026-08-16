@@ -3,6 +3,11 @@ import { redirect } from "next/navigation";
 import { ProjectDesignAuthorizationStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { respondProjectDesignAuthorization, revokeProjectDesignAuthorization } from "@/lib/projects/actions";
+import {
+  LIMITED_PREORDER_QUALIFICATION_LABELS,
+  LIMITED_PREORDER_STATUS_LABELS,
+  summarizeLimitedPreorderOrders
+} from "@/lib/projects/preorder-lifecycle";
 import { PROJECT_AUTHORIZATION_LABELS } from "@/lib/projects/rules";
 import { prisma } from "@/lib/prisma";
 
@@ -19,7 +24,27 @@ export default async function MyDesignAuthorizationsPage() {
   const authorizations = await prisma.projectDesignAuthorization.findMany({
     where: { designerUserId: user.id },
     include: {
-      project: { select: { id: true, slug: true, title: true, designerAuthorizationStatus: true } },
+      project: {
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          designerAuthorizationStatus: true,
+          presaleCampaign: {
+            select: {
+              preorderStatus: true,
+              preorderQualificationMode: true,
+              preorderTargetQuantity: true,
+              preorderCapacity: true,
+              preorderDeadline: true,
+              preorderPublicNotice: true,
+              preorderOrders: {
+                select: { quantity: true, status: true, paymentStatus: true, fulfillmentStatus: true }
+              }
+            }
+          }
+        }
+      },
       work: { select: { id: true, title: true } },
       owner: { select: { nickname: true } }
     },
@@ -40,6 +65,15 @@ export default async function MyDesignAuthorizationsPage() {
       <section className="mt-8 space-y-4">
         {authorizations.length ? authorizations.map((authorization) => {
           const projectHref = "/projects/" + (authorization.project.slug ?? authorization.project.id);
+          const campaign = authorization.project.presaleCampaign;
+          const preorderSummary = campaign
+            ? summarizeLimitedPreorderOrders(campaign.preorderOrders, campaign.preorderQualificationMode)
+            : null;
+          const showLimitedPreorder = Boolean(campaign && (
+            campaign.preorderStatus !== "NOT_STARTED"
+            || campaign.preorderTargetQuantity !== null
+            || campaign.preorderCapacity !== null
+          ));
           return (
             <article key={authorization.id} className="rounded-[10px] border border-black/8 bg-white p-5 md:p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -67,6 +101,36 @@ export default async function MyDesignAuthorizationsPage() {
                 <span>接受：{formatDate(authorization.acceptedAt)}</span>
                 <span>撤销：{formatDate(authorization.revokedAt)}</span>
               </div>
+
+              {campaign && preorderSummary && showLimitedPreorder ? (
+                <section className="mt-5 rounded-[8px] border border-black/8 bg-paper p-4" aria-label="限量预售状态">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold tracking-[0.12em] text-ink/40">LIMITED PREORDER · V2.3</p>
+                      <h3 className="mt-1 font-semibold text-ink">{LIMITED_PREORDER_STATUS_LABELS[campaign.preorderStatus]}</h3>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/60">
+                      {LIMITED_PREORDER_QUALIFICATION_LABELS[campaign.preorderQualificationMode]}
+                    </span>
+                  </div>
+                  <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-[6px] bg-white p-3">
+                      <dt className="text-xs text-ink/40">当前合格件数</dt>
+                      <dd className="mt-1 font-semibold text-ink">{preorderSummary.qualifiedQuantity} / {campaign.preorderTargetQuantity ?? "待配置"}</dd>
+                    </div>
+                    <div className="rounded-[6px] bg-white p-3">
+                      <dt className="text-xs text-ink/40">本期限量</dt>
+                      <dd className="mt-1 font-semibold text-ink">{campaign.preorderCapacity ?? "待配置"}</dd>
+                    </div>
+                    <div className="rounded-[6px] bg-white p-3">
+                      <dt className="text-xs text-ink/40">截止时间</dt>
+                      <dd className="mt-1 font-semibold text-ink">{formatDate(campaign.preorderDeadline)}</dd>
+                    </div>
+                  </dl>
+                  {campaign.preorderPublicNotice ? <p className="mt-3 text-sm leading-6 text-ink/60">平台公开说明：{campaign.preorderPublicNotice}</p> : null}
+                  <p className="mt-3 text-xs leading-5 text-ink/40">这里只展示聚合进度，不展示买家身份、联系方式或订单私密信息。预售不等于现货，最终生产与退款安排以平台状态为准。</p>
+                </section>
+              ) : null}
 
               <div className="mt-5 flex flex-wrap gap-3">
                 <Link href={projectHref} className="inline-flex min-h-10 items-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">查看公开项目</Link>
