@@ -70,6 +70,11 @@ assert.match(request, /if \(existingAuthorization\) \{[\s\S]*tx\.projectDesignAu
 
 // A non-accept response cannot race an OPEN campaign; both authorization and project are CAS writes.
 assert.match(respond, /tx\.projectDesignAuthorization\.findUnique/);
+assert.match(respond, /const authorizationId = requiredText\(formData\.get\("authorizationId"\)/);
+assert.match(respond, /const expectedUpdatedAtText = requiredText\(formData\.get\("expectedUpdatedAt"\)/);
+assert.match(respond, /where: \{ id: authorizationId \}/);
+assert.match(respond, /authorization\.projectId !== projectId/);
+assert.match(respond, /authorization\.updatedAt\.getTime\(\) !== expectedUpdatedAt\.getTime\(\)/);
 assert.match(respond, /presaleCampaign: \{ select: \{ id: true, preorderStatus: true \} \}/);
 assert.match(respond, /authorization\.status !== ProjectDesignAuthorizationStatus\.PENDING[\s\S]*接受或拒绝只能针对等待决定的邀请/);
 assert.match(respond, /projectDesignAuthorizationPolicy\(authorization\.project\.presaleCampaign\?\.id \?\? null\)/);
@@ -80,9 +85,9 @@ assert.match(respond, /authorization\.workId === authorization\.project\.workId/
 assert.match(respond, /authorization\.ownerUserId === currentOwnerUserId/);
 assert.match(respond, /authorization\.designerUserId === authorization\.project\.work\?\.userId/);
 assert.match(respond, /status === ProjectDesignAuthorizationStatus\.ACCEPTED && !standardInvitationValid/);
-assert.match(respond, /where: \{ id: authorization\.id, status: ProjectDesignAuthorizationStatus\.PENDING, updatedAt: authorization\.updatedAt \}/);
+assert.match(respond, /where: \{\s*id: authorizationId,\s*projectId,\s*status: ProjectDesignAuthorizationStatus\.PENDING,\s*updatedAt: expectedUpdatedAt\s*\}/);
 assert.match(respond, /status !== ProjectDesignAuthorizationStatus\.ACCEPTED[\s\S]*preorderStatus !== LimitedPreorderStatus\.NOT_STARTED/);
-assert.match(respond, /tx\.projectDesignAuthorization\.updateMany\(\{[\s\S]*updatedAt: authorization\.updatedAt/);
+assert.match(respond, /tx\.projectDesignAuthorization\.updateMany\(\{[\s\S]*updatedAt: expectedUpdatedAt/);
 assert.match(respond, /tx\.collaborationProject\.updateMany\(\{[\s\S]*updatedAt: authorization\.project\.updatedAt[\s\S]*designerAuthorizationStatus: authorization\.project\.designerAuthorizationStatus/);
 assert.match(respond, /if \(authorizationChanged\.count !== 1\)/);
 assert.match(respond, /if \(projectChanged\.count !== 1\)/);

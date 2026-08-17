@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ProjectDesignAuthorizationStatus } from "@prisma/client";
+import { ProjectDesignAuthorizationStatus, UserRole } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   requestProjectDesignAuthorization,
@@ -61,7 +61,7 @@ export default async function MyDesignAuthorizationsPage() {
     },
     orderBy: { requestedAt: "desc" }
     }),
-    prisma.collaborationProject.findMany({
+    user.role === UserRole.ADMIN ? Promise.resolve([]) : prisma.collaborationProject.findMany({
       where: {
         OR: [
           { ownerUserId: user.id },
@@ -313,11 +313,15 @@ export default async function MyDesignAuthorizationsPage() {
                   <>
                     {standardInvitationValid ? <form action={respondProjectDesignAuthorization}>
                       <input type="hidden" name="projectId" value={authorization.projectId} />
+                      <input type="hidden" name="authorizationId" value={authorization.id} />
+                      <input type="hidden" name="expectedUpdatedAt" value={authorization.updatedAt.toISOString()} />
                       <input type="hidden" name="status" value={ProjectDesignAuthorizationStatus.ACCEPTED} />
                       <button className="min-h-10 rounded-full bg-ink px-5 text-sm font-semibold text-white">接受授权</button>
                     </form> : null}
                     <form action={respondProjectDesignAuthorization}>
                       <input type="hidden" name="projectId" value={authorization.projectId} />
+                      <input type="hidden" name="authorizationId" value={authorization.id} />
+                      <input type="hidden" name="expectedUpdatedAt" value={authorization.updatedAt.toISOString()} />
                       <input type="hidden" name="status" value={ProjectDesignAuthorizationStatus.REJECTED} />
                       <button className="min-h-10 rounded-full border border-rose-200 bg-rose-50 px-5 text-sm font-semibold text-rose-700">拒绝授权</button>
                     </form>
