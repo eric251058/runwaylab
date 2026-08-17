@@ -17,7 +17,7 @@ const authorizationRead = action.indexOf("tx.projectDesignAuthorization.findFirs
 const orderRead = action.indexOf("tx.projectOrder.count", transactionStart);
 const casWrite = action.indexOf("tx.collaborationProject.updateMany", transactionStart);
 const auditWrite = action.indexOf("tx.adminLog.create", transactionStart);
-const notification = action.indexOf("createNotificationSafe", auditWrite);
+const notification = action.indexOf("tx.notification.create", auditWrite);
 
 assert(transactionStart >= 0);
 assert(projectRead > transactionStart);
@@ -42,7 +42,8 @@ assert.match(action, /if \(updated\.count !== 1\)/);
 assert.match(action, /action: "COLLABORATION_PROJECT_OWNER_BOOTSTRAP"/);
 assert.match(action, /authorizationCreated: false/);
 assert.match(action, /authorDecisionChanged: false/);
-assert.match(action, /if \(result\.changed\) \{[\s\S]*createNotificationSafe/);
+assert.match(action, /type: NotificationType\.REQUEST_HANDLED/);
+assert.doesNotMatch(action, /createNotificationSafe/);
 
 assert.doesNotMatch(action, /projectDesignAuthorization\.(create|update|updateMany|delete|deleteMany)/);
 assert.doesNotMatch(action, /presaleCampaign\.(create|update|updateMany|delete)/);
@@ -54,7 +55,13 @@ assert.match(page, /role: \{ not: UserRole\.ADMIN \}/);
 assert.match(page, /project\.ownerUserId === null/);
 assert.match(page, /project\.createdById === null/);
 assert.match(page, /authorization === null/);
-assert.match(page, /orders\.length === 0/);
+assert.match(page, /_count: \{ select: \{ orders: true \} \}/);
+assert.match(page, /project\._count\.orders === 0/);
+assert.match(page, /name="ownerQuery"/);
+assert.match(page, /nickname: \{ contains: ownerQuery/);
+assert.match(page, /email: \{ contains: ownerQuery/);
+assert.match(page, /take: 50/);
+assert.doesNotMatch(page, /take: 500/);
 assert.match(page, /name="ownerUserId"/);
 assert.match(page, /name="confirm" value="yes" required/);
 assert.match(page, /只登记已经核实的真实负责人身份/);
