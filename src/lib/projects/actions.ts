@@ -149,7 +149,8 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
       throw new Error("限量预售正在接单、结算或生产，不能用新授权请求覆盖现有授权状态。");
     }
 
-    const ownerUserId = project.ownerUserId ?? project.createdById ?? user.id;
+    const ownerUserId = project.ownerUserId ?? project.createdById;
+    if (!ownerUserId) throw new Error("项目尚未绑定真实负责人，不能发送授权邀请。");
     const policy = projectDesignAuthorizationPolicy(project.presaleCampaign?.id ?? null);
     const pendingRequiresStandardRefresh = Boolean(
       existingAuthorization
@@ -266,10 +267,16 @@ export async function respondProjectDesignAuthorization(formData: FormData) {
   if (!user) throw new Error("请先登录");
 
   const projectId = requiredText(formData.get("projectId"), "项目 ID");
+  const authorizationId = requiredText(formData.get("authorizationId"), "授权邀请");
+  const expectedUpdatedAtText = requiredText(formData.get("expectedUpdatedAt"), "邀请版本");
+  const expectedUpdatedAt = new Date(expectedUpdatedAtText);
+  if (!Number.isFinite(expectedUpdatedAt.getTime())) {
+    throw new Error("邀请版本无效，请刷新页面后重试");
+  }
   const status = authorizationResponse(formData.get("status"));
   const notification = await runProjectAuthorizationTransaction(async (tx) => {
     const authorization = await tx.projectDesignAuthorization.findUnique({
-      where: { projectId },
+      where: { id: authorizationId },
       include: {
         project: {
           select: {
@@ -287,6 +294,12 @@ export async function respondProjectDesignAuthorization(formData: FormData) {
       }
     });
     if (!authorization) throw new Error("授权记录不存在");
+    if (authorization.projectId !== projectId) {
+      throw new Error("授权邀请与项目不匹配，请刷新页面后重试");
+    }
+    if (authorization.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+      throw new Error("授权邀请内容或版本已变化，请重新核对后再决定");
+    }
     if (ownerCannotRespondToAuthorization(user, authorization)) throw new Error("项目主理人不能代替设计师授权");
     if (!canDesignerRespondToAuthorization(user, authorization)) throw new Error("只有作品作者本人可以处理设计授权");
     if (authorization.status !== ProjectDesignAuthorizationStatus.PENDING) {
@@ -316,7 +329,12 @@ export async function respondProjectDesignAuthorization(formData: FormData) {
     }
 
     const authorizationChanged = await tx.projectDesignAuthorization.updateMany({
-      where: { id: authorization.id, status: ProjectDesignAuthorizationStatus.PENDING, updatedAt: authorization.updatedAt },
+      where: {
+        id: authorizationId,
+        projectId,
+        status: ProjectDesignAuthorizationStatus.PENDING,
+        updatedAt: expectedUpdatedAt
+      },
       data: {
         status,
         acceptedAt: status === ProjectDesignAuthorizationStatus.ACCEPTED ? new Date() : null,

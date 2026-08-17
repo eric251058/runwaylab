@@ -154,7 +154,7 @@ export function canManageProject(user: ProjectUser | null | undefined, project: 
 }
 
 export function canRequestProjectDesignAuthorization(user: ProjectUser | null | undefined, project: ProjectAccessShape) {
-  if (!user || user.status !== "ACTIVE") return false;
+  if (!user || user.status !== "ACTIVE" || user.role === "ADMIN") return false;
   if (project.ownerUserId) return project.ownerUserId === user.id;
   return project.createdById === user.id;
 }
@@ -200,7 +200,7 @@ export function canTransitionProjectStatus(nextStatus: CollaborationProjectStatu
 }
 
 export function canDesignerRespondToAuthorization(user: ProjectUser | null | undefined, authorization: Pick<DesignAuthorizationShape, "designerUserId">) {
-  return Boolean(user && user.status === "ACTIVE" && user.id === authorization.designerUserId);
+  return Boolean(user && user.status === "ACTIVE" && user.role !== "ADMIN" && user.id === authorization.designerUserId);
 }
 
 export function ownerCannotRespondToAuthorization(user: ProjectUser | null | undefined, authorization: Pick<DesignAuthorizationShape, "ownerUserId" | "designerUserId">) {

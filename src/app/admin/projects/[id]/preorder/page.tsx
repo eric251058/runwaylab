@@ -1,15 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  CollaborationProjectStatus,
   LimitedPreorderQualificationMode,
   LimitedPreorderStatus,
   PresaleCampaignIntentStatus,
-  ProjectProductStatus
+  ProjectProductStatus,
+  UserRole,
+  UserStatus
 } from "@prisma/client";
 import { dateInputValue } from "@/lib/commercial-collaboration";
 import { saveProjectProduct, saveProjectSku } from "@/lib/commercial-collaboration-actions";
 import { isFeatureEnabled } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
+import { assignCollaborationProjectOwner } from "@/lib/projects/owner-actions";
 import {
   cancelLimitedPreorderCampaign,
   closeLimitedPreorderCampaign,
@@ -32,15 +36,28 @@ import { isPublicQualityWork } from "@/lib/works/rules";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ ownerQuery?: string | string[] }>;
+};
 
 function dateTimeInputValue(value?: Date | null) {
   return value ? value.toISOString().slice(0, 16) : "";
 }
 
-export default async function AdminPreorderPreparationPage({ params }: PageProps) {
+async function assignCollaborationProjectOwnerFormAction(formData: FormData) {
+  "use server";
+  await assignCollaborationProjectOwner(formData);
+}
+
+export default async function AdminPreorderPreparationPage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const [project, preorderEnabled] = await Promise.all([
+  const resolvedSearchParams = await searchParams;
+  const rawOwnerQuery = Array.isArray(resolvedSearchParams.ownerQuery)
+    ? resolvedSearchParams.ownerQuery[0]
+    : resolvedSearchParams.ownerQuery;
+  const ownerQuery = rawOwnerQuery?.trim().slice(0, 80) ?? "";
+  const [project, preorderEnabled, ownerCandidates] = await Promise.all([
     prisma.collaborationProject.findUnique({
       where: { id },
       include: {
@@ -57,10 +74,37 @@ export default async function AdminPreorderPreparationPage({ params }: PageProps
         },
         presaleCampaign: { include: { intents: { select: { status: true, quantity: true } } } },
         designAuthorizations: { select: { status: true, preorderCampaignId: true, workId: true, designerUserId: true, ownerUserId: true, termsVersion: true }, take: 1 },
-        products: { include: { skus: { orderBy: { createdAt: "asc" } } }, orderBy: { createdAt: "desc" } }
+        ownerUser: { select: { id: true, nickname: true, role: true, status: true } },
+        createdBy: { select: { id: true, nickname: true, role: true, status: true } },
+        products: { include: { skus: { orderBy: { createdAt: "asc" } } }, orderBy: { createdAt: "desc" } },
+        _count: { select: { orders: true } }
       }
     }),
-    isFeatureEnabled("feature.limited_preorder_v23")
+    isFeatureEnabled("feature.limited_preorder_v23"),
+    prisma.user.findMany({
+      where: {
+        status: UserStatus.ACTIVE,
+        role: { not: UserRole.ADMIN },
+        ...(ownerQuery
+          ? {
+              OR: [
+                { id: ownerQuery },
+                { nickname: { contains: ownerQuery, mode: "insensitive" as const } },
+                { email: { contains: ownerQuery, mode: "insensitive" as const } }
+              ]
+            }
+          : {})
+      },
+      select: {
+        id: true,
+        nickname: true,
+        email: true,
+        role: true,
+        persona: true
+      },
+      orderBy: { createdAt: "asc" },
+      take: 50
+    })
   ]);
   if (!project) notFound();
 
@@ -136,6 +180,20 @@ export default async function AdminPreorderPreparationPage({ params }: PageProps
   const summary = campaign
     ? summarizeLimitedPreorderOrders(orders, campaign.preorderQualificationMode)
     : { activeQuantity: 0, confirmedQuantity: 0, paidQuantity: 0, qualifiedQuantity: 0, refundPendingQuantity: 0 };
+  const ownerBootstrapBlockedProjectStatuses: readonly CollaborationProjectStatus[] = [
+    CollaborationProjectStatus.PREORDER_OPEN,
+    CollaborationProjectStatus.PRODUCTION,
+    CollaborationProjectStatus.QUALITY_CHECK,
+    CollaborationProjectStatus.SHIPPING,
+    CollaborationProjectStatus.COMPLETED,
+    CollaborationProjectStatus.CANCELLED
+  ];
+  const ownerBootstrapAvailable = project.ownerUserId === null
+    && project.createdById === null
+    && authorization === null
+    && project._count.orders === 0
+    && (!campaign || campaign.preorderStatus === LimitedPreorderStatus.NOT_STARTED)
+    && !ownerBootstrapBlockedProjectStatuses.includes(project.status);
 
   const input = "h-10 rounded-[6px] border border-black/10 px-3 text-sm disabled:cursor-not-allowed disabled:bg-black/[0.03]";
   const textarea = "min-h-20 rounded-[6px] border border-black/10 px-3 py-3 text-sm disabled:cursor-not-allowed disabled:bg-black/[0.03]";
@@ -227,6 +285,63 @@ export default async function AdminPreorderPreparationPage({ params }: PageProps
         <div><p className="text-xs font-semibold text-ink/40">需求确认</p><p className="mt-1 font-semibold">{campaign ? `${confirmedDemandQuantity} / ${campaign.targetCount}` : "未关联活动"}</p></div>
         <div><p className="text-xs font-semibold text-ink/40">限量预售状态</p><p className="mt-1 font-semibold">{campaign ? LIMITED_PREORDER_STATUS_LABELS[campaign.preorderStatus] : "未配置"}</p></div>
         <p className="text-xs leading-5 text-ink/48 md:col-span-4">V2.1 的未付款需求意向与 V2.3 的订单严格分开。商品资料保存不会自动创建订单、扣款、生产任务或收入。价格使用最小货币单位：CNY ¥199.00 填写 19900。</p>
+      </section>
+
+      <section className="mt-6 rounded-[8px] border border-black/8 bg-white p-5">
+        <p className="text-xs font-semibold tracking-[0.12em] text-ink/40">REAL PROJECT OWNER · ONE-TIME BOOTSTRAP</p>
+        <h2 className="mt-2 text-xl font-semibold text-ink">真实项目负责人</h2>
+        <p className="mt-2 text-sm leading-6 text-ink/60">
+          后台只登记已经核实的真实负责人身份，不代替负责人发送邀请，不代替作品作者接受或拒绝，也不会自动开启预售。
+        </p>
+        {project.ownerUser ? (
+          <div className="mt-4 rounded-[7px] bg-emerald-50 p-4 text-sm text-emerald-900">
+            已登记：<span className="font-semibold">{project.ownerUser.nickname || "未命名用户"}</span>
+            <span className="ml-2 text-xs opacity-70">({project.ownerUser.role} · {project.ownerUser.id})</span>
+          </div>
+        ) : project.createdBy ? (
+          <div className="mt-4 rounded-[7px] bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            该项目已有创建人 {project.createdBy.nickname || project.createdBy.id}。一次性补登记入口不会转移既有关系；如需转移负责人，应另行建立版本化授权流程。
+          </div>
+        ) : ownerBootstrapAvailable ? (
+          <>
+            <form method="get" className="mt-4 flex flex-col gap-2 rounded-[7px] bg-black/[0.025] p-4 md:flex-row">
+              <input
+                name="ownerQuery"
+                defaultValue={ownerQuery}
+                maxLength={80}
+                placeholder="按昵称、邮箱或完整用户 ID 搜索"
+                className={input + " flex-1"}
+              />
+              <button className="h-10 rounded-full border border-black/10 px-5 text-sm font-semibold">搜索负责人账户</button>
+            </form>
+            <form action={assignCollaborationProjectOwnerFormAction} className="mt-3 grid gap-3 rounded-[7px] border border-black/8 p-4 md:grid-cols-2">
+              <input type="hidden" name="projectId" value={project.id} />
+              <select name="ownerUserId" required defaultValue="" className={input}>
+                <option value="" disabled>
+                  {ownerCandidates.length > 0 ? "选择已核实的真实负责人账户" : "没有匹配的可用账户，请调整搜索词"}
+                </option>
+                {ownerCandidates.map((candidate) => (
+                  <option key={candidate.id} value={candidate.id}>
+                    {candidate.nickname || "未命名用户"} · {candidate.persona || candidate.role} · {candidate.email || candidate.id}
+                  </option>
+                ))}
+              </select>
+              <input name="reason" required minLength={4} maxLength={500} placeholder="登记依据（仅内部审计，不填敏感信息）" className={input} />
+              <p className="text-xs leading-5 text-ink/50 md:col-span-2">
+                默认显示最早 50 个可用账户；搜索会在全部 ACTIVE 非管理员账户中匹配，不受默认列表范围限制。
+              </p>
+              <label className="flex items-start gap-2 text-xs leading-5 text-ink/60 md:col-span-2">
+                <input type="checkbox" name="confirm" value="yes" required className="mt-1" />
+                我已核实该账户确为项目真实负责人；本操作只登记身份，不创建或处理任何作品授权。
+              </label>
+              <button className="h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white md:col-span-2">一次性登记负责人</button>
+            </form>
+          </>
+        ) : (
+          <div className="mt-4 rounded-[7px] bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            当前项目不满足一次性补登记条件：必须没有负责人、没有创建人、没有任何授权记录或订单，且预售生命周期尚未开始。
+          </div>
+        )}
       </section>
 
       {!authorizationReady ? (
