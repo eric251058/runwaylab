@@ -7,7 +7,7 @@ import {
   respondProjectDesignAuthorization,
   revokeProjectDesignAuthorization
 } from "@/lib/projects/actions";
-import { PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION } from "@/lib/projects/design-authorization-policy";
+import { projectDesignAuthorizationPolicy } from "@/lib/projects/design-authorization-policy";
 import {
   LIMITED_PREORDER_QUALIFICATION_LABELS,
   LIMITED_PREORDER_STATUS_LABELS,
@@ -39,8 +39,10 @@ export default async function MyDesignAuthorizationsPage() {
           ownerUserId: true,
           createdById: true,
           designerAuthorizationStatus: true,
+          work: { select: { userId: true } },
           presaleCampaign: {
             select: {
+              id: true,
               preorderStatus: true,
               preorderQualificationMode: true,
               preorderTargetQuantity: true,
@@ -85,7 +87,10 @@ export default async function MyDesignAuthorizationsPage() {
         designAuthorizations: {
           select: {
             status: true,
+            preorderCampaignId: true,
             termsVersion: true,
+            scope: true,
+            royaltyDescription: true,
             requestedAt: true,
             ownerUserId: true,
             workId: true,
@@ -93,7 +98,7 @@ export default async function MyDesignAuthorizationsPage() {
           },
           take: 1
         },
-        presaleCampaign: { select: { preorderStatus: true } }
+        presaleCampaign: { select: { id: true, preorderStatus: true } }
       },
       orderBy: { updatedAt: "desc" },
       take: 50
@@ -106,7 +111,7 @@ export default async function MyDesignAuthorizationsPage() {
         <div>
           <p className="text-xs font-semibold tracking-[0.18em] text-ink/40">DESIGN RIGHTS</p>
           <h1 className="mt-2 text-3xl font-semibold text-ink">设计授权</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58">项目方可以发起合作请求，但不能代替你同意。请先核对作品、授权范围、分成说明与条款版本，再独立决定接受或拒绝；已经接受的授权也可以由你撤销。</p>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58">项目方可以发起合作请求，但不能代替你同意。请先核对作品、授权范围、分成说明与条款版本，再独立决定接受或拒绝。成团前可以撤销；已经成团或进入生产后，需通过项目异常、取消与退款流程处理。</p>
         </div>
         <Link href="/me/projects" className="inline-flex min-h-10 items-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink">返回我的项目</Link>
       </div>
@@ -122,15 +127,30 @@ export default async function MyDesignAuthorizationsPage() {
             const authorization = project.designAuthorizations[0] ?? null;
             const campaignStatus = project.presaleCampaign?.preorderStatus ?? null;
             const currentOwnerUserId = project.ownerUserId ?? project.createdById;
+            const policy = projectDesignAuthorizationPolicy(project.presaleCampaign?.id ?? null);
             const pendingRequiresStandardRefresh = Boolean(
               authorization
               && authorization.status === ProjectDesignAuthorizationStatus.PENDING
               && (
-                authorization.termsVersion !== PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION
+                authorization.termsVersion !== policy.termsVersion
+                || authorization.preorderCampaignId !== policy.preorderCampaignId
+                || authorization.scope !== policy.scope
+                || authorization.royaltyDescription !== policy.royaltyNotice
                 || authorization.ownerUserId !== currentOwnerUserId
                 || authorization.workId !== project.work?.id
                 || authorization.designerUserId !== project.work?.userId
               )
+            );
+            const acceptedCurrentStandard = Boolean(
+              authorization
+              && authorization.status === ProjectDesignAuthorizationStatus.ACCEPTED
+              && authorization.termsVersion === policy.termsVersion
+              && authorization.preorderCampaignId === policy.preorderCampaignId
+              && authorization.scope === policy.scope
+              && authorization.royaltyDescription === policy.royaltyNotice
+              && authorization.ownerUserId === currentOwnerUserId
+              && authorization.workId === project.work?.id
+              && authorization.designerUserId === project.work?.userId
             );
             const canRestoreRevoked = authorization?.status === ProjectDesignAuthorizationStatus.REVOKED
               && campaignStatus === "PAUSED";
@@ -151,7 +171,7 @@ export default async function MyDesignAuthorizationsPage() {
                     <p className="mt-1 text-sm text-ink/55">作品：{project.work?.title ?? "未关联"} · 作者：{project.work?.user.nickname ?? "作品作者"}</p>
                     <p className="mt-2 text-xs text-ink/40">
                       {authorization
-                        ? `${PROJECT_AUTHORIZATION_LABELS[authorization.status]} · 条款 ${authorization.termsVersion} · ${formatDate(authorization.requestedAt)}`
+                        ? `${PROJECT_AUTHORIZATION_LABELS[authorization.status]} · ${policy.label} · 条款 ${authorization.termsVersion} · ${formatDate(authorization.requestedAt)}`
                         : "尚未发送标准授权邀请"}
                     </p>
                   </div>
@@ -174,7 +194,11 @@ export default async function MyDesignAuthorizationsPage() {
                     </form>
                   ) : null}
                   {authorization?.status === ProjectDesignAuthorizationStatus.PENDING && !pendingRequiresStandardRefresh ? <span className="inline-flex min-h-10 items-center text-sm font-semibold text-amber-700">等待作者决定</span> : null}
-                  {authorization?.status === ProjectDesignAuthorizationStatus.ACCEPTED ? <span className="inline-flex min-h-10 items-center text-sm font-semibold text-emerald-700">作者已同意</span> : null}
+                  {authorization?.status === ProjectDesignAuthorizationStatus.ACCEPTED ? (
+                    <span className={`inline-flex min-h-10 items-center text-sm font-semibold ${acceptedCurrentStandard ? "text-emerald-700" : "text-amber-700"}`}>
+                      {acceptedCurrentStandard ? "作者已同意当前标准授权" : "旧版授权待更新（需作者先撤销）"}
+                    </span>
+                  ) : null}
                   {lifecycleLocked ? <span className="inline-flex min-h-10 items-center text-xs text-ink/45">活动已启动，授权状态由生命周期规则保护。</span> : null}
                 </div>
               </article>
@@ -193,13 +217,20 @@ export default async function MyDesignAuthorizationsPage() {
         {authorizations.length ? authorizations.map((authorization) => {
           const projectHref = "/projects/" + (authorization.project.slug ?? authorization.project.id);
           const currentOwnerUserId = authorization.project.ownerUserId ?? authorization.project.createdById;
+          const policy = projectDesignAuthorizationPolicy(authorization.project.presaleCampaign?.id ?? null);
           const standardInvitationValid = Boolean(
             currentOwnerUserId
-            && authorization.termsVersion === PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION
+            && authorization.termsVersion === policy.termsVersion
+            && authorization.preorderCampaignId === policy.preorderCampaignId
+            && authorization.scope === policy.scope
+            && authorization.royaltyDescription === policy.royaltyNotice
             && authorization.ownerUserId === currentOwnerUserId
             && authorization.workId === authorization.project.workId
+            && authorization.designerUserId === authorization.project.work?.userId
           );
           const campaign = authorization.project.presaleCampaign;
+          const revocationLocked = campaign?.preorderStatus === "GOAL_REACHED"
+            || campaign?.preorderStatus === "PRODUCTION";
           const preorderSummary = campaign
             ? summarizeLimitedPreorderOrders(campaign.preorderOrders, campaign.preorderQualificationMode)
             : null;
@@ -238,6 +269,11 @@ export default async function MyDesignAuthorizationsPage() {
               {authorization.status === ProjectDesignAuthorizationStatus.PENDING && !standardInvitationValid ? (
                 <p className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
                   这是一条旧版或项目负责人已变化的邀请，当前不能接受。请项目负责人重新发送平台标准邀请；你仍可直接拒绝。
+                </p>
+              ) : null}
+              {authorization.status === ProjectDesignAuthorizationStatus.ACCEPTED && !standardInvitationValid ? (
+                <p className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  这份已接受授权不是当前 V2.3 标准版本，或与当前项目负责人、作品、作者绑定不一致，不能用于限量预售开售或生产。如果你愿意按当前标准参与，请先在成团前撤销，再由当前项目负责人重新发送标准邀请。
                 </p>
               ) : null}
 
@@ -287,13 +323,18 @@ export default async function MyDesignAuthorizationsPage() {
                     </form>
                   </>
                 ) : null}
-                {authorization.status === ProjectDesignAuthorizationStatus.ACCEPTED ? (
+                {authorization.status === ProjectDesignAuthorizationStatus.ACCEPTED && !revocationLocked ? (
                   <form action={revokeProjectDesignAuthorization}>
                     <input type="hidden" name="projectId" value={authorization.projectId} />
                     <button className="min-h-10 rounded-full border border-amber-200 bg-amber-50 px-5 text-sm font-semibold text-amber-800">撤销授权</button>
                   </form>
                 ) : null}
               </div>
+              {authorization.status === ProjectDesignAuthorizationStatus.ACCEPTED && revocationLocked ? (
+                <p className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  活动已经成团或进入生产，不能单方面撤销授权。请通过项目异常、取消与退款流程处理，平台将保留订单与状态审计记录。
+                </p>
+              ) : null}
               <p className="mt-4 text-xs leading-5 text-ink/40">授权决定只改变合作许可状态，不会自动创建订单、扣款、生产任务或收入。</p>
             </article>
           );

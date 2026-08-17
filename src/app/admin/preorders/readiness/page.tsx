@@ -54,7 +54,7 @@ export default async function LimitedPreorderReadinessPage() {
           }
         },
         designAuthorizations: {
-          select: { status: true, workId: true, designerUserId: true },
+          select: { status: true, preorderCampaignId: true, workId: true, designerUserId: true, ownerUserId: true, termsVersion: true },
           take: 1
         },
         products: {
@@ -91,13 +91,17 @@ export default async function LimitedPreorderReadinessPage() {
           campaignWorkId: campaign.workId,
           projectWorkId: project.workId,
           workOwnerUserId: project.work?.userId ?? null,
+          projectOwnerUserId: project.ownerUserId ?? project.createdById,
           publicWorkReady: Boolean(project.work && isPublicQualityWork(project.work)),
           projectStatus: project.status,
           projectVisibility: project.visibility,
           projectAuthorizationStatus: project.designerAuthorizationStatus,
           authorizationRecordStatus: project.designAuthorizations[0]?.status ?? null,
+          authorizationPreorderCampaignId: project.designAuthorizations[0]?.preorderCampaignId ?? null,
           authorizationRecordWorkId: project.designAuthorizations[0]?.workId ?? null,
           authorizationDesignerUserId: project.designAuthorizations[0]?.designerUserId ?? null,
+          authorizationOwnerUserId: project.designAuthorizations[0]?.ownerUserId ?? null,
+          authorizationTermsVersion: project.designAuthorizations[0]?.termsVersion ?? null,
           demandTargetQuantity: campaign.targetCount,
           confirmedDemandQuantity,
           demandCampaignStatus: campaign.status,

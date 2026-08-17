@@ -26,5 +26,11 @@ assert.match(designerPage, /接受授权/);
 assert.match(designerPage, /拒绝授权/);
 assert.match(designerPage, /撤销授权/);
 assert.match(designerPage, /不会自动创建订单、扣款、生产任务或收入/);
+assert.match(designerPage, /const revocationLocked = [\s\S]*GOAL_REACHED[\s\S]*PRODUCTION/);
+assert.match(designerPage, /authorization\.status === ProjectDesignAuthorizationStatus\.ACCEPTED && !revocationLocked/);
+assert.match(designerPage, /authorization\.status === ProjectDesignAuthorizationStatus\.ACCEPTED && revocationLocked/);
+assert.match(designerPage, /活动已经成团或进入生产，不能单方面撤销授权/);
+assert.match(designerPage, /项目异常、取消与退款流程/);
+assert.match(designerPage, /成团前可以撤销/);
 
 console.log("Designer authorization UI contract: PASS");
