@@ -155,7 +155,8 @@ export function canManageProject(user: ProjectUser | null | undefined, project: 
 
 export function canRequestProjectDesignAuthorization(user: ProjectUser | null | undefined, project: ProjectAccessShape) {
   if (!user || user.status !== "ACTIVE") return false;
-  return project.ownerUserId === user.id || project.createdById === user.id;
+  if (project.ownerUserId) return project.ownerUserId === user.id;
+  return project.createdById === user.id;
 }
 
 export function isProjectIssueType(value: unknown): value is ProjectIssueType {
