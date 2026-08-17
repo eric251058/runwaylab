@@ -10,6 +10,7 @@ import {
   ProjectOrderStatus,
   ProjectProductStatus
 } from "@prisma/client";
+import { PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION } from "@/lib/projects/design-authorization-policy";
 
 export const LIMITED_PREORDER_STATUS_LABELS: Record<LimitedPreorderStatus, string> = {
   NOT_STARTED: "未开始",
@@ -76,19 +77,40 @@ export type AdmissionProduct = {
   skus: AdmissionSku[];
 };
 
-export type LimitedPreorderAdmissionInput = {
+export type LimitedPreorderAuthorizationInput = {
   campaignId: string;
-  linkedProjectCount: number;
   campaignWorkId: string;
   projectWorkId: string | null;
   workOwnerUserId: string | null;
+  projectOwnerUserId: string | null;
+  projectAuthorizationStatus: ProjectDesignAuthorizationStatus;
+  authorizationRecordStatus: ProjectDesignAuthorizationStatus | null;
+  authorizationPreorderCampaignId: string | null;
+  authorizationRecordWorkId: string | null;
+  authorizationDesignerUserId: string | null;
+  authorizationOwnerUserId: string | null;
+  authorizationTermsVersion: string | null;
+};
+
+export function hasCurrentLimitedPreorderAuthorization(input: LimitedPreorderAuthorizationInput) {
+  return Boolean(
+    input.projectOwnerUserId
+    && input.projectAuthorizationStatus === ProjectDesignAuthorizationStatus.ACCEPTED
+    && input.authorizationRecordStatus === ProjectDesignAuthorizationStatus.ACCEPTED
+    && input.authorizationTermsVersion === PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION
+    && input.authorizationPreorderCampaignId === input.campaignId
+    && input.authorizationRecordWorkId === input.campaignWorkId
+    && input.authorizationRecordWorkId === input.projectWorkId
+    && input.authorizationDesignerUserId === input.workOwnerUserId
+    && input.authorizationOwnerUserId === input.projectOwnerUserId
+  );
+}
+
+export type LimitedPreorderAdmissionInput = LimitedPreorderAuthorizationInput & {
+  linkedProjectCount: number;
   publicWorkReady: boolean;
   projectStatus: CollaborationProjectStatus;
   projectVisibility: CollaborationProjectVisibility;
-  projectAuthorizationStatus: ProjectDesignAuthorizationStatus;
-  authorizationRecordStatus: ProjectDesignAuthorizationStatus | null;
-  authorizationRecordWorkId: string | null;
-  authorizationDesignerUserId: string | null;
   demandTargetQuantity: number;
   confirmedDemandQuantity: number;
   demandCampaignStatus: PresaleCampaignStatus;
@@ -125,14 +147,8 @@ export function evaluateLimitedPreorderAdmission(input: LimitedPreorderAdmission
   if (!input.publicWorkReady) issues.push(issue("WORK_QUALITY", "作品尚未达到公开质量门槛。"));
   if (input.projectVisibility !== CollaborationProjectVisibility.PUBLIC) issues.push(issue("PROJECT_VISIBILITY", "协作项目必须公开可见。"));
   if (input.projectStatus !== CollaborationProjectStatus.PREORDER_READY) issues.push(issue("PROJECT_STATUS", "协作项目必须处于预售准备完成状态。"));
-  if (
-    input.projectAuthorizationStatus !== ProjectDesignAuthorizationStatus.ACCEPTED
-    || input.authorizationRecordStatus !== ProjectDesignAuthorizationStatus.ACCEPTED
-    || input.authorizationRecordWorkId !== input.campaignWorkId
-    || input.authorizationRecordWorkId !== input.projectWorkId
-    || input.authorizationDesignerUserId !== input.workOwnerUserId
-  ) {
-    issues.push(issue("DESIGN_AUTHORIZATION", "项目冗余状态与真实设计授权记录都必须为已接受，且授权作品与作者必须和当前活动完全一致。"));
+  if (!hasCurrentLimitedPreorderAuthorization(input)) {
+    issues.push(issue("DESIGN_AUTHORIZATION", "必须由当前项目负责人向当前作品作者发送本期标准授权，并由作者接受；旧版、错绑或已失效授权不能用于 V2.3 开售与生产。"));
   }
   if (input.demandTargetQuantity < 1 || input.confirmedDemandQuantity < input.demandTargetQuantity) {
     issues.push(issue("DEMAND_TARGET", "V2.1 人工确认需求尚未达到需求验证目标。"));

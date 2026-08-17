@@ -4,14 +4,12 @@ import {
   LimitedPreorderQualificationMode,
   LimitedPreorderStatus,
   PresaleCampaignIntentStatus,
-  ProjectDesignAuthorizationStatus,
   ProjectProductStatus
 } from "@prisma/client";
 import { dateInputValue } from "@/lib/commercial-collaboration";
 import { saveProjectProduct, saveProjectSku } from "@/lib/commercial-collaboration-actions";
 import { isFeatureEnabled } from "@/lib/features";
 import { prisma } from "@/lib/prisma";
-import { requestProjectDesignAuthorization } from "@/lib/projects/actions";
 import {
   cancelLimitedPreorderCampaign,
   closeLimitedPreorderCampaign,
@@ -24,6 +22,7 @@ import {
 } from "@/lib/projects/preorder-lifecycle-actions";
 import {
   evaluateLimitedPreorderAdmission,
+  hasCurrentLimitedPreorderAuthorization,
   LIMITED_PREORDER_QUALIFICATION_LABELS,
   LIMITED_PREORDER_STATUS_LABELS,
   summarizeLimitedPreorderOrders
@@ -57,7 +56,7 @@ export default async function AdminPreorderPreparationPage({ params }: PageProps
           }
         },
         presaleCampaign: { include: { intents: { select: { status: true, quantity: true } } } },
-        designAuthorizations: { select: { status: true, workId: true, designerUserId: true }, take: 1 },
+        designAuthorizations: { select: { status: true, preorderCampaignId: true, workId: true, designerUserId: true, ownerUserId: true, termsVersion: true }, take: 1 },
         products: { include: { skus: { orderBy: { createdAt: "asc" } } }, orderBy: { createdAt: "desc" } }
       }
     }),
@@ -77,7 +76,21 @@ export default async function AdminPreorderPreparationPage({ params }: PageProps
       ])
     : [[], 0];
 
-  const authorizationReady = project.designerAuthorizationStatus === ProjectDesignAuthorizationStatus.ACCEPTED;
+  const authorization = project.designAuthorizations[0] ?? null;
+  const authorizationReady = Boolean(campaign && hasCurrentLimitedPreorderAuthorization({
+    campaignId: campaign.id,
+    campaignWorkId: campaign.workId,
+    projectWorkId: project.workId,
+    workOwnerUserId: project.work?.userId ?? null,
+    projectOwnerUserId: project.ownerUserId ?? project.createdById,
+    projectAuthorizationStatus: project.designerAuthorizationStatus,
+    authorizationRecordStatus: authorization?.status ?? null,
+    authorizationPreorderCampaignId: authorization?.preorderCampaignId ?? null,
+    authorizationRecordWorkId: authorization?.workId ?? null,
+    authorizationDesignerUserId: authorization?.designerUserId ?? null,
+    authorizationOwnerUserId: authorization?.ownerUserId ?? null,
+    authorizationTermsVersion: authorization?.termsVersion ?? null
+  }));
   const unlockedLifecycleStatuses: readonly LimitedPreorderStatus[] = [
     LimitedPreorderStatus.NOT_STARTED,
     LimitedPreorderStatus.CLOSED
@@ -94,13 +107,17 @@ export default async function AdminPreorderPreparationPage({ params }: PageProps
         campaignWorkId: campaign.workId,
         projectWorkId: project.workId,
         workOwnerUserId: project.work?.userId ?? null,
+        projectOwnerUserId: project.ownerUserId ?? project.createdById,
         publicWorkReady: Boolean(project.work && isPublicQualityWork(project.work)),
         projectStatus: project.status,
         projectVisibility: project.visibility,
         projectAuthorizationStatus: project.designerAuthorizationStatus,
         authorizationRecordStatus: project.designAuthorizations[0]?.status ?? null,
+        authorizationPreorderCampaignId: project.designAuthorizations[0]?.preorderCampaignId ?? null,
         authorizationRecordWorkId: project.designAuthorizations[0]?.workId ?? null,
         authorizationDesignerUserId: project.designAuthorizations[0]?.designerUserId ?? null,
+        authorizationOwnerUserId: project.designAuthorizations[0]?.ownerUserId ?? null,
+        authorizationTermsVersion: project.designAuthorizations[0]?.termsVersion ?? null,
         demandTargetQuantity: campaign.targetCount,
         confirmedDemandQuantity,
         demandCampaignStatus: campaign.status,
@@ -214,14 +231,12 @@ export default async function AdminPreorderPreparationPage({ params }: PageProps
 
       {!authorizationReady ? (
         <section className="mt-6 rounded-[8px] border border-amber-200 bg-amber-50 p-5">
-          <h2 className="text-xl font-semibold text-amber-950">先取得设计师授权</h2>
-          <p className="mt-2 text-sm leading-6 text-amber-900/75">项目方可以发起请求，但不能代替作品作者同意。授权接受前，商品和开售操作均不可用。</p>
-          <form action={requestProjectDesignAuthorization} className="mt-4 grid gap-3 md:grid-cols-2">
-            <input type="hidden" name="projectId" value={project.id} />
-            <input name="termsVersion" required maxLength={40} defaultValue="v1" className={input} />
-            <input name="scope" required maxLength={500} defaultValue="围绕该作品推进打样、限量预售和合作沟通。" className={input} />
-            <button className="min-h-11 rounded-full bg-amber-900 px-5 text-sm font-semibold text-white md:col-span-2">向作品作者发送授权请求</button>
-          </form>
+          <h2 className="text-xl font-semibold text-amber-950">等待作品作者授权</h2>
+          <p className="mt-2 text-sm leading-6 text-amber-900/75">授权邀请由真实项目发起人在个人授权中心一键发送，关联作品的作者自行接受、拒绝或撤销。V2.3 只接受当前标准条款及当前负责人、作品、作者完全一致的授权；旧版已接受授权需由作者先撤销，再由当前负责人重新邀请。平台不代替双方作商业决定，也不允许后台自定义或代填授权内容。</p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Link href="/me/authorizations" className="inline-flex min-h-10 items-center rounded-full bg-amber-900 px-5 text-sm font-semibold text-white">前往授权中心</Link>
+            <span className="text-xs leading-5 text-amber-900/65">若项目没有真实发起人，请先在项目资料中绑定负责人；授权接受前，商品和开售操作均不可用。</span>
+          </div>
         </section>
       ) : null}
 

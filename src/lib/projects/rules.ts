@@ -153,6 +153,12 @@ export function canManageProject(user: ProjectUser | null | undefined, project: 
   return isProjectParticipant(user, project);
 }
 
+export function canRequestProjectDesignAuthorization(user: ProjectUser | null | undefined, project: ProjectAccessShape) {
+  if (!user || user.status !== "ACTIVE") return false;
+  if (project.ownerUserId) return project.ownerUserId === user.id;
+  return project.createdById === user.id;
+}
+
 export function isProjectIssueType(value: unknown): value is ProjectIssueType {
   return typeof value === "string" && Object.values(ProjectIssueType).includes(value as ProjectIssueType);
 }

@@ -24,6 +24,7 @@ import {
   canTransitionLimitedPreorder,
   evaluateLimitedPreorderAdmission,
   evaluateLimitedPreorderDecision,
+  hasCurrentLimitedPreorderAuthorization,
   planFailedOrderDisposition,
   planGoalReachedOrderDisposition,
   planProductionOrderDisposition,
@@ -95,7 +96,7 @@ async function loadLifecycleContext(tx: Prisma.TransactionClient, campaignId: st
             intents: { select: { status: true, quantity: true } }
           }
         },
-        designAuthorizations: { select: { status: true, workId: true, designerUserId: true }, take: 1 },
+        designAuthorizations: { select: { status: true, preorderCampaignId: true, workId: true, designerUserId: true, ownerUserId: true, termsVersion: true }, take: 1 },
         products: { include: { skus: true }, orderBy: { createdAt: "asc" } },
         orders: {
           where: { preorderCampaignId: campaignId },
@@ -133,13 +134,17 @@ function admissionForContext(
     campaignWorkId: context.campaign.workId,
     projectWorkId: context.project.workId,
     workOwnerUserId: context.project.work?.userId ?? null,
+    projectOwnerUserId: context.project.ownerUserId ?? context.project.createdById,
     publicWorkReady: Boolean(context.project.work && isPublicQualityWork(context.project.work)),
     projectStatus: context.project.status,
     projectVisibility: context.project.visibility,
     projectAuthorizationStatus: context.project.designerAuthorizationStatus,
     authorizationRecordStatus: context.project.designAuthorizations[0]?.status ?? null,
+    authorizationPreorderCampaignId: context.project.designAuthorizations[0]?.preorderCampaignId ?? null,
     authorizationRecordWorkId: context.project.designAuthorizations[0]?.workId ?? null,
     authorizationDesignerUserId: context.project.designAuthorizations[0]?.designerUserId ?? null,
+    authorizationOwnerUserId: context.project.designAuthorizations[0]?.ownerUserId ?? null,
+    authorizationTermsVersion: context.project.designAuthorizations[0]?.termsVersion ?? null,
     demandTargetQuantity: context.campaign.targetCount,
     confirmedDemandQuantity,
     demandCampaignStatus: context.campaign.status,
@@ -562,6 +567,23 @@ export async function startLimitedPreorderProduction(formData: FormData) {
     if (!canTransitionLimitedPreorder(context.campaign.preorderStatus, LimitedPreorderStatus.PRODUCTION)) throw new Error("只有已达标活动可以进入生产");
     if (!context.project.work || !isPublicQualityWork(context.project.work)) {
       throw new Error("关联作品已下架或不再满足公开质量门槛，不能进入生产；请先核查版权与内容风险并暂停或取消活动");
+    }
+    const authorization = context.project.designAuthorizations[0] ?? null;
+    if (!hasCurrentLimitedPreorderAuthorization({
+      campaignId: context.campaign.id,
+      campaignWorkId: context.campaign.workId,
+      projectWorkId: context.project.workId,
+      workOwnerUserId: context.project.work.userId,
+      projectOwnerUserId: context.project.ownerUserId ?? context.project.createdById,
+      projectAuthorizationStatus: context.project.designerAuthorizationStatus,
+      authorizationRecordStatus: authorization?.status ?? null,
+      authorizationPreorderCampaignId: authorization?.preorderCampaignId ?? null,
+      authorizationRecordWorkId: authorization?.workId ?? null,
+      authorizationDesignerUserId: authorization?.designerUserId ?? null,
+      authorizationOwnerUserId: authorization?.ownerUserId ?? null,
+      authorizationTermsVersion: authorization?.termsVersion ?? null
+    })) {
+      throw new Error("当前标准设计授权已失效或与项目、作品、作者、负责人不一致，不能进入生产；请先停止活动并重新取得作者授权");
     }
     const summary = summarizeLimitedPreorderOrders(context.project.orders, context.campaign.preorderQualificationMode);
     if (!context.campaign.preorderTargetQuantity || summary.qualifiedQuantity < context.campaign.preorderTargetQuantity) throw new Error("合格订单数量已低于成团目标，不能进入生产");

@@ -35,13 +35,17 @@ const validAdmission: LimitedPreorderAdmissionInput = {
   campaignWorkId: "work_1",
   projectWorkId: "work_1",
   workOwnerUserId: "designer_1",
+  projectOwnerUserId: "owner_1",
   publicWorkReady: true,
   projectStatus: CollaborationProjectStatus.PREORDER_READY,
   projectVisibility: CollaborationProjectVisibility.PUBLIC,
   projectAuthorizationStatus: ProjectDesignAuthorizationStatus.ACCEPTED,
   authorizationRecordStatus: ProjectDesignAuthorizationStatus.ACCEPTED,
+  authorizationPreorderCampaignId: "campaign_1",
   authorizationRecordWorkId: "work_1",
   authorizationDesignerUserId: "designer_1",
+  authorizationOwnerUserId: "owner_1",
+  authorizationTermsVersion: "v2.3-standard-2026-08",
   demandTargetQuantity: 10,
   confirmedDemandQuantity: 12,
   demandCampaignStatus: PresaleCampaignStatus.ACTIVE,
@@ -97,8 +101,11 @@ assert(issueCodes({ ...validAdmission, publicWorkReady: false }).has("WORK_QUALI
 assert(issueCodes({ ...validAdmission, projectVisibility: CollaborationProjectVisibility.PRIVATE }).has("PROJECT_VISIBILITY"));
 assert(issueCodes({ ...validAdmission, projectStatus: CollaborationProjectStatus.DRAFT }).has("PROJECT_STATUS"));
 assert(issueCodes({ ...validAdmission, authorizationRecordStatus: ProjectDesignAuthorizationStatus.PENDING }).has("DESIGN_AUTHORIZATION"));
+assert(issueCodes({ ...validAdmission, authorizationPreorderCampaignId: "campaign_other" }).has("DESIGN_AUTHORIZATION"));
 assert(issueCodes({ ...validAdmission, authorizationRecordWorkId: "work_other" }).has("DESIGN_AUTHORIZATION"));
 assert(issueCodes({ ...validAdmission, authorizationDesignerUserId: "designer_other" }).has("DESIGN_AUTHORIZATION"));
+assert(issueCodes({ ...validAdmission, authorizationOwnerUserId: "owner_other" }).has("DESIGN_AUTHORIZATION"));
+assert(issueCodes({ ...validAdmission, authorizationTermsVersion: "v1" }).has("DESIGN_AUTHORIZATION"));
 assert(issueCodes({ ...validAdmission, confirmedDemandQuantity: 9 }).has("DEMAND_TARGET"));
 assert(issueCodes({ ...validAdmission, demandCampaignStatus: PresaleCampaignStatus.CANCELLED }).has("DEMAND_CAMPAIGN_STATUS"));
 assert(issueCodes({ ...validAdmission, preorderTargetQuantity: 11 }).has("TARGET_OVER_CAPACITY"));

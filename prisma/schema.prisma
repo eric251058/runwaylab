@@ -1952,6 +1952,7 @@ model PresaleCampaign {
   collaborationProjects CollaborationProject[]
   preorderProducts      ProjectProduct[]        @relation("PresaleCampaignProducts")
   preorderOrders        ProjectOrder[]          @relation("PresaleCampaignOrders")
+  designAuthorizations  ProjectDesignAuthorization[] @relation("PresaleCampaignDesignAuthorizations")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2305,6 +2306,7 @@ model ProjectIntakeEvent {
 model ProjectDesignAuthorization {
   id                 String                           @id @default(cuid())
   projectId          String
+  preorderCampaignId String?
   workId             String
   designerUserId     String
   ownerUserId        String
@@ -2317,6 +2319,7 @@ model ProjectDesignAuthorization {
   termsVersion       String                           @default("v1")
 
   project  CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  preorderCampaign PresaleCampaign? @relation("PresaleCampaignDesignAuthorizations", fields: [preorderCampaignId], references: [id], onDelete: SetNull)
   work     Work                 @relation(fields: [workId], references: [id], onDelete: Cascade)
   designer User                 @relation("ProjectDesignAuthorizationDesigner", fields: [designerUserId], references: [id], onDelete: Cascade)
   owner    User                 @relation("ProjectDesignAuthorizationOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
@@ -2326,6 +2329,7 @@ model ProjectDesignAuthorization {
 
   @@unique([projectId])
   @@index([projectId])
+  @@index([preorderCampaignId])
   @@index([workId])
   @@index([designerUserId])
   @@index([ownerUserId])

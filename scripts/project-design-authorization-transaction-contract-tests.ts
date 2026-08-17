@@ -39,7 +39,7 @@ for (const [name, action] of [
 
 // Request re-reads the campaign guard, uses CAS for an existing authorization and project, and logs atomically.
 assert.match(request, /tx\.collaborationProject\.findUnique/);
-assert.match(request, /presaleCampaign: \{ select: \{ preorderStatus: true \} \}/);
+assert.match(request, /presaleCampaign: \{ select: \{ id: true, preorderStatus: true \} \}/);
 for (const status of ["OPEN", "PAUSED", "GOAL_REACHED", "PRODUCTION"]) {
   assert.match(request, new RegExp(`LimitedPreorderStatus\\.${status}`));
 }
@@ -54,10 +54,33 @@ assert.match(request, /tx\.collaborationProject\.updateMany\(\{[\s\S]*updatedAt:
 assert.match(request, /data: \{ designerAuthorizationStatus: ProjectDesignAuthorizationStatus\.PENDING \}/);
 assert.match(request, /if \(projectChanged\.count !== 1\)/);
 assert.match(request, /action: "PROJECT_DESIGN_AUTHORIZATION_REQUEST"/);
+assert.match(request, /canRequestProjectDesignAuthorization\(user, project\)/);
+assert.match(request, /projectDesignAuthorizationPolicy\(project\.presaleCampaign\?\.id \?\? null\)/);
+assert.match(request, /preorderCampaignId: policy\.preorderCampaignId/);
+assert.match(request, /scope: policy\.scope/);
+assert.match(request, /royaltyDescription: policy\.royaltyNotice/);
+assert.match(request, /requestMode: "SELF_SERVICE_STANDARD"/);
+assert.doesNotMatch(request, /formData\.get\("termsVersion"\)/);
+assert.doesNotMatch(request, /formData\.get\("scope"\)/);
+assert.doesNotMatch(request, /formData\.get\("royaltyDescription"\)/);
+assert.match(request, /const pendingRequiresStandardRefresh = Boolean\([\s\S]*existingAuthorization\.termsVersion !== policy\.termsVersion[\s\S]*existingAuthorization\.preorderCampaignId !== policy\.preorderCampaignId[\s\S]*existingAuthorization\.workId !== project\.workId[\s\S]*existingAuthorization\.designerUserId !== project\.work\.userId[\s\S]*existingAuthorization\.ownerUserId !== ownerUserId[\s\S]*\);/);
+assert.match(request, /existingAuthorization\?\.status === ProjectDesignAuthorizationStatus\.ACCEPTED[\s\S]*不能重新发起并覆盖该决定/);
+assert.match(request, /existingAuthorization\?\.status === ProjectDesignAuthorizationStatus\.PENDING[\s\S]*&& !pendingRequiresStandardRefresh[\s\S]*标准授权邀请已经发送/);
+assert.match(request, /if \(existingAuthorization\) \{[\s\S]*tx\.projectDesignAuthorization\.updateMany/);
 
 // A non-accept response cannot race an OPEN campaign; both authorization and project are CAS writes.
 assert.match(respond, /tx\.projectDesignAuthorization\.findUnique/);
-assert.match(respond, /presaleCampaign: \{ select: \{ preorderStatus: true \} \}/);
+assert.match(respond, /presaleCampaign: \{ select: \{ id: true, preorderStatus: true \} \}/);
+assert.match(respond, /authorization\.status !== ProjectDesignAuthorizationStatus\.PENDING[\s\S]*接受或拒绝只能针对等待决定的邀请/);
+assert.match(respond, /projectDesignAuthorizationPolicy\(authorization\.project\.presaleCampaign\?\.id \?\? null\)/);
+assert.match(respond, /authorization\.termsVersion === policy\.termsVersion/);
+assert.match(respond, /authorization\.preorderCampaignId === policy\.preorderCampaignId/);
+assert.match(respond, /authorization\.scope === policy\.scope/);
+assert.match(respond, /authorization\.workId === authorization\.project\.workId/);
+assert.match(respond, /authorization\.ownerUserId === currentOwnerUserId/);
+assert.match(respond, /authorization\.designerUserId === authorization\.project\.work\?\.userId/);
+assert.match(respond, /status === ProjectDesignAuthorizationStatus\.ACCEPTED && !standardInvitationValid/);
+assert.match(respond, /where: \{ id: authorization\.id, status: ProjectDesignAuthorizationStatus\.PENDING, updatedAt: authorization\.updatedAt \}/);
 assert.match(respond, /status !== ProjectDesignAuthorizationStatus\.ACCEPTED[\s\S]*preorderStatus !== LimitedPreorderStatus\.NOT_STARTED/);
 assert.match(respond, /tx\.projectDesignAuthorization\.updateMany\(\{[\s\S]*updatedAt: authorization\.updatedAt/);
 assert.match(respond, /tx\.collaborationProject\.updateMany\(\{[\s\S]*updatedAt: authorization\.project\.updatedAt[\s\S]*designerAuthorizationStatus: authorization\.project\.designerAuthorizationStatus/);

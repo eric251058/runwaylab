@@ -17,9 +17,11 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isFeatureEnabled } from "@/lib/features";
 import { createNotificationSafe, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { isAdmin } from "@/lib/permissions";
+import { projectDesignAuthorizationPolicy } from "@/lib/projects/design-authorization-policy";
 import {
   canDesignerRespondToAuthorization,
   canManageProject,
+  canRequestProjectDesignAuthorization,
   canTransitionFulfillmentStatus,
   canTransitionOrderStatus,
   nextAuthorizationRequestData,
@@ -104,22 +106,30 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
   if (!user) throw new Error("请先登录");
 
   const projectId = requiredText(formData.get("projectId"), "项目 ID");
-  const termsVersion = optionalText(formData.get("termsVersion")) ?? "v1";
-  const scope = optionalText(formData.get("scope")) ?? "围绕该作品推进打样、预售验证和合作沟通。";
-  const royaltyDescription = optionalText(formData.get("royaltyDescription"));
   const notification = await runProjectAuthorizationTransaction(async (tx) => {
     const project = await tx.collaborationProject.findUnique({
       where: { id: projectId },
       include: {
         work: { select: { id: true, userId: true, title: true } },
-        presaleCampaign: { select: { preorderStatus: true } }
+        presaleCampaign: { select: { id: true, preorderStatus: true } }
       }
     });
-    if (!project || !canManageProject(user, project)) throw new Error("无权申请该项目的设计授权");
+    if (!project || !canRequestProjectDesignAuthorization(user, project)) throw new Error("只有项目发起人可以邀请作品作者授权");
     if (!project.workId || !project.work) throw new Error("该项目尚未关联公开作品，不能申请设计授权");
     const existingAuthorization = await tx.projectDesignAuthorization.findUnique({
       where: { projectId },
-      select: { id: true, status: true, updatedAt: true }
+      select: {
+        id: true,
+        status: true,
+        preorderCampaignId: true,
+        termsVersion: true,
+        scope: true,
+        royaltyDescription: true,
+        workId: true,
+        designerUserId: true,
+        ownerUserId: true,
+        updatedAt: true
+      }
     });
     const restoringRevokedPausedAuthorization = project.presaleCampaign?.preorderStatus === LimitedPreorderStatus.PAUSED
       && project.status === CollaborationProjectStatus.PLANNING
@@ -139,8 +149,32 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
       throw new Error("限量预售正在接单、结算或生产，不能用新授权请求覆盖现有授权状态。");
     }
 
-    const ownerUserId = project.ownerUserId ?? user.id;
-    const nextData = nextAuthorizationRequestData(termsVersion);
+    const ownerUserId = project.ownerUserId ?? project.createdById ?? user.id;
+    const policy = projectDesignAuthorizationPolicy(project.presaleCampaign?.id ?? null);
+    const pendingRequiresStandardRefresh = Boolean(
+      existingAuthorization
+      && existingAuthorization.status === ProjectDesignAuthorizationStatus.PENDING
+      && (
+        existingAuthorization.termsVersion !== policy.termsVersion
+        || existingAuthorization.preorderCampaignId !== policy.preorderCampaignId
+        || existingAuthorization.scope !== policy.scope
+        || existingAuthorization.royaltyDescription !== policy.royaltyNotice
+        || existingAuthorization.workId !== project.workId
+        || existingAuthorization.designerUserId !== project.work.userId
+        || existingAuthorization.ownerUserId !== ownerUserId
+      )
+    );
+    if (existingAuthorization?.status === ProjectDesignAuthorizationStatus.ACCEPTED) {
+      throw new Error("作品作者已经接受授权，项目方不能重新发起并覆盖该决定。");
+    }
+    if (
+      existingAuthorization?.status === ProjectDesignAuthorizationStatus.PENDING
+      && !pendingRequiresStandardRefresh
+    ) {
+      throw new Error("标准授权邀请已经发送，正在等待作品作者决定。");
+    }
+
+    const nextData = nextAuthorizationRequestData(policy.termsVersion);
     let authorization: { id: string; status: ProjectDesignAuthorizationStatus };
     if (existingAuthorization) {
       const changed = await tx.projectDesignAuthorization.updateMany({
@@ -151,10 +185,11 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
         },
         data: {
           workId: project.workId,
+          preorderCampaignId: policy.preorderCampaignId,
           designerUserId: project.work.userId,
           ownerUserId,
-          scope,
-          royaltyDescription,
+          scope: policy.scope,
+          royaltyDescription: policy.royaltyNotice,
           ...nextData
         }
       });
@@ -165,10 +200,11 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
         data: {
           projectId,
           workId: project.workId,
+          preorderCampaignId: policy.preorderCampaignId,
           designerUserId: project.work.userId,
           ownerUserId,
-          scope,
-          royaltyDescription,
+          scope: policy.scope,
+          royaltyDescription: policy.royaltyNotice,
           ...nextData
         },
         select: { id: true, status: true }
@@ -191,13 +227,21 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
         action: "PROJECT_DESIGN_AUTHORIZATION_REQUEST",
         targetType: "ProjectDesignAuthorization",
         targetId: authorization.id,
-        detail: { projectId, status: authorization.status, termsVersion }
+        detail: {
+          projectId,
+          status: authorization.status,
+          termsVersion: policy.termsVersion,
+          preorderCampaignId: policy.preorderCampaignId,
+          policy: policy.label,
+          requestMode: "SELF_SERVICE_STANDARD"
+        }
       }
     });
     return {
       recipientId: project.work.userId,
       projectTitle: project.title,
-      workTitle: project.work.title
+      workTitle: project.work.title,
+      policyLabel: policy.label
     };
   });
 
@@ -206,7 +250,7 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
     actorId: user.id,
     eventType: NOTIFICATION_EVENTS.REQUEST_HANDLED,
     title: "新的设计授权请求",
-    body: notification.projectTitle + " 希望围绕《" + notification.workTitle + "》推进合作，请你独立核对授权范围与条款。",
+    body: notification.projectTitle + " 向你发送了《" + notification.workTitle + "》的" + notification.policyLabel + "标准授权邀请，请你独立核对范围并决定是否接受。",
     targetUrl: "/me/authorizations",
     dedupe: true
   });
@@ -231,9 +275,13 @@ export async function respondProjectDesignAuthorization(formData: FormData) {
           select: {
             id: true,
             status: true,
+            workId: true,
+            ownerUserId: true,
+            createdById: true,
             designerAuthorizationStatus: true,
             updatedAt: true,
-            presaleCampaign: { select: { preorderStatus: true } }
+            work: { select: { userId: true } },
+            presaleCampaign: { select: { id: true, preorderStatus: true } }
           }
         }
       }
@@ -241,6 +289,24 @@ export async function respondProjectDesignAuthorization(formData: FormData) {
     if (!authorization) throw new Error("授权记录不存在");
     if (ownerCannotRespondToAuthorization(user, authorization)) throw new Error("项目主理人不能代替设计师授权");
     if (!canDesignerRespondToAuthorization(user, authorization)) throw new Error("只有作品作者本人可以处理设计授权");
+    if (authorization.status !== ProjectDesignAuthorizationStatus.PENDING) {
+      throw new Error("该邀请已经处理；接受或拒绝只能针对等待决定的邀请。已接受授权如需撤销，请使用撤销流程。");
+    }
+    const currentOwnerUserId = authorization.project.ownerUserId ?? authorization.project.createdById;
+    const policy = projectDesignAuthorizationPolicy(authorization.project.presaleCampaign?.id ?? null);
+    const standardInvitationValid = Boolean(
+      currentOwnerUserId
+      && authorization.termsVersion === policy.termsVersion
+      && authorization.preorderCampaignId === policy.preorderCampaignId
+      && authorization.scope === policy.scope
+      && authorization.royaltyDescription === policy.royaltyNotice
+      && authorization.workId === authorization.project.workId
+      && authorization.designerUserId === authorization.project.work?.userId
+      && authorization.ownerUserId === currentOwnerUserId
+    );
+    if (status === ProjectDesignAuthorizationStatus.ACCEPTED && !standardInvitationValid) {
+      throw new Error("该邀请不是当前项目负责人的有效标准授权，请让项目负责人重新发送标准邀请。");
+    }
     if (
       status !== ProjectDesignAuthorizationStatus.ACCEPTED
       && authorization.project.presaleCampaign
@@ -250,7 +316,7 @@ export async function respondProjectDesignAuthorization(formData: FormData) {
     }
 
     const authorizationChanged = await tx.projectDesignAuthorization.updateMany({
-      where: { id: authorization.id, status: authorization.status, updatedAt: authorization.updatedAt },
+      where: { id: authorization.id, status: ProjectDesignAuthorizationStatus.PENDING, updatedAt: authorization.updatedAt },
       data: {
         status,
         acceptedAt: status === ProjectDesignAuthorizationStatus.ACCEPTED ? new Date() : null,

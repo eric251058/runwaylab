@@ -74,9 +74,14 @@ assert.match(actions, /feature\.manual_payment_pilot/);
 assert.match(actions, /按付款成团必须等待真实退款记录闭环完成后再启用/);
 assert.match(actions, /PresaleCampaignIntentStatus\.CONFIRMED/);
 assert.match(actions, /evaluateLimitedPreorderAdmission/);
-assert.match(actions, /designAuthorizations: \{ select: \{ status: true, workId: true, designerUserId: true \}/);
-assert.match(lifecycle, /input\.authorizationRecordWorkId !== input\.campaignWorkId/);
-assert.match(lifecycle, /input\.authorizationDesignerUserId !== input\.workOwnerUserId/);
+assert.match(actions, /designAuthorizations: \{ select: \{ status: true, preorderCampaignId: true, workId: true, designerUserId: true, ownerUserId: true, termsVersion: true \}/);
+assert.match(lifecycle, /input\.authorizationTermsVersion === PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION/);
+assert.match(lifecycle, /input\.authorizationPreorderCampaignId === input\.campaignId/);
+assert.match(lifecycle, /input\.authorizationRecordWorkId === input\.campaignWorkId/);
+assert.match(lifecycle, /input\.authorizationDesignerUserId === input\.workOwnerUserId/);
+assert.match(lifecycle, /input\.authorizationOwnerUserId === input\.projectOwnerUserId/);
+assert.match(actions, /hasCurrentLimitedPreorderAuthorization/);
+assert.match(actions, /当前标准设计授权已失效或与项目、作品、作者、负责人不一致，不能进入生产/);
 
 // All eight mutating lifecycle actions require a reason and use the shared serializable transaction wrapper.
 assert.equal(occurrences(actions, /export async function /g), 8);
