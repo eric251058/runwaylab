@@ -54,6 +54,14 @@ assert.match(request, /tx\.collaborationProject\.updateMany\(\{[\s\S]*updatedAt:
 assert.match(request, /data: \{ designerAuthorizationStatus: ProjectDesignAuthorizationStatus\.PENDING \}/);
 assert.match(request, /if \(projectChanged\.count !== 1\)/);
 assert.match(request, /action: "PROJECT_DESIGN_AUTHORIZATION_REQUEST"/);
+assert.match(request, /canRequestProjectDesignAuthorization\(user, project\)/);
+assert.match(request, /PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION/);
+assert.match(request, /PROJECT_DESIGN_AUTHORIZATION_SCOPE/);
+assert.match(request, /PROJECT_DESIGN_AUTHORIZATION_ROYALTY_NOTICE/);
+assert.match(request, /requestMode: "SELF_SERVICE_STANDARD"/);
+assert.doesNotMatch(request, /formData\.get\("termsVersion"\)/);
+assert.doesNotMatch(request, /formData\.get\("scope"\)/);
+assert.doesNotMatch(request, /formData\.get\("royaltyDescription"\)/);
 
 // A non-accept response cannot race an OPEN campaign; both authorization and project are CAS writes.
 assert.match(respond, /tx\.projectDesignAuthorization\.findUnique/);
