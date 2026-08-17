@@ -17,7 +17,7 @@ assert.equal(canRequestProjectDesignAuthorization(user("owner"), project), true)
 assert.equal(canRequestProjectDesignAuthorization(user("creator"), project), true);
 assert.equal(canRequestProjectDesignAuthorization(user("author"), project), false);
 assert.equal(canRequestProjectDesignAuthorization(user("admin", UserRole.ADMIN), project), false);
-assert.equal(canRequestProjectDesignAuthorization(user("owner", UserRole.USER, UserStatus.SUSPENDED), project), false);
+assert.equal(canRequestProjectDesignAuthorization(user("owner", UserRole.USER, UserStatus.BANNED), project), false);
 assert.equal(canRequestProjectDesignAuthorization(user("author"), { ...project, ownerUserId: "author" }), true);
 
 const actions = readFileSync("src/lib/projects/actions.ts", "utf8");
