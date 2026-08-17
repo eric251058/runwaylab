@@ -2,7 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProjectDesignAuthorizationStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
-import { respondProjectDesignAuthorization, revokeProjectDesignAuthorization } from "@/lib/projects/actions";
+import {
+  requestProjectDesignAuthorization,
+  respondProjectDesignAuthorization,
+  revokeProjectDesignAuthorization
+} from "@/lib/projects/actions";
 import {
   LIMITED_PREORDER_QUALIFICATION_LABELS,
   LIMITED_PREORDER_STATUS_LABELS,
@@ -21,7 +25,8 @@ export default async function MyDesignAuthorizationsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/me/authorizations");
 
-  const authorizations = await prisma.projectDesignAuthorization.findMany({
+  const [authorizations, outgoingProjects] = await Promise.all([
+    prisma.projectDesignAuthorization.findMany({
     where: { designerUserId: user.id },
     include: {
       project: {
@@ -49,7 +54,36 @@ export default async function MyDesignAuthorizationsPage() {
       owner: { select: { nickname: true } }
     },
     orderBy: { requestedAt: "desc" }
-  });
+    }),
+    prisma.collaborationProject.findMany({
+      where: {
+        OR: [{ ownerUserId: user.id }, { createdById: user.id }],
+        workId: { not: null }
+      },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        ownerUserId: true,
+        createdById: true,
+        designerAuthorizationStatus: true,
+        work: {
+          select: {
+            id: true,
+            title: true,
+            user: { select: { nickname: true } }
+          }
+        },
+        designAuthorizations: {
+          select: { status: true, termsVersion: true, requestedAt: true },
+          take: 1
+        },
+        presaleCampaign: { select: { preorderStatus: true } }
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 50
+    })
+  ]);
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 md:px-8 md:py-14">
@@ -62,7 +96,69 @@ export default async function MyDesignAuthorizationsPage() {
         <Link href="/me/projects" className="inline-flex min-h-10 items-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink">返回我的项目</Link>
       </div>
 
-      <section className="mt-8 space-y-4">
+      <section className="mt-8">
+        <div>
+          <p className="text-xs font-semibold tracking-[0.16em] text-ink/35">PROJECT INITIATOR</p>
+          <h2 className="mt-1 text-xl font-semibold text-ink">我发起的授权邀请</h2>
+          <p className="mt-2 text-sm leading-6 text-ink/55">选择项目后一键发送平台标准邀请。授权对象固定为关联作品的作者；你不能代替作者接受，也不能自行修改授权范围或分成表述。</p>
+        </div>
+        <div className="mt-4 space-y-3">
+          {outgoingProjects.length ? outgoingProjects.map((project) => {
+            const authorization = project.designAuthorizations[0] ?? null;
+            const campaignStatus = project.presaleCampaign?.preorderStatus ?? null;
+            const canRestoreRevoked = authorization?.status === ProjectDesignAuthorizationStatus.REVOKED
+              && campaignStatus === "PAUSED";
+            const lifecycleLocked = campaignStatus !== null
+              && campaignStatus !== "NOT_STARTED"
+              && !canRestoreRevoked;
+            const canSend = !lifecycleLocked && (
+              !authorization
+              || authorization.status === ProjectDesignAuthorizationStatus.REJECTED
+              || authorization.status === ProjectDesignAuthorizationStatus.REVOKED
+            );
+            return (
+              <article key={project.id} className="rounded-[10px] border border-black/8 bg-white p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h3 className="font-semibold text-ink">{project.title}</h3>
+                    <p className="mt-1 text-sm text-ink/55">作品：{project.work?.title ?? "未关联"} · 作者：{project.work?.user.nickname ?? "作品作者"}</p>
+                    <p className="mt-2 text-xs text-ink/40">
+                      {authorization
+                        ? `${PROJECT_AUTHORIZATION_LABELS[authorization.status]} · 条款 ${authorization.termsVersion} · ${formatDate(authorization.requestedAt)}`
+                        : "尚未发送标准授权邀请"}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/60">
+                    {campaignStatus ? `预售：${campaignStatus}` : "未关联预售活动"}
+                  </span>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Link href={"/projects/" + (project.slug ?? project.id)} className="inline-flex min-h-10 items-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">查看项目</Link>
+                  {canSend ? (
+                    <form action={requestProjectDesignAuthorization}>
+                      <input type="hidden" name="projectId" value={project.id} />
+                      <button className="min-h-10 rounded-full bg-ink px-5 text-sm font-semibold text-white">
+                        {authorization?.status === ProjectDesignAuthorizationStatus.REVOKED ? "重新邀请作者" : "邀请作者参与"}
+                      </button>
+                    </form>
+                  ) : null}
+                  {authorization?.status === ProjectDesignAuthorizationStatus.PENDING ? <span className="inline-flex min-h-10 items-center text-sm font-semibold text-amber-700">等待作者决定</span> : null}
+                  {authorization?.status === ProjectDesignAuthorizationStatus.ACCEPTED ? <span className="inline-flex min-h-10 items-center text-sm font-semibold text-emerald-700">作者已同意</span> : null}
+                  {lifecycleLocked ? <span className="inline-flex min-h-10 items-center text-xs text-ink/45">活动已启动，授权状态由生命周期规则保护。</span> : null}
+                </div>
+              </article>
+            );
+          }) : (
+            <div className="rounded-[10px] border border-dashed border-black/12 bg-white p-6 text-sm leading-6 text-ink/55">目前没有由你负责且已关联作品的项目。</div>
+          )}
+        </div>
+      </section>
+
+      <section className="mt-10 space-y-4">
+        <div>
+          <p className="text-xs font-semibold tracking-[0.16em] text-ink/35">WORK AUTHOR</p>
+          <h2 className="mt-1 text-xl font-semibold text-ink">需要我决定的邀请</h2>
+        </div>
         {authorizations.length ? authorizations.map((authorization) => {
           const projectHref = "/projects/" + (authorization.project.slug ?? authorization.project.id);
           const campaign = authorization.project.presaleCampaign;
