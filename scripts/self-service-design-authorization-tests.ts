@@ -11,7 +11,7 @@ const project = {
   work: { userId: "author" }
 };
 
-const user = (id: string, role = UserRole.USER, status = UserStatus.ACTIVE) => ({ id, role, status });
+const user = (id: string, role: UserRole = UserRole.USER, status: UserStatus = UserStatus.ACTIVE) => ({ id, role, status });
 
 assert.equal(canRequestProjectDesignAuthorization(user("owner"), project), true);
 assert.equal(canRequestProjectDesignAuthorization(user("creator"), project), true);
