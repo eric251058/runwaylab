@@ -14,7 +14,8 @@ const project = {
 const user = (id: string, role: UserRole = UserRole.USER, status: UserStatus = UserStatus.ACTIVE) => ({ id, role, status });
 
 assert.equal(canRequestProjectDesignAuthorization(user("owner"), project), true);
-assert.equal(canRequestProjectDesignAuthorization(user("creator"), project), true);
+assert.equal(canRequestProjectDesignAuthorization(user("creator"), project), false);
+assert.equal(canRequestProjectDesignAuthorization(user("creator"), { ...project, ownerUserId: null }), true);
 assert.equal(canRequestProjectDesignAuthorization(user("author"), project), false);
 assert.equal(canRequestProjectDesignAuthorization(user("admin", UserRole.ADMIN), project), false);
 assert.equal(canRequestProjectDesignAuthorization(user("owner", UserRole.USER, UserStatus.BANNED), project), false);
@@ -43,7 +44,8 @@ assert.doesNotMatch(request, /formData\.get\("royaltyDescription"\)/);
 assert.match(policy, /未经作者另行书面同意，不得转让著作权、进行平台外授权或进入量产/);
 assert.match(policy, /不确认分成比例或结算金额/);
 
-assert.match(authorizationsPage, /OR: \[\{ ownerUserId: user\.id \}, \{ createdById: user\.id \}\]/);
+assert.match(authorizationsPage, /\{ ownerUserId: user\.id \}/);
+assert.match(authorizationsPage, /\{ ownerUserId: null, createdById: user\.id \}/);
 assert.match(authorizationsPage, /form action=\{requestProjectDesignAuthorization\}/);
 assert.match(authorizationsPage, /邀请作者参与/);
 assert.match(authorizationsPage, /等待作者决定/);
