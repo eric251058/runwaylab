@@ -18,8 +18,14 @@ import { isFeatureEnabled } from "@/lib/features";
 import { createNotificationSafe, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { isAdmin } from "@/lib/permissions";
 import {
+  PROJECT_DESIGN_AUTHORIZATION_ROYALTY_NOTICE,
+  PROJECT_DESIGN_AUTHORIZATION_SCOPE,
+  PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION
+} from "@/lib/projects/design-authorization-policy";
+import {
   canDesignerRespondToAuthorization,
   canManageProject,
+  canRequestProjectDesignAuthorization,
   canTransitionFulfillmentStatus,
   canTransitionOrderStatus,
   nextAuthorizationRequestData,
@@ -104,9 +110,6 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
   if (!user) throw new Error("请先登录");
 
   const projectId = requiredText(formData.get("projectId"), "项目 ID");
-  const termsVersion = optionalText(formData.get("termsVersion")) ?? "v1";
-  const scope = optionalText(formData.get("scope")) ?? "围绕该作品推进打样、预售验证和合作沟通。";
-  const royaltyDescription = optionalText(formData.get("royaltyDescription"));
   const notification = await runProjectAuthorizationTransaction(async (tx) => {
     const project = await tx.collaborationProject.findUnique({
       where: { id: projectId },
@@ -115,7 +118,7 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
         presaleCampaign: { select: { preorderStatus: true } }
       }
     });
-    if (!project || !canManageProject(user, project)) throw new Error("无权申请该项目的设计授权");
+    if (!project || !canRequestProjectDesignAuthorization(user, project)) throw new Error("只有项目发起人可以邀请作品作者授权");
     if (!project.workId || !project.work) throw new Error("该项目尚未关联公开作品，不能申请设计授权");
     const existingAuthorization = await tx.projectDesignAuthorization.findUnique({
       where: { projectId },
@@ -139,8 +142,8 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
       throw new Error("限量预售正在接单、结算或生产，不能用新授权请求覆盖现有授权状态。");
     }
 
-    const ownerUserId = project.ownerUserId ?? user.id;
-    const nextData = nextAuthorizationRequestData(termsVersion);
+    const ownerUserId = project.ownerUserId ?? project.createdById ?? user.id;
+    const nextData = nextAuthorizationRequestData(PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION);
     let authorization: { id: string; status: ProjectDesignAuthorizationStatus };
     if (existingAuthorization) {
       const changed = await tx.projectDesignAuthorization.updateMany({
@@ -153,8 +156,8 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
           workId: project.workId,
           designerUserId: project.work.userId,
           ownerUserId,
-          scope,
-          royaltyDescription,
+          scope: PROJECT_DESIGN_AUTHORIZATION_SCOPE,
+          royaltyDescription: PROJECT_DESIGN_AUTHORIZATION_ROYALTY_NOTICE,
           ...nextData
         }
       });
@@ -167,8 +170,8 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
           workId: project.workId,
           designerUserId: project.work.userId,
           ownerUserId,
-          scope,
-          royaltyDescription,
+          scope: PROJECT_DESIGN_AUTHORIZATION_SCOPE,
+          royaltyDescription: PROJECT_DESIGN_AUTHORIZATION_ROYALTY_NOTICE,
           ...nextData
         },
         select: { id: true, status: true }
@@ -191,7 +194,12 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
         action: "PROJECT_DESIGN_AUTHORIZATION_REQUEST",
         targetType: "ProjectDesignAuthorization",
         targetId: authorization.id,
-        detail: { projectId, status: authorization.status, termsVersion }
+        detail: {
+          projectId,
+          status: authorization.status,
+          termsVersion: PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION,
+          requestMode: "SELF_SERVICE_STANDARD"
+        }
       }
     });
     return {
@@ -206,7 +214,7 @@ export async function requestProjectDesignAuthorization(formData: FormData) {
     actorId: user.id,
     eventType: NOTIFICATION_EVENTS.REQUEST_HANDLED,
     title: "新的设计授权请求",
-    body: notification.projectTitle + " 希望围绕《" + notification.workTitle + "》推进合作，请你独立核对授权范围与条款。",
+    body: notification.projectTitle + " 向你发送了《" + notification.workTitle + "》的标准合作授权邀请，请你独立核对范围并决定是否接受。",
     targetUrl: "/me/authorizations",
     dedupe: true
   });
