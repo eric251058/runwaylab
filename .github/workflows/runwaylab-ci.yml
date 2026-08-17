@@ -1,0 +1,76 @@
+name: RunwayLab CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runwaylab-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: TypeScript, contracts, and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://runwaylab:runwaylab@127.0.0.1:5432/runwaylab?schema=public
+      SESSION_SECRET: runwaylab-ci-only-session-secret
+      FEATURE_LIMITED_PREORDER_V23: "false"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Authorization contracts
+        run: |
+          node --import tsx scripts/self-service-design-authorization-tests.ts
+          node --import tsx scripts/designer-authorization-ui-contract-tests.ts
+          node --import tsx scripts/authorization-discovery-contract-tests.ts
+          node --import tsx scripts/authorization-outcome-notification-contract-tests.ts
+          node --import tsx scripts/project-design-authorization-transaction-contract-tests.ts
+
+      - name: Limited preorder regression
+        run: |
+          node --import tsx scripts/limited-preorder-consumer-transparency-tests.ts
+          node --import tsx scripts/limited-preorder-designer-transparency-tests.ts
+          node --import tsx scripts/limited-preorder-legacy-isolation-contract-tests.ts
+          node --import tsx scripts/limited-preorder-lifecycle-contract-tests.ts
+          node --import tsx scripts/limited-preorder-lifecycle-rules-tests.ts
+          node --import tsx scripts/limited-preorder-pilot-readiness-tests.ts
+          node --import tsx scripts/limited-preorder-query-isolation-contract-tests.ts
+          node --import tsx scripts/limited-preorder-transaction-core-tests.ts
+          node --import tsx scripts/limited-preorder-v23-tests.ts
+          node --import tsx scripts/preorder-preparation-contract-tests.ts
+          node --import tsx scripts/preorder-transaction-safety-tests.ts
+
+      - name: V2.1 and V2.2 regression
+        run: |
+          node --import tsx scripts/presale-conversion-tests.ts
+          node --import tsx scripts/presale-decision-panel-tests.ts
+          node --import tsx scripts/presale-demand-signal-contract-tests.ts
+          node --import tsx scripts/project-marketplace-v22-tests.ts
+          node --import tsx scripts/project-participation-marketplace-tests.ts
+
+      - name: Production build
+        run: npm run build
