@@ -7,6 +7,7 @@ import {
   respondProjectDesignAuthorization,
   revokeProjectDesignAuthorization
 } from "@/lib/projects/actions";
+import { PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION } from "@/lib/projects/design-authorization-policy";
 import {
   LIMITED_PREORDER_QUALIFICATION_LABELS,
   LIMITED_PREORDER_STATUS_LABELS,
@@ -34,6 +35,9 @@ export default async function MyDesignAuthorizationsPage() {
           id: true,
           slug: true,
           title: true,
+          workId: true,
+          ownerUserId: true,
+          createdById: true,
           designerAuthorizationStatus: true,
           presaleCampaign: {
             select: {
@@ -74,11 +78,19 @@ export default async function MyDesignAuthorizationsPage() {
           select: {
             id: true,
             title: true,
+            userId: true,
             user: { select: { nickname: true } }
           }
         },
         designAuthorizations: {
-          select: { status: true, termsVersion: true, requestedAt: true },
+          select: {
+            status: true,
+            termsVersion: true,
+            requestedAt: true,
+            ownerUserId: true,
+            workId: true,
+            designerUserId: true
+          },
           take: 1
         },
         presaleCampaign: { select: { preorderStatus: true } }
@@ -109,6 +121,17 @@ export default async function MyDesignAuthorizationsPage() {
           {outgoingProjects.length ? outgoingProjects.map((project) => {
             const authorization = project.designAuthorizations[0] ?? null;
             const campaignStatus = project.presaleCampaign?.preorderStatus ?? null;
+            const currentOwnerUserId = project.ownerUserId ?? project.createdById;
+            const pendingRequiresStandardRefresh = Boolean(
+              authorization
+              && authorization.status === ProjectDesignAuthorizationStatus.PENDING
+              && (
+                authorization.termsVersion !== PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION
+                || authorization.ownerUserId !== currentOwnerUserId
+                || authorization.workId !== project.work?.id
+                || authorization.designerUserId !== project.work?.userId
+              )
+            );
             const canRestoreRevoked = authorization?.status === ProjectDesignAuthorizationStatus.REVOKED
               && campaignStatus === "PAUSED";
             const lifecycleLocked = campaignStatus !== null
@@ -118,6 +141,7 @@ export default async function MyDesignAuthorizationsPage() {
               !authorization
               || authorization.status === ProjectDesignAuthorizationStatus.REJECTED
               || authorization.status === ProjectDesignAuthorizationStatus.REVOKED
+              || pendingRequiresStandardRefresh
             );
             return (
               <article key={project.id} className="rounded-[10px] border border-black/8 bg-white p-5">
@@ -141,11 +165,15 @@ export default async function MyDesignAuthorizationsPage() {
                     <form action={requestProjectDesignAuthorization}>
                       <input type="hidden" name="projectId" value={project.id} />
                       <button className="min-h-10 rounded-full bg-ink px-5 text-sm font-semibold text-white">
-                        {authorization?.status === ProjectDesignAuthorizationStatus.REVOKED ? "重新邀请作者" : "邀请作者参与"}
+                        {pendingRequiresStandardRefresh
+                          ? "更新为标准邀请"
+                          : authorization?.status === ProjectDesignAuthorizationStatus.REVOKED
+                            ? "重新邀请作者"
+                            : "邀请作者参与"}
                       </button>
                     </form>
                   ) : null}
-                  {authorization?.status === ProjectDesignAuthorizationStatus.PENDING ? <span className="inline-flex min-h-10 items-center text-sm font-semibold text-amber-700">等待作者决定</span> : null}
+                  {authorization?.status === ProjectDesignAuthorizationStatus.PENDING && !pendingRequiresStandardRefresh ? <span className="inline-flex min-h-10 items-center text-sm font-semibold text-amber-700">等待作者决定</span> : null}
                   {authorization?.status === ProjectDesignAuthorizationStatus.ACCEPTED ? <span className="inline-flex min-h-10 items-center text-sm font-semibold text-emerald-700">作者已同意</span> : null}
                   {lifecycleLocked ? <span className="inline-flex min-h-10 items-center text-xs text-ink/45">活动已启动，授权状态由生命周期规则保护。</span> : null}
                 </div>
@@ -164,6 +192,13 @@ export default async function MyDesignAuthorizationsPage() {
         </div>
         {authorizations.length ? authorizations.map((authorization) => {
           const projectHref = "/projects/" + (authorization.project.slug ?? authorization.project.id);
+          const currentOwnerUserId = authorization.project.ownerUserId ?? authorization.project.createdById;
+          const standardInvitationValid = Boolean(
+            currentOwnerUserId
+            && authorization.termsVersion === PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION
+            && authorization.ownerUserId === currentOwnerUserId
+            && authorization.workId === authorization.project.workId
+          );
           const campaign = authorization.project.presaleCampaign;
           const preorderSummary = campaign
             ? summarizeLimitedPreorderOrders(campaign.preorderOrders, campaign.preorderQualificationMode)
@@ -200,6 +235,11 @@ export default async function MyDesignAuthorizationsPage() {
                 <span>接受：{formatDate(authorization.acceptedAt)}</span>
                 <span>撤销：{formatDate(authorization.revokedAt)}</span>
               </div>
+              {authorization.status === ProjectDesignAuthorizationStatus.PENDING && !standardInvitationValid ? (
+                <p className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  这是一条旧版或项目负责人已变化的邀请，当前不能接受。请项目负责人重新发送平台标准邀请；你仍可直接拒绝。
+                </p>
+              ) : null}
 
               {campaign && preorderSummary && showLimitedPreorder ? (
                 <section className="mt-5 rounded-[8px] border border-black/8 bg-paper p-4" aria-label="限量预售状态">
@@ -235,11 +275,11 @@ export default async function MyDesignAuthorizationsPage() {
                 <Link href={projectHref} className="inline-flex min-h-10 items-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">查看公开项目</Link>
                 {authorization.status === ProjectDesignAuthorizationStatus.PENDING ? (
                   <>
-                    <form action={respondProjectDesignAuthorization}>
+                    {standardInvitationValid ? <form action={respondProjectDesignAuthorization}>
                       <input type="hidden" name="projectId" value={authorization.projectId} />
                       <input type="hidden" name="status" value={ProjectDesignAuthorizationStatus.ACCEPTED} />
                       <button className="min-h-10 rounded-full bg-ink px-5 text-sm font-semibold text-white">接受授权</button>
-                    </form>
+                    </form> : null}
                     <form action={respondProjectDesignAuthorization}>
                       <input type="hidden" name="projectId" value={authorization.projectId} />
                       <input type="hidden" name="status" value={ProjectDesignAuthorizationStatus.REJECTED} />
