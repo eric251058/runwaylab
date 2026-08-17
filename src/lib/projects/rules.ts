@@ -177,14 +177,39 @@ export function canOpenLimitedPreorder(status: CollaborationProjectStatus, produ
   return projectReady && productReady && canOpenPreorderByAuthorization(authorizationStatus);
 }
 
+const MANAGED_PREORDER_PREPARATION_PROJECT_STATUSES: readonly CollaborationProjectStatus[] = [
+  CollaborationProjectStatus.DRAFT,
+  CollaborationProjectStatus.PLANNING,
+  CollaborationProjectStatus.SEEKING_PROPOSALS,
+  CollaborationProjectStatus.SAMPLE_PREPARATION,
+  CollaborationProjectStatus.SAMPLE_REVIEW,
+  CollaborationProjectStatus.MATCHING,
+  CollaborationProjectStatus.SAMPLING,
+  CollaborationProjectStatus.PRESALE_VALIDATING,
+  CollaborationProjectStatus.PRODUCTION_DISCUSSION,
+  CollaborationProjectStatus.PREORDER_READY
+];
+
+export function canPrepareManagedLimitedPreorderProject(status: CollaborationProjectStatus) {
+  return MANAGED_PREORDER_PREPARATION_PROJECT_STATUSES.includes(status);
+}
+
 export function canSetProjectProductStatus(
   projectStatus: CollaborationProjectStatus,
   productStatus: ProjectProductStatus,
-  authorizationStatus: ProjectDesignAuthorizationStatus | null | undefined
+  authorizationStatus: ProjectDesignAuthorizationStatus | null | undefined,
+  allowPreAuthorizationOfferPreparation = false
 ) {
+  if (allowPreAuthorizationOfferPreparation) {
+    // V2.3 freezes the complete approved offer before the author receives an
+    // invitation. Preparing that package never opens ordering by itself.
+    return canPrepareManagedLimitedPreorderProject(projectStatus)
+      && ([ProjectProductStatus.DRAFT, ProjectProductStatus.APPROVED] as readonly ProjectProductStatus[]).includes(productStatus);
+  }
   if (!canOpenPreorderByAuthorization(authorizationStatus)) return false;
   if (productStatus === ProjectProductStatus.APPROVED) {
-    return projectStatus === CollaborationProjectStatus.PREORDER_READY || projectStatus === CollaborationProjectStatus.PREORDER_OPEN;
+    return projectStatus === CollaborationProjectStatus.PREORDER_READY
+      || projectStatus === CollaborationProjectStatus.PREORDER_OPEN;
   }
   if (productStatus === ProjectProductStatus.PREORDER_OPEN) {
     return projectStatus === CollaborationProjectStatus.PREORDER_OPEN;

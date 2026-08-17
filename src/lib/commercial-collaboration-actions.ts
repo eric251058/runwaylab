@@ -24,7 +24,13 @@ import {
   requiredText
 } from "@/lib/commercial-collaboration";
 import { isAdmin } from "@/lib/permissions";
-import { canSetProjectProductStatus, canTransitionProjectStatus } from "@/lib/projects/rules";
+import {
+  canPrepareManagedLimitedPreorderProject,
+  canSetProjectProductStatus,
+  canTransitionProjectStatus
+} from "@/lib/projects/rules";
+import { assertLimitedPreorderOfferEditable } from "@/lib/projects/preorder-offer";
+import { assertNoLimitedPreorderPaymentSolicitation } from "@/lib/projects/preorder-lifecycle";
 import { prisma } from "@/lib/prisma";
 
 async function requireAdminUser() {
@@ -150,13 +156,19 @@ export async function saveCollaborationProject(formData: FormData) {
     ? await prisma.collaborationProject.findUnique({
         where: { id },
         select: {
+          title: true,
+          description: true,
+          targetQuantity: true,
+          estimatedBudget: true,
           workId: true,
           designerId: true,
           presaleCampaignId: true,
           designerAuthorizationStatus: true,
           status: true,
+          updatedAt: true,
           presaleCampaign: {
             select: {
+              id: true,
               preorderStatus: true,
               preorderTargetQuantity: true,
               preorderCapacity: true,
@@ -164,7 +176,7 @@ export async function saveCollaborationProject(formData: FormData) {
             }
           },
           designAuthorizations: {
-            select: { status: true, workId: true, designerUserId: true },
+            select: { status: true, workId: true, designerUserId: true, preorderCampaignId: true },
             take: 1
           }
         }
@@ -181,6 +193,22 @@ export async function saveCollaborationProject(formData: FormData) {
     throw new Error("预售活动关联必须通过预售活动管理页的串行化关联流程修改，通用项目入口不可挂接或更换活动。");
   }
   const authorizationRecord = existingProject?.designAuthorizations[0];
+  const offerVisibleFieldsChanged = Boolean(existingProject && (
+    data.title !== existingProject.title
+    || data.description !== existingProject.description
+    || data.targetQuantity !== existingProject.targetQuantity
+    || data.estimatedBudget !== existingProject.estimatedBudget
+  ));
+  if (existingProject && isManagedLimitedPreorder(existingProject.presaleCampaign)) {
+    assertNoLimitedPreorderPaymentSolicitation(data.title, "项目标题");
+    if (data.description) assertNoLimitedPreorderPaymentSolicitation(data.description, "项目说明");
+    if (data.targetQuantity) assertNoLimitedPreorderPaymentSolicitation(data.targetQuantity, "项目目标数量");
+    if (data.estimatedBudget) assertNoLimitedPreorderPaymentSolicitation(data.estimatedBudget, "项目预算");
+  }
+  const exactOfferAuthorization = authorizationRecord?.preorderCampaignId === existingProject?.presaleCampaign?.id
+    ? authorizationRecord
+    : null;
+  if (offerVisibleFieldsChanged) assertLimitedPreorderOfferEditable(exactOfferAuthorization?.status);
   if (
     existingProject
     && data.workId !== existingProject.workId
@@ -200,10 +228,20 @@ export async function saveCollaborationProject(formData: FormData) {
   if (
     isManagedLimitedPreorder(existingProject?.presaleCampaign)
     &&
-    ([CollaborationProjectStatus.PREORDER_OPEN, CollaborationProjectStatus.PRODUCTION] as readonly CollaborationProjectStatus[]).includes(data.status)
+    ([CollaborationProjectStatus.PREORDER_READY, CollaborationProjectStatus.PREORDER_OPEN, CollaborationProjectStatus.PRODUCTION] as readonly CollaborationProjectStatus[]).includes(data.status)
     && existingProject?.status !== data.status
   ) {
-    throw new Error("预售开放与进入生产必须通过限量预售生命周期工作台操作。");
+    throw new Error("V2.3 项目的预售准备、开放与进入生产必须通过限量预售生命周期工作台操作并保留专用审计。");
+  }
+  if (
+    existingProject?.presaleCampaign?.preorderStatus === LimitedPreorderStatus.NOT_STARTED
+    && existingProject.status !== data.status
+    && (
+      !canPrepareManagedLimitedPreorderProject(existingProject.status)
+      || !canPrepareManagedLimitedPreorderProject(data.status)
+    )
+  ) {
+    throw new Error("已关联 V2.3 活动的项目不能通过通用入口进入或退出生产、质检、发货、完成、取消等非准备阶段。");
   }
   if (existingProject && isLimitedPreorderLifecycleLocked(existingProject.presaleCampaign)) {
     if (
@@ -230,7 +268,18 @@ export async function saveCollaborationProject(formData: FormData) {
         designerId: existingProject.designerId,
         presaleCampaignId: existingProject.presaleCampaignId,
         status: existingProject.status,
-        designerAuthorizationStatus: existingProject.designerAuthorizationStatus
+        designerAuthorizationStatus: existingProject.designerAuthorizationStatus,
+        updatedAt: existingProject.updatedAt,
+        ...(offerVisibleFieldsChanged && existingProject.presaleCampaignId
+          ? {
+              designAuthorizations: {
+                none: {
+                  preorderCampaignId: existingProject.presaleCampaignId,
+                  status: { in: [ProjectDesignAuthorizationStatus.PENDING, ProjectDesignAuthorizationStatus.ACCEPTED] }
+                }
+              }
+            }
+          : {})
       },
       data
     });
@@ -285,22 +334,39 @@ export async function saveProjectProduct(formData: FormData) {
         designerAuthorizationStatus: true,
         presaleCampaign: {
           select: {
+            id: true,
             preorderStatus: true,
             preorderTargetQuantity: true,
             preorderCapacity: true,
             preorderDeadline: true
           }
+        },
+        designAuthorizations: {
+          select: { status: true, preorderCampaignId: true },
+          take: 1
         }
       }
     });
     if (!project) throw new Error("承接项目不存在");
+    const projectAuthorization = project.designAuthorizations[0] ?? null;
+    if (
+      project.presaleCampaign?.id
+      && projectAuthorization?.preorderCampaignId === project.presaleCampaign.id
+    ) {
+      assertLimitedPreorderOfferEditable(projectAuthorization.status);
+    }
     if (isLimitedPreorderLifecycleLocked(project.presaleCampaign)) {
       throw new Error("限量预售开始后商品资料与容量已锁定，请先完成当前活动。");
     }
     if (status === ProjectProductStatus.PREORDER_OPEN && isManagedLimitedPreorder(project.presaleCampaign)) {
       throw new Error("商品开放预订必须通过限量预售生命周期工作台操作。");
     }
-    if (!canSetProjectProductStatus(project.status, status, project.designerAuthorizationStatus)) {
+    if (!canSetProjectProductStatus(
+      project.status,
+      status,
+      project.designerAuthorizationStatus,
+      isManagedLimitedPreorder(project.presaleCampaign)
+    )) {
       throw new Error("商品状态与项目阶段或设计授权不匹配。");
     }
 
@@ -387,8 +453,13 @@ export async function saveProjectSku(formData: FormData) {
         },
         project: {
           select: {
+            designAuthorizations: {
+              select: { status: true, preorderCampaignId: true },
+              take: 1
+            },
             presaleCampaign: {
               select: {
+                id: true,
                 preorderStatus: true,
                 preorderTargetQuantity: true,
                 preorderCapacity: true,
@@ -400,6 +471,13 @@ export async function saveProjectSku(formData: FormData) {
       }
     });
     if (!product || product.projectId !== projectId) throw new Error("SKU 不属于该承接项目商品");
+    const projectAuthorization = product.project.designAuthorizations[0] ?? null;
+    if (
+      product.project.presaleCampaign?.id
+      && projectAuthorization?.preorderCampaignId === product.project.presaleCampaign.id
+    ) {
+      assertLimitedPreorderOfferEditable(projectAuthorization.status);
+    }
     if (
       isLimitedPreorderLifecycleLocked(product.project.presaleCampaign)
       || isLimitedPreorderLifecycleLocked(product.preorderCampaign)
@@ -456,20 +534,45 @@ export async function saveProjectOrder(formData: FormData) {
     note: optionalText(formData.get("note"))
   };
 
-  if (id) {
-    const existing = await prisma.projectOrder.findUnique({
-      where: { id },
-      select: { projectId: true, preorderCampaignId: true }
+  await runPreorderPreparationTransaction(async (tx) => {
+    const project = await tx.collaborationProject.findUnique({
+      where: { id: data.projectId },
+      select: {
+        id: true,
+        presaleCampaign: {
+          select: {
+            preorderStatus: true,
+            preorderTargetQuantity: true,
+            preorderCapacity: true,
+            preorderDeadline: true
+          }
+        }
+      }
     });
-    if (!existing) throw new Error("项目意向不存在");
-    if (existing.preorderCampaignId) {
-      throw new Error("V2.3 限量预售订单必须通过订单管理页处理，旧项目意向入口不可修改。");
+    if (!project) throw new Error("合作项目不存在");
+    if (isManagedLimitedPreorder(project.presaleCampaign)) {
+      throw new Error("该项目已进入 V2.3 限量预售管理，不能再创建或修改未关联活动的旧版项目意向。");
     }
-    if (existing.projectId !== data.projectId) throw new Error("项目意向不能更换所属合作项目");
-    await prisma.projectOrder.update({ where: { id }, data });
-  } else {
-    await prisma.projectOrder.create({ data });
-  }
+
+    if (id) {
+      const existing = await tx.projectOrder.findUnique({
+        where: { id },
+        select: { projectId: true, preorderCampaignId: true, updatedAt: true }
+      });
+      if (!existing) throw new Error("项目意向不存在");
+      if (existing.preorderCampaignId) {
+        throw new Error("V2.3 限量预售订单必须通过订单管理页处理，旧项目意向入口不可修改。");
+      }
+      if (existing.projectId !== data.projectId) throw new Error("项目意向不能更换所属合作项目");
+      const changed = await tx.projectOrder.updateMany({
+        where: { id, projectId: existing.projectId, preorderCampaignId: null, updatedAt: existing.updatedAt },
+        data
+      });
+      if (changed.count !== 1) throw new Error("项目意向已变化，请刷新后重试");
+    } else {
+      await tx.projectOrder.create({ data });
+    }
+  });
 
   revalidatePath("/admin/project-orders");
   revalidatePath("/me/project-orders");

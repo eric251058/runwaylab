@@ -5,6 +5,7 @@ import {
   LimitedPreorderQualificationMode,
   LimitedPreorderStatus,
   PresaleCampaignIntentStatus,
+  ProjectDesignAuthorizationStatus,
   ProjectProductStatus,
   UserRole,
   UserStatus
@@ -20,6 +21,7 @@ import {
   configureLimitedPreorderCampaign,
   openLimitedPreorderCampaign,
   pauseLimitedPreorderCampaign,
+  prepareLimitedPreorderProjectForOpening,
   resumeLimitedPreorderCampaign,
   settleLimitedPreorderCampaign,
   startLimitedPreorderProduction
@@ -27,10 +29,16 @@ import {
 import {
   evaluateLimitedPreorderAdmission,
   hasCurrentLimitedPreorderAuthorization,
+  LIMITED_PREORDER_NO_PAYMENT_NOTICE,
   LIMITED_PREORDER_QUALIFICATION_LABELS,
   LIMITED_PREORDER_STATUS_LABELS,
   summarizeLimitedPreorderOrders
 } from "@/lib/projects/preorder-lifecycle";
+import {
+  createLimitedPreorderOfferEnvelope,
+  hashLimitedPreorderOfferSnapshot,
+  readLimitedPreorderOfferSnapshot
+} from "@/lib/projects/preorder-offer";
 import { PROJECT_AUTHORIZATION_LABELS, PROJECT_PRODUCT_STATUS_LABELS, formatMoneyCents } from "@/lib/projects/rules";
 import { isPublicQualityWork } from "@/lib/works/rules";
 
@@ -69,11 +77,23 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
             reviewStatus: true,
             contentStatus: true,
             visibility: true,
-            images: { select: { imageUrl: true } }
+            images: { select: { imageUrl: true }, orderBy: { sortOrder: "asc" } }
           }
         },
         presaleCampaign: { include: { intents: { select: { status: true, quantity: true } } } },
-        designAuthorizations: { select: { status: true, preorderCampaignId: true, workId: true, designerUserId: true, ownerUserId: true, termsVersion: true }, take: 1 },
+        designAuthorizations: {
+          select: {
+            status: true,
+            preorderCampaignId: true,
+            workId: true,
+            designerUserId: true,
+            ownerUserId: true,
+            termsVersion: true,
+            offerHash: true,
+            offerSnapshot: true
+          },
+          take: 1
+        },
         ownerUser: { select: { id: true, nickname: true, role: true, status: true } },
         createdBy: { select: { id: true, nickname: true, role: true, status: true } },
         products: { include: { skus: { orderBy: { createdAt: "asc" } } }, orderBy: { createdAt: "desc" } },
@@ -113,7 +133,7 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
     ? await Promise.all([
         prisma.projectOrder.findMany({
           where: { projectId: project.id, preorderCampaignId: campaign.id },
-          select: { id: true, quantity: true, status: true, paymentStatus: true, fulfillmentStatus: true },
+          select: { id: true, quantity: true, status: true, paymentStatus: true, fulfillmentStatus: true, confirmedAt: true, confirmedById: true, confirmationChannel: true, confirmationEvidenceRef: true, confirmationSummary: true, productSnapshot: true },
           orderBy: { createdAt: "asc" }
         }),
         prisma.collaborationProject.count({ where: { presaleCampaignId: campaign.id } })
@@ -121,6 +141,26 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
     : [[], 0];
 
   const authorization = project.designAuthorizations[0] ?? null;
+  const currentOffer = campaign
+    ? createLimitedPreorderOfferEnvelope({
+        projectId: project.id,
+        projectTitle: project.title,
+        projectDescription: project.description,
+        projectTargetQuantity: project.targetQuantity,
+        projectEstimatedBudget: project.estimatedBudget,
+        workTitle: project.work?.title ?? "",
+        workDescription: project.work?.description ?? null,
+        campaign,
+        products: project.products,
+        displayImageUrls: project.work?.images.map((image) => image.imageUrl) ?? []
+      })
+    : null;
+  const authorizationSnapshot = readLimitedPreorderOfferSnapshot(authorization?.offerSnapshot);
+  const verifiedAuthorizationOfferHash = authorizationSnapshot
+    && authorization?.offerHash
+    && hashLimitedPreorderOfferSnapshot(authorizationSnapshot) === authorization.offerHash
+    ? authorization.offerHash
+    : null;
   const authorizationReady = Boolean(campaign && hasCurrentLimitedPreorderAuthorization({
     campaignId: campaign.id,
     campaignWorkId: campaign.workId,
@@ -133,13 +173,17 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
     authorizationRecordWorkId: authorization?.workId ?? null,
     authorizationDesignerUserId: authorization?.designerUserId ?? null,
     authorizationOwnerUserId: authorization?.ownerUserId ?? null,
-    authorizationTermsVersion: authorization?.termsVersion ?? null
+    authorizationTermsVersion: authorization?.termsVersion ?? null,
+    authorizationOfferHash: verifiedAuthorizationOfferHash,
+    currentOfferHash: currentOffer?.hash ?? null
   }));
   const unlockedLifecycleStatuses: readonly LimitedPreorderStatus[] = [
     LimitedPreorderStatus.NOT_STARTED,
     LimitedPreorderStatus.CLOSED
   ];
   const lifecycleLocked = Boolean(campaign && !unlockedLifecycleStatuses.includes(campaign.preorderStatus));
+  const authorizationDecisionLocked = authorization?.status === "PENDING" || authorization?.status === "ACCEPTED";
+  const preparationLocked = lifecycleLocked || authorizationDecisionLocked;
   const confirmedDemandQuantity = campaign?.intents
     .filter((intent) => intent.status === PresaleCampaignIntentStatus.CONFIRMED)
     .reduce((sum, intent) => sum + intent.quantity, 0) ?? 0;
@@ -162,6 +206,8 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
         authorizationDesignerUserId: project.designAuthorizations[0]?.designerUserId ?? null,
         authorizationOwnerUserId: project.designAuthorizations[0]?.ownerUserId ?? null,
         authorizationTermsVersion: project.designAuthorizations[0]?.termsVersion ?? null,
+        authorizationOfferHash: verifiedAuthorizationOfferHash,
+        currentOfferHash: currentOffer?.hash ?? null,
         demandTargetQuantity: campaign.targetCount,
         confirmedDemandQuantity,
         demandCampaignStatus: campaign.status,
@@ -178,7 +224,7 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
       })
     : null;
   const summary = campaign
-    ? summarizeLimitedPreorderOrders(orders, campaign.preorderQualificationMode)
+    ? summarizeLimitedPreorderOrders(orders, campaign.preorderQualificationMode, currentOffer?.hash ?? null)
     : { activeQuantity: 0, confirmedQuantity: 0, paidQuantity: 0, qualifiedQuantity: 0, refundPendingQuantity: 0 };
   const ownerBootstrapBlockedProjectStatuses: readonly CollaborationProjectStatus[] = [
     CollaborationProjectStatus.PREORDER_OPEN,
@@ -188,9 +234,10 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
     CollaborationProjectStatus.COMPLETED,
     CollaborationProjectStatus.CANCELLED
   ];
+  const legacyAdminCreatedProject = project.ownerUserId === null && project.createdBy?.role === UserRole.ADMIN;
   const ownerBootstrapAvailable = project.ownerUserId === null
-    && project.createdById === null
-    && authorization === null
+    && (project.createdById === null || legacyAdminCreatedProject)
+    && authorization?.status !== ProjectDesignAuthorizationStatus.ACCEPTED
     && project._count.orders === 0
     && (!campaign || campaign.preorderStatus === LimitedPreorderStatus.NOT_STARTED)
     && !ownerBootstrapBlockedProjectStatuses.includes(project.status);
@@ -209,25 +256,25 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
     <>
       {product ? <input type="hidden" name="id" value={product.id} /> : null}
       <input type="hidden" name="projectId" value={project.id} />
-      <input name="title" required maxLength={100} defaultValue={product?.title ?? project.work?.title ?? project.title} placeholder="商品标题" className={input} disabled={lifecycleLocked} />
-      <select name="status" defaultValue={product?.status ?? ProjectProductStatus.DRAFT} className={input} disabled={lifecycleLocked}>
+      <input name="title" required maxLength={100} defaultValue={product?.title ?? project.work?.title ?? project.title} placeholder="商品标题" className={input} disabled={preparationLocked} />
+      <select name="status" defaultValue={product?.status ?? ProjectProductStatus.DRAFT} className={input} disabled={preparationLocked}>
         {Object.values(ProjectProductStatus).map((status) => <option key={status} value={status}>{PROJECT_PRODUCT_STATUS_LABELS[status]}</option>)}
       </select>
-      <input name="price" required type="number" min={0} step={1} defaultValue={product?.price ?? 0} placeholder="价格（分）" className={input} disabled={lifecycleLocked} />
-      <select name="currency" defaultValue={product?.currency ?? "CNY"} className={input} disabled={lifecycleLocked}>
+      <input name="price" required type="number" min={1} step={1} defaultValue={product?.price ?? 0} placeholder="价格（分）" className={input} disabled={preparationLocked} />
+      <select name="currency" defaultValue={product?.currency ?? "CNY"} className={input} disabled={preparationLocked}>
         <option value="CNY">CNY</option><option value="USD">USD</option><option value="EUR">EUR</option>
       </select>
-      <input name="targetQuantity" type="number" min={1} defaultValue={product?.targetQuantity ?? ""} placeholder="商品目标量" className={input} disabled={lifecycleLocked} />
-      <input name="preorderLimit" type="number" min={1} defaultValue={product?.preorderLimit ?? ""} placeholder="商品硬限量" className={input} disabled={lifecycleLocked} />
-      <input name="imageStage" maxLength={80} defaultValue={product?.imageStage ?? ""} placeholder="图片阶段说明，如：效果图" className={input} disabled={lifecycleLocked} />
-      <label className="grid gap-1 text-xs font-semibold text-ink/45">预计发货日<input name="estimatedShipDate" type="date" defaultValue={dateInputValue(product?.estimatedShipDate)} className={input} disabled={lifecycleLocked} /></label>
+      <input name="targetQuantity" type="number" min={1} defaultValue={product?.targetQuantity ?? ""} placeholder="商品目标量" className={input} disabled={preparationLocked} />
+      <input name="preorderLimit" type="number" min={1} defaultValue={product?.preorderLimit ?? ""} placeholder="商品硬限量" className={input} disabled={preparationLocked} />
+      <input name="imageStage" required minLength={2} maxLength={80} defaultValue={product?.imageStage ?? ""} placeholder="图片真实阶段，如：实物样衣照片" className={input} disabled={preparationLocked} />
+      <label className="grid gap-1 text-xs font-semibold text-ink/45">预计发货日<input name="estimatedShipDate" type="date" defaultValue={dateInputValue(product?.estimatedShipDate)} className={input} disabled={preparationLocked} /></label>
       <input type="hidden" name="preorderDeadline" value={dateInputValue(campaign?.preorderDeadline)} />
-      <textarea name="description" maxLength={1000} defaultValue={product?.description ?? ""} placeholder="商品说明（开售前至少 20 字）" className={textarea} disabled={lifecycleLocked} />
-      <textarea name="materialDescription" maxLength={500} defaultValue={product?.materialDescription ?? ""} placeholder="面料与工艺说明" className={textarea} disabled={lifecycleLocked} />
-      <textarea name="careInstructions" maxLength={500} defaultValue={product?.careInstructions ?? ""} placeholder="护理说明" className={textarea} disabled={lifecycleLocked} />
-      <fieldset disabled={lifecycleLocked} className="contents">
-        <button disabled={!authorizationReady} className="h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:bg-ink/25 md:col-span-2">
-          {!authorizationReady ? "等待设计师授权" : lifecycleLocked ? "预售生命周期中，资料已锁定" : product ? "保存商品准备" : "创建商品草稿"}
+      <textarea name="description" required minLength={20} maxLength={1000} defaultValue={product?.description ?? ""} placeholder="商品说明（至少 20 字）" className={textarea} disabled={preparationLocked} />
+      <textarea name="materialDescription" required minLength={10} maxLength={500} defaultValue={product?.materialDescription ?? ""} placeholder="面料与工艺说明（至少 10 字）" className={textarea} disabled={preparationLocked} />
+      <textarea name="careInstructions" required minLength={10} maxLength={500} defaultValue={product?.careInstructions ?? ""} placeholder="护理说明（至少 10 字）" className={textarea} disabled={preparationLocked} />
+      <fieldset disabled={preparationLocked} className="contents">
+        <button className="h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:bg-ink/25 md:col-span-2">
+          {authorizationDecisionLocked ? "作者决定期间，最终资料已锁定" : lifecycleLocked ? "预售生命周期中，资料已锁定" : product ? "保存最终商品资料" : "创建商品草稿"}
         </button>
       </fieldset>
     </>
@@ -298,12 +345,13 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
             已登记：<span className="font-semibold">{project.ownerUser.nickname || "未命名用户"}</span>
             <span className="ml-2 text-xs opacity-70">({project.ownerUser.role} · {project.ownerUser.id})</span>
           </div>
-        ) : project.createdBy ? (
-          <div className="mt-4 rounded-[7px] bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-            该项目已有创建人 {project.createdBy.nickname || project.createdBy.id}。一次性补登记入口不会转移既有关系；如需转移负责人，应另行建立版本化授权流程。
-          </div>
         ) : ownerBootstrapAvailable ? (
           <>
+            {legacyAdminCreatedProject ? (
+              <p className="mt-4 rounded-[7px] bg-sky-50 p-4 text-sm leading-6 text-sky-900">
+                这是由系统管理员历史创建、但尚未登记真实负责人的项目。可在无授权、无订单且活动未开始时，仅补登记一次真实负责人；管理员创建记录仍保留在审计中。
+              </p>
+            ) : null}
             <form method="get" className="mt-4 flex flex-col gap-2 rounded-[7px] bg-black/[0.025] p-4 md:flex-row">
               <input
                 name="ownerQuery"
@@ -337,22 +385,42 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
               <button className="h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white md:col-span-2">一次性登记负责人</button>
             </form>
           </>
+        ) : project.createdBy ? (
+          <div className="mt-4 rounded-[7px] bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            该项目已有非管理员创建人 {project.createdBy.nickname || project.createdBy.id}。一次性补登记入口不会转移既有关系；如需转移负责人，应另行建立版本化授权流程。
+          </div>
         ) : (
           <div className="mt-4 rounded-[7px] bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-            当前项目不满足一次性补登记条件：必须没有负责人、没有创建人、没有任何授权记录或订单，且预售生命周期尚未开始。
+            当前项目不满足一次性补登记条件：必须没有负责人（或仅有历史管理员创建人）、没有任何授权记录或订单，且预售生命周期尚未开始。
           </div>
         )}
       </section>
 
       {!authorizationReady ? (
         <section className="mt-6 rounded-[8px] border border-amber-200 bg-amber-50 p-5">
-          <h2 className="text-xl font-semibold text-amber-950">等待作品作者授权</h2>
-          <p className="mt-2 text-sm leading-6 text-amber-900/75">授权邀请由真实项目发起人在个人授权中心一键发送，关联作品的作者自行接受、拒绝或撤销。V2.3 只接受当前标准条款及当前负责人、作品、作者完全一致的授权；旧版已接受授权需由作者先撤销，再由当前负责人重新邀请。平台不代替双方作商业决定，也不允许后台自定义或代填授权内容。</p>
+          <h2 className="text-xl font-semibold text-amber-950">先完成最终开售资料，再由作者决定</h2>
+          <p className="mt-2 text-sm leading-6 text-amber-900/75">先配置本期目标、限量、截止时间、完整条款、商品与 SKU，并把商品状态审核为“已通过”。真实项目负责人随后在个人授权中心发送这一版资料包；关联作品作者自行接受、拒绝或撤销。邀请发出后，价格、限量、交期、材质、护理和 SKU 会锁定，平台不能代替双方决定。</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Link href="/me/authorizations" className="inline-flex min-h-10 items-center rounded-full bg-amber-900 px-5 text-sm font-semibold text-white">前往授权中心</Link>
-            <span className="text-xs leading-5 text-amber-900/65">若项目没有真实发起人，请先在项目资料中绑定负责人；授权接受前，商品和开售操作均不可用。</span>
+            <span className="text-xs leading-5 text-amber-900/65">若项目没有真实发起人，请先登记负责人。商品资料可先准备，但开售必须等待作者接受当前最终版本。</span>
           </div>
         </section>
+      ) : null}
+
+      {campaign && authorizationReady && (project.status !== CollaborationProjectStatus.PREORDER_READY || project.visibility !== "PUBLIC") ? (
+        <form action={prepareLimitedPreorderProjectForOpening} className="mt-6 grid gap-3 rounded-[8px] border border-sky-200 bg-sky-50 p-5 md:grid-cols-2">
+          {lifecycleFields}
+          <div className="md:col-span-2">
+            <h2 className="text-xl font-semibold text-sky-950">完成项目预售准备</h2>
+            <p className="mt-2 text-sm leading-6 text-sky-900/75">作者已接受当前最终资料包。此动作只把项目设为公开展示与 PREORDER_READY，不开放预售、不创建订单、不扣款。</p>
+          </div>
+          <input name="reason" required minLength={4} maxLength={500} placeholder="准备完成依据（仅内部审计）" className={input} />
+          <label className="flex items-start gap-2 text-xs leading-5 text-sky-950">
+            <input name="confirmProjectPreparation" type="checkbox" required className="mt-1" />
+            我确认这一步不开放预售、不创建订单，只完成受控的公开与预售准备状态。
+          </label>
+          <button className="h-11 rounded-full bg-sky-900 px-5 text-sm font-semibold text-white md:col-span-2">设为公开并完成预售准备</button>
+        </form>
       ) : null}
 
       {campaign ? (
@@ -389,18 +457,12 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
                 required
                 minLength={40}
                 maxLength={5000}
-                defaultValue={campaign.preorderTermsText ?? "本商品为限量预售，并非现货。订单须在活动截止前达到页面所示成团目标后才进入生产；未达标或平台取消时，未付款订单将关闭，已付款订单进入退款处理，退款完成以实际退款记录为准。预计发货时间为生产计划，并非到货承诺。"}
+                defaultValue={campaign.preorderTermsText ?? `${LIMITED_PREORDER_NO_PAYMENT_NOTICE}\n\n本商品为限量预售，并非现货。活动须在截止前达到页面所示成团目标后才进入生产；未达标或取消时订单意向将关闭。预计发货时间为生产计划，并非到货承诺。`}
                 placeholder="完整预售条款正文"
                 className={textarea + " md:col-span-2"}
               />
-              <textarea
-                name="preorderPaymentInstructions"
-                maxLength={2000}
-                defaultValue={campaign.preorderPaymentInstructions ?? ""}
-                placeholder="仅按付款成团时必填：付款方式、联系路径、到账确认与锁定到期说明（至少 20 字）"
-                className={textarea + " md:col-span-2"}
-              />
-              <button className="h-11 rounded-full border border-black/10 bg-white px-5 text-sm font-semibold md:col-span-2">保存并审计预售配置</button>
+              <div className="rounded-[6px] border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-950 md:col-span-2">首期试点服务端强制不收款，不能填写转账、定金或任何付款指引。</div>
+              <button disabled={authorizationDecisionLocked} className="h-11 rounded-full border border-black/10 bg-white px-5 text-sm font-semibold disabled:opacity-35 md:col-span-2">{authorizationDecisionLocked ? "作者决定期间，配置已锁定" : "保存并审计预售配置"}</button>
             </form>
           ) : null}
 
@@ -427,7 +489,20 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
             {campaign.preorderStatus === LimitedPreorderStatus.OPEN ? reasonForm(pauseLimitedPreorderCampaign, "暂停接单", "暂停原因") : null}
             {campaign.preorderStatus === LimitedPreorderStatus.PAUSED ? reasonForm(resumeLimitedPreorderCampaign, "恢复接单", "恢复原因", { disabled: !preorderEnabled || !admission?.ok }) : null}
             {canSettle ? reasonForm(settleLimitedPreorderCampaign, "按成团口径结算", "结算判断依据") : null}
-            {campaign.preorderStatus === LimitedPreorderStatus.GOAL_REACHED ? reasonForm(startLimitedPreorderProduction, "确认进入生产", "进入生产依据") : null}
+            {campaign.preorderStatus === LimitedPreorderStatus.GOAL_REACHED ? reasonForm(
+              startLimitedPreorderProduction,
+              "核验承接后进入生产",
+              "进入生产依据",
+              {
+                extra: (
+                  <>
+                    <input name="productionEvidenceRef" required minLength={4} maxLength={200} placeholder="生产承接证据编号（外部协议、工单或确认记录编号）" className={input} />
+                    <textarea name="productionCommitmentSummary" required minLength={20} maxLength={500} placeholder="最小摘要：真实生产责任方、MOQ、产能、交付承诺与核验结论；不要填写完整联系方式" className={textarea} />
+                    <label className="flex items-start gap-2 text-xs leading-5"><input name="confirmProductionCommitment" type="checkbox" required className="mt-1" />我已核实真实生产责任方愿意承接，并确认 MOQ、产能、交付与质量责任；需求达标本身不等于可生产。</label>
+                  </>
+                )
+              }
+            ) : null}
             {canCancel ? reasonForm(cancelLimitedPreorderCampaign, "取消本期预售", "取消原因（必填并写入审计）", { danger: true }) : null}
             {canClose ? reasonForm(closeLimitedPreorderCampaign, "检查订单后结束归档", "结束归档原因") : null}
           </div>
@@ -457,24 +532,24 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
                   {product.skus.map((sku) => (
                     <form key={sku.id} action={saveProjectSku} className="grid gap-2 rounded-[6px] bg-paper p-3 md:grid-cols-6">
                       <input type="hidden" name="id" value={sku.id} /><input type="hidden" name="projectId" value={project.id} /><input type="hidden" name="productId" value={product.id} />
-                      <input name="size" required defaultValue={sku.size} placeholder="尺码" className={input} disabled={lifecycleLocked} />
-                      <input name="color" required defaultValue={sku.color} placeholder="颜色" className={input} disabled={lifecycleLocked} />
-                      <input name="skuCode" defaultValue={sku.skuCode ?? ""} placeholder="SKU 编码" className={input} disabled={lifecycleLocked} />
-                      <input name="capacity" type="number" min={1} defaultValue={sku.capacity ?? ""} placeholder="容量" className={input} disabled={lifecycleLocked} />
-                      <input name="priceOverride" type="number" min={1} defaultValue={sku.priceOverride ?? ""} placeholder="覆盖价格（分，可留空）" className={input} disabled={lifecycleLocked} />
-                      <label className="flex items-center gap-2 text-xs"><input name="enabled" type="checkbox" defaultChecked={sku.enabled} disabled={lifecycleLocked} />启用</label>
-                      <button disabled={lifecycleLocked} className="h-10 rounded-full border border-black/10 px-4 text-sm font-semibold disabled:opacity-35 md:col-span-6">保存 SKU</button>
+                      <input name="size" required defaultValue={sku.size} placeholder="尺码" className={input} disabled={preparationLocked} />
+                      <input name="color" required defaultValue={sku.color} placeholder="颜色" className={input} disabled={preparationLocked} />
+                      <input name="skuCode" defaultValue={sku.skuCode ?? ""} placeholder="SKU 编码" className={input} disabled={preparationLocked} />
+                      <input name="capacity" type="number" min={1} defaultValue={sku.capacity ?? ""} placeholder="容量" className={input} disabled={preparationLocked} />
+                      <input name="priceOverride" type="number" min={1} defaultValue={sku.priceOverride ?? ""} placeholder="覆盖价格（分，可留空）" className={input} disabled={preparationLocked} />
+                      <label className="flex items-center gap-2 text-xs"><input name="enabled" type="checkbox" defaultChecked={sku.enabled} disabled={preparationLocked} />启用</label>
+                      <button disabled={preparationLocked} className="h-10 rounded-full border border-black/10 px-4 text-sm font-semibold disabled:opacity-35 md:col-span-6">保存 SKU</button>
                     </form>
                   ))}
                   <form action={saveProjectSku} className="grid gap-2 rounded-[6px] border border-dashed border-black/15 p-3 md:grid-cols-6">
                     <input type="hidden" name="projectId" value={project.id} /><input type="hidden" name="productId" value={product.id} />
-                    <input name="size" required placeholder="尺码" className={input} disabled={lifecycleLocked} />
-                    <input name="color" required placeholder="颜色" className={input} disabled={lifecycleLocked} />
-                    <input name="skuCode" placeholder="SKU 编码" className={input} disabled={lifecycleLocked} />
-                    <input name="capacity" type="number" min={1} required placeholder="容量" className={input} disabled={lifecycleLocked} />
-                    <input name="priceOverride" type="number" min={1} placeholder="覆盖价格（分，可留空）" className={input} disabled={lifecycleLocked} />
-                    <label className="flex items-center gap-2 text-xs"><input name="enabled" type="checkbox" defaultChecked disabled={lifecycleLocked} />启用</label>
-                    <button disabled={lifecycleLocked} className="h-10 rounded-full bg-ink px-4 text-sm font-semibold text-white disabled:bg-ink/25 md:col-span-6">新增 SKU</button>
+                    <input name="size" required placeholder="尺码" className={input} disabled={preparationLocked} />
+                    <input name="color" required placeholder="颜色" className={input} disabled={preparationLocked} />
+                    <input name="skuCode" placeholder="SKU 编码" className={input} disabled={preparationLocked} />
+                    <input name="capacity" type="number" min={1} required placeholder="容量" className={input} disabled={preparationLocked} />
+                    <input name="priceOverride" type="number" min={1} placeholder="覆盖价格（分，可留空）" className={input} disabled={preparationLocked} />
+                    <label className="flex items-center gap-2 text-xs"><input name="enabled" type="checkbox" defaultChecked disabled={preparationLocked} />启用</label>
+                    <button disabled={preparationLocked} className="h-10 rounded-full bg-ink px-4 text-sm font-semibold text-white disabled:bg-ink/25 md:col-span-6">新增 SKU</button>
                   </form>
                 </div>
               </div>

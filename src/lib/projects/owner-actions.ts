@@ -5,6 +5,7 @@ import {
   LimitedPreorderStatus,
   NotificationType,
   Prisma,
+  ProjectDesignAuthorizationStatus,
   UserRole,
   UserStatus
 } from "@prisma/client";
@@ -67,8 +68,10 @@ export async function assignCollaborationProjectOwner(formData: FormData) {
           title: true,
           slug: true,
           status: true,
+          designerAuthorizationStatus: true,
           ownerUserId: true,
           createdById: true,
+          createdBy: { select: { role: true } },
           presaleCampaignId: true,
           updatedAt: true,
           presaleCampaign: {
@@ -113,8 +116,11 @@ export async function assignCollaborationProjectOwner(formData: FormData) {
       };
     }
 
-    if (project.ownerUserId !== null || project.createdById !== null) {
-      throw new Error("该项目已有负责人或创建人；本入口只用于一次性补登记，不能转移负责人");
+    const legacyAdminCreatedProject = project.ownerUserId === null
+      && project.createdById !== null
+      && project.createdBy?.role === UserRole.ADMIN;
+    if (project.ownerUserId !== null || (project.createdById !== null && !legacyAdminCreatedProject)) {
+      throw new Error("该项目已有真实负责人或非管理员创建人；本入口只用于一次性补登记，不能转移负责人");
     }
     if (OWNER_BOOTSTRAP_BLOCKED_PROJECT_STATUSES.includes(project.status)) {
       throw new Error("项目已进入接单、生产、履约或终态，不能补登记负责人");
@@ -125,8 +131,8 @@ export async function assignCollaborationProjectOwner(formData: FormData) {
     ) {
       throw new Error("限量预售生命周期已经开始，不能补登记负责人");
     }
-    if (authorization) {
-      throw new Error("该项目已有作品授权记录，不能通过一次性入口重绑负责人");
+    if (authorization?.status === ProjectDesignAuthorizationStatus.ACCEPTED) {
+      throw new Error("该项目已有作者接受的作品授权，不能通过一次性入口重绑负责人");
     }
     if (orderCount > 0) {
       throw new Error("该项目已有订单记录，不能补登记负责人");
@@ -136,8 +142,9 @@ export async function assignCollaborationProjectOwner(formData: FormData) {
       where: {
         id: project.id,
         status: project.status,
+        designerAuthorizationStatus: project.designerAuthorizationStatus,
         ownerUserId: null,
-        createdById: null,
+        createdById: project.createdById,
         presaleCampaignId: project.presaleCampaignId,
         updatedAt: project.updatedAt
       },
@@ -155,7 +162,8 @@ export async function assignCollaborationProjectOwner(formData: FormData) {
         targetId: project.id,
         detail: {
           oldOwnerUserId: null,
-          oldCreatedById: null,
+          oldCreatedById: project.createdById,
+          legacyAdminCreatorBootstrap: legacyAdminCreatedProject,
           newOwnerUserId: owner.id,
           newOwnerNickname: owner.nickname,
           reason,
@@ -163,7 +171,8 @@ export async function assignCollaborationProjectOwner(formData: FormData) {
           campaignId: project.presaleCampaign?.id ?? null,
           preorderStatus: project.presaleCampaign?.preorderStatus ?? null,
           authorizationCreated: false,
-          authorDecisionChanged: false
+          authorDecisionChanged: false,
+          existingAuthorizationStatus: authorization?.status ?? null
         }
       }
     });

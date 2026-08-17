@@ -52,8 +52,8 @@ assert.match(actions, /TransactionIsolationLevel\.Serializable/);
 assert.match(actions, /error\.code === "P2034" && attempt < 2/);
 assert.equal(
   actions.match(/await runPreorderPreparationTransaction\(async \(tx\) =>/g)?.length,
-  2,
-  "product and SKU saves must share the serializable retry wrapper"
+  3,
+  "product, SKU and legacy order saves must share the serializable retry wrapper"
 );
 
 const productAction = actions.slice(
@@ -83,14 +83,24 @@ assert.match(skuAction, /priceOverride: integerValue\([\s\S]*?\{ min: 1, max: 10
 assert.doesNotMatch(skuAction, /priceOverride: integerValue\([\s\S]*?\{ min: 0,/);
 
 const legacyOrderAction = actions.slice(actions.indexOf("export async function saveProjectOrder"));
-const orderLookupIndex = legacyOrderAction.indexOf("prisma.projectOrder.findUnique");
-const orderUpdateIndex = legacyOrderAction.indexOf("prisma.projectOrder.update");
+const orderLookupIndex = legacyOrderAction.indexOf("tx.projectOrder.findUnique");
+const orderUpdateIndex = legacyOrderAction.indexOf("tx.projectOrder.updateMany");
 assert(orderLookupIndex >= 0 && orderLookupIndex < orderUpdateIndex, "legacy order must be classified before update");
-assert.match(legacyOrderAction, /select: \{ projectId: true, preorderCampaignId: true \}/);
+assert.match(legacyOrderAction, /select: \{ projectId: true, preorderCampaignId: true, updatedAt: true \}/);
 assert.match(legacyOrderAction, /if \(existing\.preorderCampaignId\)/);
 assert.match(legacyOrderAction, /V2\.3 限量预售订单必须通过订单管理页处理/);
 assert.match(legacyOrderAction, /if \(existing\.projectId !== data\.projectId\)/);
 assert.match(legacyOrderAction, /项目意向不能更换所属合作项目/);
+assert.match(legacyOrderAction, /tx\.projectOrder\.updateMany/);
+assert.match(legacyOrderAction, /preorderCampaignId: null/);
+assert.match(legacyOrderAction, /updatedAt: existing\.updatedAt/);
+assert.match(legacyOrderAction, /isManagedLimitedPreorder/);
+assert.match(legacyOrderAction, /presaleCampaign/);
+assert.match(legacyOrderAction, /(?:旧项目意向|通用项目意向|sidecar|旁路)/);
+assert(
+  legacyOrderAction.indexOf("isManagedLimitedPreorder") < legacyOrderAction.indexOf("projectOrder.create"),
+  "managed V2.3 projects must reject legacy sidecar creation before any write"
+);
 
 assert.match(presaleActions, /runPresaleCampaignSaveTransaction/);
 assert.match(presaleActions, /designAuthorizations: \{[\s\S]*status: true, workId: true, designerUserId: true/);

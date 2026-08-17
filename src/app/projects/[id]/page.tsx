@@ -8,7 +8,9 @@ import { submitProjectApplication } from "@/lib/project-application-actions";
 import { PROJECT_APPLICATION_ROLE_LABELS, PROJECT_APPLICATION_ROLES, projectOpportunityNeeds } from "@/lib/project-applications";
 import { PROJECT_ORDER_STATUS_LABELS, PROJECT_PRIORITY_LABELS, PROJECT_STATUS_LABELS, publicProjectWhere } from "@/lib/commercial-collaboration";
 import { isFeatureEnabled } from "@/lib/features";
-import { LIMITED_PREORDER_QUALIFICATION_LABELS, LIMITED_PREORDER_STATUS_LABELS } from "@/lib/projects/preorder-lifecycle";
+import { hasCurrentLimitedPreorderAuthorization, LIMITED_PREORDER_QUALIFICATION_LABELS, LIMITED_PREORDER_STATUS_LABELS } from "@/lib/projects/preorder-lifecycle";
+import { createLimitedPreorderOfferEnvelope, hashLimitedPreorderOfferSnapshot, readLimitedPreorderOfferSnapshot } from "@/lib/projects/preorder-offer";
+import { hasVerifiedBuyerContact, PILOT_BUYER_CAMPAIGN_QUANTITY_LIMIT } from "@/lib/projects/preorder-buyer-cap";
 import { canOpenLimitedPreorder, PROJECT_MILESTONE_STATUS_LABELS } from "@/lib/projects/rules";
 import { prisma } from "@/lib/prisma";
 import { visualFor } from "@/components/works/work-visuals";
@@ -38,19 +40,19 @@ function limitedPreorderPublicNotice(status: LimitedPreorderStatus, submissionEn
     case LimitedPreorderStatus.OPEN:
       return submissionEnabled
         ? "本期正在接收限量预售订单，请先核对商品、规格、截止时间、预计发货与条款正文。"
-        : "活动状态仍为开放，但新提交入口当前已关闭；已有订单及付款、退款和履约义务不受影响。";
+        : "活动状态仍为开放，但新提交入口当前已关闭；已有未付款订单意向及其核验、履约记录仍会保留。";
     case LimitedPreorderStatus.PAUSED:
       return "本期已暂停接单。已有订单继续保留并按订单中心状态处理，恢复时间以平台后续说明为准。";
     case LimitedPreorderStatus.GOAL_REACHED:
       return "本期已达到成团目标，正在等待平台确认进入生产；达标不等于已经发货。";
     case LimitedPreorderStatus.FAILED:
-      return "本期未达到成团目标。未付款订单将关闭；已付款订单进入退款待处理，退款完成以订单中的实际退款记录为准。";
+      return "本期未达到成团目标，未付款订单意向将关闭；本期未在线收款，也不产生平台退款流程。";
     case LimitedPreorderStatus.CANCELLED:
-      return "本期已取消。未付款订单将关闭；已付款订单进入退款待处理，退款完成以订单中的实际退款记录为准。";
+      return "本期已取消，未付款订单意向将关闭；本期未在线收款，也不产生平台退款流程。";
     case LimitedPreorderStatus.PRODUCTION:
       return "本期已进入生产。预计发货仍是计划时间，具体生产、质检和发货进度以个人订单记录为准。";
     case LimitedPreorderStatus.CLOSED:
-      return "本期已结束归档，不再接收新订单；历史订单及其付款、退款和履约记录仍可在个人订单中心查看。";
+      return "本期已结束归档，不再接收新订单意向；历史核验与履约记录仍可在个人订单中心查看。";
     case LimitedPreorderStatus.NOT_STARTED:
       return "本期尚未开始。";
   }
@@ -85,6 +87,19 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
         }
       },
       products: { include: { skus: { where: { enabled: true }, orderBy: { createdAt: "asc" } } }, orderBy: { createdAt: "asc" } },
+      designAuthorizations: {
+        select: {
+          status: true,
+          preorderCampaignId: true,
+          workId: true,
+          designerUserId: true,
+          ownerUserId: true,
+          termsVersion: true,
+          offerHash: true,
+          offerSnapshot: true
+        },
+        take: 1
+      },
       milestones: { orderBy: { createdAt: "asc" } },
       orders: { where: { preorderCampaignId: null }, orderBy: { createdAt: "desc" }, take: 8 },
       reviews: { where: { status: ReviewStatus.PUBLISHED }, include: { reviewer: true }, orderBy: { createdAt: "desc" }, take: 8 }
@@ -100,13 +115,52 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
     ? project.products.filter((product) => canOpenLimitedPreorder(project.status, product.status, project.designerAuthorizationStatus))
     : [];
   const preorderLifecycleStarted = Boolean(presaleCampaign && presaleCampaign.preorderStatus !== LimitedPreorderStatus.NOT_STARTED);
-  const preorderDeadlinePassed = Boolean(presaleCampaign?.preorderDeadline && presaleCampaign.preorderDeadline <= new Date());
+  const now = new Date();
+  const preorderDeadlinePassed = Boolean(presaleCampaign?.preorderDeadline && presaleCampaign.preorderDeadline <= now);
+  const authorization = project.designAuthorizations[0] ?? null;
+  const authorizationSnapshot = readLimitedPreorderOfferSnapshot(authorization?.offerSnapshot);
+  const verifiedAuthorizationOfferHash = authorizationSnapshot
+    && authorization?.offerHash
+    && hashLimitedPreorderOfferSnapshot(authorizationSnapshot) === authorization.offerHash
+    ? authorization.offerHash
+    : null;
+  const currentOffer = presaleCampaign && work ? createLimitedPreorderOfferEnvelope({
+    projectId: project.id,
+    projectTitle: project.title,
+    projectDescription: project.description,
+    projectTargetQuantity: project.targetQuantity,
+    projectEstimatedBudget: project.estimatedBudget,
+    workTitle: work.title,
+    workDescription: work.description,
+    campaign: presaleCampaign,
+    products: project.products,
+    displayImageUrls: work.images.map((image) => image.imageUrl),
+    now
+  }) : null;
+  const currentAuthorizationValid = Boolean(presaleCampaign && work && currentOffer && hasCurrentLimitedPreorderAuthorization({
+    campaignId: presaleCampaign.id,
+    campaignWorkId: presaleCampaign.workId,
+    projectWorkId: project.workId,
+    workOwnerUserId: work.userId,
+    projectOwnerUserId: project.ownerUserId ?? project.createdById,
+    projectAuthorizationStatus: project.designerAuthorizationStatus,
+    authorizationRecordStatus: authorization?.status ?? null,
+    authorizationPreorderCampaignId: authorization?.preorderCampaignId ?? null,
+    authorizationRecordWorkId: authorization?.workId ?? null,
+    authorizationDesignerUserId: authorization?.designerUserId ?? null,
+    authorizationOwnerUserId: authorization?.ownerUserId ?? null,
+    authorizationTermsVersion: authorization?.termsVersion ?? null,
+    authorizationOfferHash: verifiedAuthorizationOfferHash,
+    currentOfferHash: currentOffer.hash
+  }));
   const canSubmitLimitedPreorder = Boolean(
     preorderEnabled
     && presaleCampaign?.preorderStatus === LimitedPreorderStatus.OPEN
     && presaleCampaign.preorderDeadline
-    && presaleCampaign.preorderDeadline > new Date()
+    && presaleCampaign.preorderDeadline > now
     && preorderProducts.length
+    && currentOffer?.issues.length === 0
+    && currentAuthorizationValid
   );
   const confirmedIntents = presaleCampaign?.intents.filter(
     (intent) => intent.status === PresaleCampaignIntentStatus.CONFIRMED
@@ -187,7 +241,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
             <div className="h-full rounded-full bg-ink" style={{ width: `${demandProgress}%` }} />
           </div>
           <p className="mt-3 text-xs leading-5 text-ink/45">
-            当前进度 {demandProgress}%。以上数据为未付款购买意向及人工确认结果，不代表已成交订单或平台收入；正式交易以项目开启预订并完成付款为准。
+            当前进度 {demandProgress}%。以上数据为未付款购买意向及人工确认结果，不代表已成交订单或平台收入；V2.3 首期只记录经平台人工核验的订单意向，不在线收款、不收定金。
           </p>
         </section>
       ) : null}
@@ -197,6 +251,8 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
           <LimitedPreorderPanel
             projectId={project.slug ?? project.id}
             isLoggedIn={Boolean(currentUser)}
+            buyerContactVerified={Boolean(currentUser && hasVerifiedBuyerContact(currentUser))}
+            buyerQuantityLimit={PILOT_BUYER_CAMPAIGN_QUANTITY_LIMIT}
             campaign={{
               title: presaleCampaign!.title,
               targetQuantity: presaleCampaign!.preorderTargetQuantity!,
@@ -213,6 +269,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
               description: product.description,
               materialDescription: product.materialDescription,
               careInstructions: product.careInstructions,
+              imageStage: product.imageStage,
               price: product.price,
               currency: product.currency,
               preorderLimit: product.preorderLimit!,
@@ -249,6 +306,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
           </p>
           {presaleCampaign.preorderPublicNotice ? <p className="mt-3 text-sm leading-6 text-ink/58"><span className="font-semibold text-ink">平台状态说明：</span>{presaleCampaign.preorderPublicNotice}</p> : null}
           {presaleCampaign.preorderStatus === LimitedPreorderStatus.OPEN && preorderEnabled && workPublicReady && !preorderProducts.length ? <p className="mt-3 text-sm font-semibold text-red-700">当前没有可下单商品，请联系 RunwayLab 平台核对活动配置。</p> : null}
+          {presaleCampaign.preorderStatus === LimitedPreorderStatus.OPEN && preorderEnabled && (!currentAuthorizationValid || currentOffer?.issues.length) ? <p className="mt-3 text-sm font-semibold text-red-700">作者授权或公开开售资料已发生变化，新提交已安全停止；已有记录仍保留，请等待平台处理。</p> : null}
           {presaleCampaign.preorderStatus === LimitedPreorderStatus.OPEN && !workPublicReady ? <p className="mt-3 text-sm font-semibold text-red-700">关联作品当前未达到公开质量或审核要求，本期已停止接受新提交，等待平台处理。</p> : null}
         </section>
       ) : null}

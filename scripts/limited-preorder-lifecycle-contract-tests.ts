@@ -8,6 +8,9 @@ const actions = readFileSync("src/lib/projects/preorder-lifecycle-actions.ts", "
 const preorderService = readFileSync("src/lib/projects/preorder-service.ts", "utf8");
 const preorderRoute = readFileSync("src/app/api/projects/[id]/preorders/route.ts", "utf8");
 const presaleActions = readFileSync("src/lib/presale-campaign-actions.ts", "utf8");
+const workRoute = readFileSync("src/app/api/works/[id]/route.ts", "utf8");
+const adminPreorder = readFileSync("src/app/admin/projects/[id]/preorder/page.tsx", "utf8");
+const authorizationsPage = readFileSync("src/app/me/authorizations/page.tsx", "utf8");
 
 function occurrences(source: string, pattern: RegExp) {
   return source.match(pattern)?.length ?? 0;
@@ -74,20 +77,22 @@ assert.match(actions, /feature\.manual_payment_pilot/);
 assert.match(actions, /按付款成团必须等待真实退款记录闭环完成后再启用/);
 assert.match(actions, /PresaleCampaignIntentStatus\.CONFIRMED/);
 assert.match(actions, /evaluateLimitedPreorderAdmission/);
-assert.match(actions, /designAuthorizations: \{ select: \{ status: true, preorderCampaignId: true, workId: true, designerUserId: true, ownerUserId: true, termsVersion: true \}/);
+assert.match(actions, /designAuthorizations:\s*\{[\s\S]*?preorderCampaignId: true,[\s\S]*?termsVersion: true,[\s\S]*?offerHash: true,[\s\S]*?offerSnapshot: true/);
 assert.match(lifecycle, /input\.authorizationTermsVersion === PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION/);
 assert.match(lifecycle, /input\.authorizationPreorderCampaignId === input\.campaignId/);
 assert.match(lifecycle, /input\.authorizationRecordWorkId === input\.campaignWorkId/);
 assert.match(lifecycle, /input\.authorizationDesignerUserId === input\.workOwnerUserId/);
 assert.match(lifecycle, /input\.authorizationOwnerUserId === input\.projectOwnerUserId/);
+assert.match(lifecycle, /Boolean\(input\.authorizationOfferHash\)/);
+assert.match(lifecycle, /input\.authorizationOfferHash === input\.currentOfferHash/);
 assert.match(actions, /hasCurrentLimitedPreorderAuthorization/);
 assert.match(actions, /当前标准设计授权已失效或与项目、作品、作者、负责人不一致，不能进入生产/);
 
-// All eight mutating lifecycle actions require a reason and use the shared serializable transaction wrapper.
-assert.equal(occurrences(actions, /export async function /g), 8);
-assert.equal(occurrences(actions, /const reason = assertLifecycleReason/g), 8);
+// All nine mutating lifecycle actions require a reason and use the shared serializable transaction wrapper.
+assert.equal(occurrences(actions, /export async function /g), 9);
+assert.equal(occurrences(actions, /const reason = assertLifecycleReason/g), 9);
 assert.equal(occurrences(actions, /const publicNotice = assertPublicPreorderNotice/g), 8);
-assert.equal(occurrences(actions, /await runLifecycleTransaction\(async \(tx\) =>/g), 8);
+assert.equal(occurrences(actions, /await runLifecycleTransaction\(async \(tx\) =>/g), 9);
 assert.match(actions, /TransactionIsolationLevel\.Serializable/);
 assert.match(actions, /error\.code === "P2034"/);
 assert.match(actions, /for \(let attempt = 0; attempt < 3/);
@@ -96,6 +101,9 @@ assert.match(actions, /for \(let attempt = 0; attempt < 3/);
 assert.match(actions, /presaleCampaign\.updateMany\(\{\s*where: \{ id: campaignId, preorderStatus: fromState \}/);
 assert.match(actions, /projectOrder\.updateMany\(\{\s*where: \{ id: order\.id, status: order\.status, paymentStatus: order\.paymentStatus, fulfillmentStatus: order\.fulfillmentStatus \}/);
 assert.match(actions, /if \(changed\.count !== 1\) throw new Error\(`订单 \$\{order\.id\} 状态已变化/);
+assert.match(actions, /cancellationReason:\s*disposition === "CANCEL" \? publicNotice : undefined/);
+assert.doesNotMatch(actions, /cancellationReason:\s*disposition === "CANCEL" \? reason : undefined/);
+assert.match(actions, /applyOrderDisposition\(tx, \{[\s\S]*?reason, publicNotice, now \}\)/);
 assert.match(actions, /CommerceAggregateType\.CAMPAIGN/);
 assert.match(actions, /CommerceAggregateType\.ORDER/);
 assert.match(actions, /tx\.commerceStateEvent\.create/);
@@ -108,12 +116,27 @@ assert(actions.indexOf("projectOrder.updateMany") < actions.indexOf("aggregateTy
 // Settlement uses actual linked orders, never the legacy demand counter, and cannot fail early.
 assert.match(actions, /orders:\s*\{\s*where: \{ preorderCampaignId: campaignId \}/);
 assert.match(actions, /summarizeLimitedPreorderOrders\(context\.project\.orders/);
+assert.match(actions, /productSnapshot: true/);
+assert.match(actions, /summarizeLimitedPreorderOrders\(context\.project\.orders, context\.campaign\.preorderQualificationMode, currentOffer\.hash\)/);
 assert.match(actions, /活动尚未达标且未到截止时间，不能提前判定失败/);
 assert.match(actions, /planFailedOrderDisposition/);
 assert.match(actions, /planGoalReachedOrderDisposition/);
 assert.match(actions, /planProductionOrderDisposition/);
+assert.match(actions, /planGoalReachedOrderDisposition\(order, context\.campaign\.preorderQualificationMode, currentOffer\.hash\)/);
+assert.match(actions, /planProductionOrderDisposition\(order, context\.campaign\.preorderQualificationMode, currentOffer\.hash\)/);
+assert.match(lifecycle, /orderQualifiesForCampaign\(order, mode, expectedOfferHash\)/);
+assert.match(lifecycle, /readProjectOrderProductSnapshot\(order\.productSnapshot\)\.submissionOfferHash/);
+assert.match(adminPreorder, /summarizeLimitedPreorderOrders\(orders, campaign\.preorderQualificationMode, currentOffer\?\.hash \?\? null\)/);
+assert.match(authorizationsPage, /summarizeLimitedPreorderOrders\(campaign\.preorderOrders, campaign\.preorderQualificationMode, currentOffer\?\.hash \?\? null\)/);
 assert.match(actions, /关联作品已下架或不再满足公开质量门槛，不能进入生产/);
 assert.match(actions, /!context\.project\.work \|\| !isPublicQualityWork\(context\.project\.work\)/);
+assert.match(actions, /if \(decision === LimitedPreorderStatus\.GOAL_REACHED\) \{[\s\S]*?!context\.project\.work \|\| !isPublicQualityWork\(context\.project\.work\)[\s\S]*?不能把活动判定为成团/);
+assert.match(actions, /function currentOfferForContext\([\s\S]*?createLimitedPreorderOfferEnvelope\(/);
+assert.match(actions, /if \(decision === LimitedPreorderStatus\.GOAL_REACHED\) \{[\s\S]*?currentOfferForContext\(context, now\)[\s\S]*?hasCurrentLimitedPreorderAuthorization\(/);
+assert.match(actions, /const productionEvidenceRef = requiredText\(formData\.get\("productionEvidenceRef"\)/);
+assert.match(actions, /const productionCommitmentSummary = requiredText\(formData\.get\("productionCommitmentSummary"\)/);
+assert.match(actions, /formData\.get\("confirmProductionCommitment"\) !== "on"/);
+assert.match(actions, /productionCommitmentConfirmed: true/);
 assert.doesNotMatch(actions, /currentCount/);
 assert.doesNotMatch(
   actions,
@@ -130,6 +153,18 @@ assert.match(presaleActions, /where: \{ id: intent\.campaignId, currentCount: \{
 assert.match(presaleActions, /data: \{ currentCount: \{ decrement: intent\.quantity \} \}/);
 assert.doesNotMatch(preorderService, /currentCount/);
 
+// A safety/copyright takedown fails closed across the live campaign in the
+// same serializable transaction, with a durable campaign event and admin log.
+assert.match(workRoute, /action === "offline"[\s\S]*runWorkLifecycleTransaction\(async \(tx\) =>/);
+assert.match(workRoute, /TransactionIsolationLevel\.Serializable/);
+assert.match(workRoute, /preorderStatus: LimitedPreorderStatus\.PAUSED/);
+assert.match(workRoute, /status: CollaborationProjectStatus\.PREORDER_READY/);
+assert.match(workRoute, /status: ProjectProductStatus\.PAUSED/);
+assert.match(workRoute, /aggregateType: CommerceAggregateType\.CAMPAIGN/);
+assert.match(workRoute, /fromState: LimitedPreorderStatus\.OPEN/);
+assert.match(workRoute, /toState: LimitedPreorderStatus\.PAUSED/);
+assert.match(workRoute, /action: "WORK_OFFLINE_PAUSE_LIMITED_PREORDER"/);
+
 // Order creation is tied to the open campaign, locks capacity and snapshots accepted terms.
 assert.match(preorderService, /campaign\.preorderStatus !== LimitedPreorderStatus\.OPEN/);
 assert.match(preorderService, /isPublicQualityWork\(project\.work\)/);
@@ -141,6 +176,7 @@ assert.match(preorderService, /paymentStatus: \{ in: \[ProjectOrderPaymentStatus
 assert.match(preorderService, /termsVersion: campaign\.preorderTermsVersion/);
 assert.match(preorderService, /termsTextSnapshot: campaign\.preorderTermsText/);
 assert.match(preorderService, /termsAcceptedAt: now/);
+assert.match(preorderService, /submissionOfferHash: currentOffer\.hash/);
 assert.match(preorderService, /paymentStatus: ProjectOrderPaymentStatus\.UNPAID/);
 assert.match(preorderRoute, /INVALID_QUANTITY/);
 assert.doesNotMatch(preorderRoute, /\? number : 1/, "invalid quantities must not silently become one unit");

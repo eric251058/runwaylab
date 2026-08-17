@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isFeatureEnabled } from "@/lib/features";
 import { createLimitedPreorder, PreorderError } from "@/lib/projects/preorder-service";
+import { PILOT_BUYER_CAMPAIGN_QUANTITY_LIMIT } from "@/lib/projects/preorder-buyer-cap";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -12,7 +13,7 @@ function text(value: unknown, max = 500) {
 
 function positiveQuantity(value: unknown) {
   const number = Number(value);
-  return Number.isInteger(number) && number >= 1 && number <= 20 ? number : null;
+  return Number.isInteger(number) && number >= 1 && number <= PILOT_BUYER_CAMPAIGN_QUANTITY_LIMIT ? number : null;
 }
 
 export async function POST(request: Request, context: RouteContext) {
@@ -35,7 +36,7 @@ export async function POST(request: Request, context: RouteContext) {
   if (!productId) return NextResponse.json({ error: "请选择预订商品。" }, { status: 400 });
   const quantity = positiveQuantity(body?.quantity);
   if (quantity === null) {
-    return NextResponse.json({ error: "预订数量必须是 1 至 20 的整数。", code: "INVALID_QUANTITY" }, { status: 400 });
+    return NextResponse.json({ error: `首期每个已验证账号每期最多提交 ${PILOT_BUYER_CAMPAIGN_QUANTITY_LIMIT} 件订单意向。`, code: "INVALID_QUANTITY" }, { status: 400 });
   }
 
   try {

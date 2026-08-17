@@ -39,11 +39,10 @@ for (const [name, action] of [
 
 // Request re-reads the campaign guard, uses CAS for an existing authorization and project, and logs atomically.
 assert.match(request, /tx\.collaborationProject\.findUnique/);
-assert.match(request, /presaleCampaign: \{ select: \{ id: true, preorderStatus: true \} \}/);
-for (const status of ["OPEN", "PAUSED", "GOAL_REACHED", "PRODUCTION"]) {
-  assert.match(request, new RegExp(`LimitedPreorderStatus\\.${status}`));
-}
+assert.match(request, /presaleCampaign:\s*\{\s*select:\s*\{[\s\S]*?id: true,[\s\S]*?preorderStatus: true/);
+assert.match(request, /preorderStatus !== LimitedPreorderStatus\.NOT_STARTED/);
 assert.match(request, /restoringRevokedPausedAuthorization/);
+assert.match(request, /canPrepareManagedLimitedPreorderProject\(project\.status\)/);
 assert.match(request, /existingAuthorization\?\.status === ProjectDesignAuthorizationStatus\.REVOKED/);
 assert.match(request, /tx\.projectDesignAuthorization\.findUnique/);
 assert.match(request, /tx\.projectDesignAuthorization\.updateMany\(\{[\s\S]*updatedAt: existingAuthorization\.updatedAt/);
@@ -75,7 +74,7 @@ assert.match(respond, /const expectedUpdatedAtText = requiredText\(formData\.get
 assert.match(respond, /where: \{ id: authorizationId \}/);
 assert.match(respond, /authorization\.projectId !== projectId/);
 assert.match(respond, /authorization\.updatedAt\.getTime\(\) !== expectedUpdatedAt\.getTime\(\)/);
-assert.match(respond, /presaleCampaign: \{ select: \{ id: true, preorderStatus: true \} \}/);
+assert.match(respond, /presaleCampaign:\s*\{\s*select:\s*\{[\s\S]*?id: true,[\s\S]*?preorderStatus: true/);
 assert.match(respond, /authorization\.status !== ProjectDesignAuthorizationStatus\.PENDING[\s\S]*接受或拒绝只能针对等待决定的邀请/);
 assert.match(respond, /projectDesignAuthorizationPolicy\(authorization\.project\.presaleCampaign\?\.id \?\? null\)/);
 assert.match(respond, /authorization\.termsVersion === policy\.termsVersion/);
@@ -86,7 +85,9 @@ assert.match(respond, /authorization\.ownerUserId === currentOwnerUserId/);
 assert.match(respond, /authorization\.designerUserId === authorization\.project\.work\?\.userId/);
 assert.match(respond, /status === ProjectDesignAuthorizationStatus\.ACCEPTED && !standardInvitationValid/);
 assert.match(respond, /where: \{\s*id: authorizationId,\s*projectId,\s*status: ProjectDesignAuthorizationStatus\.PENDING,\s*updatedAt: expectedUpdatedAt\s*\}/);
-assert.match(respond, /status !== ProjectDesignAuthorizationStatus\.ACCEPTED[\s\S]*preorderStatus !== LimitedPreorderStatus\.NOT_STARTED/);
+assert.match(respond, /const pausedReinvite = Boolean/);
+assert.match(respond, /preorderStatus === LimitedPreorderStatus\.PAUSED/);
+assert.match(respond, /preorderStatus !== LimitedPreorderStatus\.NOT_STARTED[\s\S]*&& !pausedReinvite/);
 assert.match(respond, /tx\.projectDesignAuthorization\.updateMany\(\{[\s\S]*updatedAt: expectedUpdatedAt/);
 assert.match(respond, /tx\.collaborationProject\.updateMany\(\{[\s\S]*updatedAt: authorization\.project\.updatedAt[\s\S]*designerAuthorizationStatus: authorization\.project\.designerAuthorizationStatus/);
 assert.match(respond, /if \(authorizationChanged\.count !== 1\)/);

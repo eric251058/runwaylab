@@ -51,20 +51,30 @@ jobs:
           node --import tsx scripts/project-design-authorization-transaction-contract-tests.ts
           node --import tsx scripts/authorization-decision-version-contract-tests.ts
           node --import tsx scripts/project-owner-bootstrap-contract-tests.ts
+          node --import tsx scripts/limited-preorder-offer-authorization-contract-tests.ts
 
       - name: Limited preorder regression
         run: |
+          node --import tsx scripts/limited-preorder-additive-schema-migration-contract-tests.ts
+          node --import tsx scripts/limited-preorder-buyer-cap-tests.ts
+          node --import tsx scripts/limited-preorder-buyer-cap-contract-tests.ts
+          node --import tsx scripts/limited-preorder-buyer-verification-contract-tests.ts
           node --import tsx scripts/limited-preorder-consumer-transparency-tests.ts
           node --import tsx scripts/limited-preorder-designer-transparency-tests.ts
           node --import tsx scripts/limited-preorder-legacy-isolation-contract-tests.ts
           node --import tsx scripts/limited-preorder-lifecycle-contract-tests.ts
           node --import tsx scripts/limited-preorder-lifecycle-rules-tests.ts
+          node --import tsx scripts/limited-preorder-no-payment-boundary-contract-tests.ts
+          node --import tsx scripts/limited-preorder-offer-envelope-tests.ts
           node --import tsx scripts/limited-preorder-pilot-readiness-tests.ts
+          node --import tsx scripts/limited-preorder-project-opening-preparation-contract-tests.ts
           node --import tsx scripts/limited-preorder-query-isolation-contract-tests.ts
           node --import tsx scripts/limited-preorder-transaction-core-tests.ts
+          node --import tsx scripts/limited-preorder-verified-order-contract-tests.ts
           node --import tsx scripts/limited-preorder-v23-tests.ts
           node --import tsx scripts/preorder-preparation-contract-tests.ts
           node --import tsx scripts/preorder-transaction-safety-tests.ts
+          node --import tsx scripts/project-order-update-safety-contract-tests.ts
 
       - name: V2.1 and V2.2 regression
         run: |

@@ -13,13 +13,81 @@ import {
   LIMITED_PREORDER_STATUS_LABELS,
   summarizeLimitedPreorderOrders
 } from "@/lib/projects/preorder-lifecycle";
-import { PROJECT_AUTHORIZATION_LABELS } from "@/lib/projects/rules";
+import {
+  createLimitedPreorderOfferEnvelope,
+  hashLimitedPreorderOfferSnapshot,
+  readLimitedPreorderOfferSnapshot,
+  type LimitedPreorderOfferSnapshot
+} from "@/lib/projects/preorder-offer";
+import { formatMoneyCents, PROJECT_AUTHORIZATION_LABELS } from "@/lib/projects/rules";
 import { prisma } from "@/lib/prisma";
+import { isPublicQualityWork } from "@/lib/works/rules";
 
 export const dynamic = "force-dynamic";
 
 function formatDate(value: Date | null) {
   return value ? new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(value) : "—";
+}
+
+function formatSnapshotDate(value: string | null) {
+  if (!value) return "未设置";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "记录异常" : formatDate(parsed);
+}
+
+function OwnerOfferPreview({ snapshot }: { snapshot: LimitedPreorderOfferSnapshot }) {
+  return (
+    <section className="mt-4 rounded-[8px] border border-sky-200 bg-sky-50 p-4" aria-label="项目负责人发送前确认的精确开售资料">
+      <p className="text-xs font-semibold tracking-[0.12em] text-sky-800/60">OWNER REVIEW · 发送前逐项确认</p>
+      <h4 className="mt-1 font-semibold text-sky-950">你将发送给作者的本期精确开售资料</h4>
+      <p className="mt-2 text-xs leading-5 text-sky-900/70">这些价格、图片、限量、交付、条款与 SKU 由你确认后发送；平台不会代替你或作者决定。任何字段变化都会产生新指纹并要求重新邀请。</p>
+      <div className="mt-3 rounded-[6px] bg-white p-3 text-xs leading-5 text-ink/58">
+        <p className="font-semibold text-ink">项目：{snapshot.projectTitle}</p>
+        {snapshot.projectDescription ? <p className="mt-1">{snapshot.projectDescription}</p> : null}
+        <p className="mt-1">项目目标：{snapshot.projectTargetQuantity ?? "未填写"} · 项目预算：{snapshot.projectEstimatedBudget ?? "未填写"}</p>
+        <p className="mt-2 font-semibold text-ink">作品：{snapshot.workTitle}</p>
+        {snapshot.workDescription ? <p className="mt-1">{snapshot.workDescription}</p> : null}
+        <p className="mt-2 font-semibold text-ink">活动：{snapshot.campaignTitle}</p>
+        {snapshot.campaignDescription ? <p className="mt-1">{snapshot.campaignDescription}</p> : null}
+        <p className="mt-1">预计价格：{snapshot.campaignEstimatedPrice ?? "未填写"} · {snapshot.campaignPriceNote ?? "无价格补充说明"}</p>
+        <p className="mt-1">活动尺码：{snapshot.campaignSizeOptions.join(" / ") || "未填写"} · 活动颜色：{snapshot.campaignColorOptions.join(" / ") || "未填写"}</p>
+      </div>
+      <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-[6px] bg-white p-3"><dt className="text-ink/40">成团目标</dt><dd className="mt-1 font-semibold">{snapshot.targetQuantity ?? "未设置"} 件</dd></div>
+        <div className="rounded-[6px] bg-white p-3"><dt className="text-ink/40">总限量</dt><dd className="mt-1 font-semibold">{snapshot.capacity ?? "未设置"} 件</dd></div>
+        <div className="rounded-[6px] bg-white p-3"><dt className="text-ink/40">截止时间</dt><dd className="mt-1 font-semibold">{formatSnapshotDate(snapshot.deadline)}</dd></div>
+        <div className="rounded-[6px] bg-white p-3"><dt className="text-ink/40">条款版本</dt><dd className="mt-1 font-semibold">{snapshot.termsVersion}</dd></div>
+      </dl>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {snapshot.displayImageUrls.map((imageUrl, index) => (
+          <img key={imageUrl} src={imageUrl} alt={`本期开售展示图 ${index + 1}`} className="aspect-[4/3] w-full rounded-[6px] bg-white object-cover" />
+        ))}
+      </div>
+      <p className="mt-3 whitespace-pre-wrap rounded-[6px] bg-white p-3 text-xs leading-5 text-ink/58">{snapshot.termsText}</p>
+      <div className="mt-3 space-y-3">
+        {snapshot.products.map((product) => (
+          <article key={product.id} className="rounded-[7px] bg-white p-4 text-xs leading-5 text-ink/58">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <h5 className="font-semibold text-ink">{product.title}</h5>
+              <span className="font-semibold text-ink">{formatMoneyCents(product.price, product.currency)} · 目标 {product.targetQuantity ?? "未设"} · 限 {product.preorderLimit ?? "未设"}</span>
+            </div>
+            <p className="mt-2">{product.description}</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <p><span className="font-semibold text-ink/70">图片阶段：</span>{product.imageStage}</p>
+              <p><span className="font-semibold text-ink/70">预计发货：</span>{formatSnapshotDate(product.estimatedShipDate)}</p>
+              <p><span className="font-semibold text-ink/70">面料与工艺：</span>{product.materialDescription}</p>
+              <p><span className="font-semibold text-ink/70">护理：</span>{product.careInstructions}</p>
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {product.skus.map((sku) => (
+                <p key={sku.id} className="rounded-[5px] bg-paper p-2">{sku.size} / {sku.color} · 容量 {sku.capacity ?? "未设"} · {formatMoneyCents(sku.priceOverride ?? product.price, product.currency)}</p>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export default async function MyDesignAuthorizationsPage() {
@@ -35,25 +103,57 @@ export default async function MyDesignAuthorizationsPage() {
           id: true,
           slug: true,
           title: true,
+          description: true,
+          targetQuantity: true,
+          estimatedBudget: true,
           workId: true,
           ownerUserId: true,
           createdById: true,
           designerAuthorizationStatus: true,
-          work: { select: { userId: true } },
+          work: {
+            select: {
+              userId: true,
+              title: true,
+              description: true,
+              reviewStatus: true,
+              contentStatus: true,
+              visibility: true,
+              images: { select: { imageUrl: true }, orderBy: { sortOrder: "asc" } }
+            }
+          },
           presaleCampaign: {
             select: {
               id: true,
+              workId: true,
+              title: true,
+              description: true,
+              estimatedPrice: true,
+              priceNote: true,
+              sizeOptions: true,
+              colorOptions: true,
               preorderStatus: true,
               preorderQualificationMode: true,
               preorderTargetQuantity: true,
               preorderCapacity: true,
               preorderDeadline: true,
+              preorderTermsVersion: true,
+              preorderTermsText: true,
+              preorderPaymentInstructions: true,
               preorderPublicNotice: true,
               preorderOrders: {
-                select: { quantity: true, status: true, paymentStatus: true, fulfillmentStatus: true }
+                select: {
+                  quantity: true, status: true, paymentStatus: true, fulfillmentStatus: true,
+                  confirmedAt: true,
+                  confirmedById: true,
+                  confirmationChannel: true,
+                  confirmationEvidenceRef: true,
+                  confirmationSummary: true,
+                  productSnapshot: true
+                }
               }
             }
-          }
+          },
+          products: { include: { skus: true } }
         }
       },
       work: { select: { id: true, title: true } },
@@ -73,6 +173,9 @@ export default async function MyDesignAuthorizationsPage() {
         id: true,
         slug: true,
         title: true,
+        description: true,
+        targetQuantity: true,
+        estimatedBudget: true,
         ownerUserId: true,
         createdById: true,
         designerAuthorizationStatus: true,
@@ -80,8 +183,10 @@ export default async function MyDesignAuthorizationsPage() {
           select: {
             id: true,
             title: true,
+            description: true,
             userId: true,
-            user: { select: { nickname: true } }
+            user: { select: { nickname: true } },
+            images: { select: { imageUrl: true }, orderBy: { sortOrder: "asc" } }
           }
         },
         designAuthorizations: {
@@ -94,11 +199,33 @@ export default async function MyDesignAuthorizationsPage() {
             requestedAt: true,
             ownerUserId: true,
             workId: true,
-            designerUserId: true
+            designerUserId: true,
+            offerHash: true,
+            offerSnapshot: true
           },
           take: 1
         },
-        presaleCampaign: { select: { id: true, preorderStatus: true } }
+        presaleCampaign: {
+          select: {
+            id: true,
+            workId: true,
+            title: true,
+            description: true,
+            estimatedPrice: true,
+            priceNote: true,
+            sizeOptions: true,
+            colorOptions: true,
+            preorderStatus: true,
+            preorderQualificationMode: true,
+            preorderTargetQuantity: true,
+            preorderCapacity: true,
+            preorderDeadline: true,
+            preorderTermsVersion: true,
+            preorderTermsText: true,
+            preorderPaymentInstructions: true
+          }
+        },
+        products: { include: { skus: true } }
       },
       orderBy: { updatedAt: "desc" },
       take: 50
@@ -128,6 +255,29 @@ export default async function MyDesignAuthorizationsPage() {
             const campaignStatus = project.presaleCampaign?.preorderStatus ?? null;
             const currentOwnerUserId = project.ownerUserId ?? project.createdById;
             const policy = projectDesignAuthorizationPolicy(project.presaleCampaign?.id ?? null);
+            const currentOffer = project.presaleCampaign && project.work
+              ? createLimitedPreorderOfferEnvelope({
+                  projectId: project.id,
+                  projectTitle: project.title,
+                  projectDescription: project.description,
+                  projectTargetQuantity: project.targetQuantity,
+                  projectEstimatedBudget: project.estimatedBudget,
+                  workTitle: project.work.title,
+                  workDescription: project.work.description,
+                  campaign: project.presaleCampaign,
+                  products: project.products,
+                  displayImageUrls: project.work.images.map((image) => image.imageUrl)
+                })
+              : null;
+            const frozenOffer = readLimitedPreorderOfferSnapshot(authorization?.offerSnapshot);
+            const exactOfferBound = !policy.preorderCampaignId || Boolean(
+              authorization?.offerHash
+              && frozenOffer
+              && frozenOffer.projectId === project.id
+              && frozenOffer.campaignId === policy.preorderCampaignId
+              && frozenOffer.workId === project.work?.id
+              && hashLimitedPreorderOfferSnapshot(frozenOffer) === authorization.offerHash
+            );
             const pendingRequiresStandardRefresh = Boolean(
               authorization
               && authorization.status === ProjectDesignAuthorizationStatus.PENDING
@@ -139,6 +289,9 @@ export default async function MyDesignAuthorizationsPage() {
                 || authorization.ownerUserId !== currentOwnerUserId
                 || authorization.workId !== project.work?.id
                 || authorization.designerUserId !== project.work?.userId
+                || !exactOfferBound
+                || authorization.offerHash !== (currentOffer?.hash ?? null)
+                || Boolean(currentOffer?.issues.length)
               )
             );
             const acceptedCurrentStandard = Boolean(
@@ -151,13 +304,17 @@ export default async function MyDesignAuthorizationsPage() {
               && authorization.ownerUserId === currentOwnerUserId
               && authorization.workId === project.work?.id
               && authorization.designerUserId === project.work?.userId
+              && exactOfferBound
+              && authorization.offerHash === (currentOffer?.hash ?? null)
+              && !currentOffer?.issues.length
             );
             const canRestoreRevoked = authorization?.status === ProjectDesignAuthorizationStatus.REVOKED
               && campaignStatus === "PAUSED";
             const lifecycleLocked = campaignStatus !== null
               && campaignStatus !== "NOT_STARTED"
               && !canRestoreRevoked;
-            const canSend = !lifecycleLocked && (
+            const offerReady = !currentOffer || currentOffer.issues.length === 0;
+            const canSend = offerReady && !lifecycleLocked && (
               !authorization
               || authorization.status === ProjectDesignAuthorizationStatus.REJECTED
               || authorization.status === ProjectDesignAuthorizationStatus.REVOKED
@@ -179,11 +336,25 @@ export default async function MyDesignAuthorizationsPage() {
                     {campaignStatus ? `预售：${campaignStatus}` : "未关联预售活动"}
                   </span>
                 </div>
+                {currentOffer ? <OwnerOfferPreview snapshot={currentOffer.snapshot} /> : null}
+                {currentOffer?.issues.length ? (
+                  <div className="mt-4 rounded-[7px] border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-950">
+                    <p className="font-semibold">最终资料尚未完成，不能发送邀请</p>
+                    <ul className="mt-2 list-disc space-y-1 pl-5">{currentOffer.issues.map((item) => <li key={item.code + item.message}>{item.message}</li>)}</ul>
+                  </div>
+                ) : null}
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Link href={"/projects/" + (project.slug ?? project.id)} className="inline-flex min-h-10 items-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">查看项目</Link>
                   {canSend ? (
-                    <form action={requestProjectDesignAuthorization}>
+                    <form action={requestProjectDesignAuthorization} className="grid w-full gap-3 rounded-[7px] border border-sky-200 bg-sky-50 p-4 sm:w-auto sm:min-w-[360px]">
                       <input type="hidden" name="projectId" value={project.id} />
+                      {currentOffer ? <input type="hidden" name="expectedOfferHash" value={currentOffer.hash} /> : null}
+                      {currentOffer ? (
+                        <label className="flex items-start gap-2 text-xs leading-5 text-sky-950">
+                          <input type="checkbox" name="confirmOfferEnvelope" required className="mt-1" />
+                          我已逐项核对以上图片、价格、目标、限量、交付、条款与 SKU，并确认由我向作品作者发送这一精确版本。
+                        </label>
+                      ) : null}
                       <button className="min-h-10 rounded-full bg-ink px-5 text-sm font-semibold text-white">
                         {pendingRequiresStandardRefresh
                           ? "更新为标准邀请"
@@ -218,6 +389,30 @@ export default async function MyDesignAuthorizationsPage() {
           const projectHref = "/projects/" + (authorization.project.slug ?? authorization.project.id);
           const currentOwnerUserId = authorization.project.ownerUserId ?? authorization.project.createdById;
           const policy = projectDesignAuthorizationPolicy(authorization.project.presaleCampaign?.id ?? null);
+          const offerSnapshot = readLimitedPreorderOfferSnapshot(authorization.offerSnapshot);
+          const campaign = authorization.project.presaleCampaign;
+          const currentOffer = campaign && authorization.project.work
+            ? createLimitedPreorderOfferEnvelope({
+                projectId: authorization.project.id,
+                projectTitle: authorization.project.title,
+                projectDescription: authorization.project.description,
+                projectTargetQuantity: authorization.project.targetQuantity,
+                projectEstimatedBudget: authorization.project.estimatedBudget,
+                workTitle: authorization.project.work.title,
+                workDescription: authorization.project.work.description,
+                campaign,
+                products: authorization.project.products,
+                displayImageUrls: authorization.project.work.images.map((image) => image.imageUrl)
+              })
+            : null;
+          const exactOfferBound = !policy.preorderCampaignId || Boolean(
+            authorization.offerHash
+            && offerSnapshot
+            && offerSnapshot.projectId === authorization.projectId
+            && offerSnapshot.campaignId === policy.preorderCampaignId
+            && offerSnapshot.workId === authorization.workId
+            && hashLimitedPreorderOfferSnapshot(offerSnapshot) === authorization.offerHash
+          );
           const standardInvitationValid = Boolean(
             currentOwnerUserId
             && authorization.termsVersion === policy.termsVersion
@@ -227,12 +422,19 @@ export default async function MyDesignAuthorizationsPage() {
             && authorization.ownerUserId === currentOwnerUserId
             && authorization.workId === authorization.project.workId
             && authorization.designerUserId === authorization.project.work?.userId
+            && exactOfferBound
+            && (!campaign || Boolean(
+              currentOffer
+              && !currentOffer.issues.length
+              && authorization.offerHash === currentOffer.hash
+              && authorization.project.work
+              && isPublicQualityWork(authorization.project.work)
+            ))
           );
-          const campaign = authorization.project.presaleCampaign;
           const revocationLocked = campaign?.preorderStatus === "GOAL_REACHED"
             || campaign?.preorderStatus === "PRODUCTION";
           const preorderSummary = campaign
-            ? summarizeLimitedPreorderOrders(campaign.preorderOrders, campaign.preorderQualificationMode)
+            ? summarizeLimitedPreorderOrders(campaign.preorderOrders, campaign.preorderQualificationMode, currentOffer?.hash ?? null)
             : null;
           const showLimitedPreorder = Boolean(campaign && (
             campaign.preorderStatus !== "NOT_STARTED"
@@ -260,6 +462,83 @@ export default async function MyDesignAuthorizationsPage() {
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink/65">{authorization.royaltyDescription ?? "尚未填写；接受前建议先与项目方确认。"}</p>
                 </div>
               </div>
+
+              {policy.preorderCampaignId && offerSnapshot ? (
+                <section className="mt-5 rounded-[8px] border border-sky-200 bg-sky-50 p-4 md:p-5" aria-label="邀请时冻结的本期开售资料">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold tracking-[0.12em] text-sky-800/60">EXACT OFFER · 邀请时冻结</p>
+                      <h3 className="mt-1 font-semibold text-sky-950">本期精确开售资料</h3>
+                      <p className="mt-2 text-xs leading-5 text-sky-900/65">接受只针对下面这一期、这些商品与 SKU。任何价格、限量、交付或条款变化，旧授权都会失效并需要重新邀请。</p>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-sky-900">不收款试点</span>
+                  </div>
+
+                  <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-[6px] bg-white p-3"><dt className="text-xs text-ink/40">成团目标</dt><dd className="mt-1 font-semibold">{offerSnapshot.targetQuantity ?? "未设置"} 件</dd></div>
+                    <div className="rounded-[6px] bg-white p-3"><dt className="text-xs text-ink/40">活动总限量</dt><dd className="mt-1 font-semibold">{offerSnapshot.capacity ?? "未设置"} 件</dd></div>
+                    <div className="rounded-[6px] bg-white p-3"><dt className="text-xs text-ink/40">截止时间</dt><dd className="mt-1 font-semibold">{formatSnapshotDate(offerSnapshot.deadline)}</dd></div>
+                    <div className="rounded-[6px] bg-white p-3"><dt className="text-xs text-ink/40">条款版本</dt><dd className="mt-1 font-semibold">{offerSnapshot.termsVersion}</dd></div>
+                  </dl>
+                  <div className="mt-3 rounded-[6px] bg-white p-3 text-sm leading-6 text-ink/60">
+                    <p className="font-semibold text-ink">项目：{offerSnapshot.projectTitle}</p>
+                    {offerSnapshot.projectDescription ? <p>{offerSnapshot.projectDescription}</p> : null}
+                    <p className="mt-2 font-semibold text-ink">作品：{offerSnapshot.workTitle}</p>
+                    {offerSnapshot.workDescription ? <p>{offerSnapshot.workDescription}</p> : null}
+                    <p className="mt-2 font-semibold text-ink">活动：{offerSnapshot.campaignTitle}</p>
+                    {offerSnapshot.campaignDescription ? <p>{offerSnapshot.campaignDescription}</p> : null}
+                    <p>预计价格：{offerSnapshot.campaignEstimatedPrice ?? "未填写"} · {offerSnapshot.campaignPriceNote ?? "无补充说明"}</p>
+                    <p>活动尺码：{offerSnapshot.campaignSizeOptions.join(" / ") || "未填写"} · 活动颜色：{offerSnapshot.campaignColorOptions.join(" / ") || "未填写"}</p>
+                  </div>
+                  <p className="mt-3 rounded-[6px] bg-white p-3 text-sm leading-6 text-ink/65">
+                    本期仅记录经平台人工核验的订单意向，不在线收款、不收定金，也不提供线下付款指引。
+                  </p>
+                  <p className="mt-3 whitespace-pre-wrap rounded-[6px] bg-white p-3 text-xs leading-6 text-ink/55">{offerSnapshot.termsText}</p>
+
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    {offerSnapshot.displayImageUrls.map((imageUrl, index) => (
+                      <img key={imageUrl} src={imageUrl} alt={`作者决定时冻结的展示图 ${index + 1}`} className="aspect-[4/3] w-full rounded-[6px] bg-white object-cover" />
+                    ))}
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {offerSnapshot.products.map((product) => (
+                      <article key={product.id} className="rounded-[8px] border border-sky-100 bg-white p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <h4 className="font-semibold text-ink">{product.title}</h4>
+                            <p className="mt-1 text-sm font-semibold text-ink/65">{formatMoneyCents(product.price, product.currency)}</p>
+                          </div>
+                          <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/60">商品硬限量 {product.preorderLimit ?? "未设置"}</span>
+                        </div>
+                        <dl className="mt-3 grid gap-2 text-xs leading-5 text-ink/58 sm:grid-cols-2">
+                          <div><dt className="font-semibold text-ink/40">商品说明</dt><dd>{product.description ?? "未提供"}</dd></div>
+                          <div><dt className="font-semibold text-ink/40">图片阶段</dt><dd>{product.imageStage ?? "未说明"}</dd></div>
+                          <div><dt className="font-semibold text-ink/40">面料与工艺</dt><dd>{product.materialDescription ?? "未提供"}</dd></div>
+                          <div><dt className="font-semibold text-ink/40">护理说明</dt><dd>{product.careInstructions ?? "未提供"}</dd></div>
+                          <div><dt className="font-semibold text-ink/40">预计发货</dt><dd>{formatSnapshotDate(product.estimatedShipDate)}</dd></div>
+                          <div><dt className="font-semibold text-ink/40">商品目标量</dt><dd>{product.targetQuantity ?? "未设置"} 件</dd></div>
+                        </dl>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          {product.skus.map((sku) => (
+                            <div key={sku.id} className="rounded-[6px] bg-paper p-3 text-xs leading-5 text-ink/58">
+                              <p className="font-semibold text-ink">{sku.size} / {sku.color}</p>
+                              <p>容量：{sku.capacity ?? "未设置"} 件</p>
+                              <p>价格：{formatMoneyCents(sku.priceOverride ?? product.price, product.currency)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                  <p className="mt-3 break-all text-[11px] leading-5 text-sky-900/50">资料指纹：{authorization.offerHash}</p>
+                </section>
+              ) : null}
+              {policy.preorderCampaignId && !offerSnapshot ? (
+                <p className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  本期精确开售资料缺失或损坏，当前不能接受。请项目负责人重新发送邀请。
+                </p>
+              ) : null}
 
               <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink/45">
                 <span>请求：{formatDate(authorization.requestedAt)}</span>

@@ -1,5 +1,14 @@
 import { NextResponse } from "next/server";
-import { ContentStatus, ReviewStatus } from "@prisma/client";
+import {
+  CollaborationProjectStatus,
+  CommerceAggregateType,
+  ContentStatus,
+  LimitedPreorderStatus,
+  Prisma,
+  ProjectDesignAuthorizationStatus,
+  ProjectProductStatus,
+  ReviewStatus
+} from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   canHardDeleteWork,
@@ -11,6 +20,7 @@ import {
 import { createNotificationSafe, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { canEditWork } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { assertNoLimitedPreorderPaymentSolicitation } from "@/lib/projects/preorder-lifecycle";
 import { pendingVisibleState } from "@/lib/works/mutations";
 import { workPatchSchema } from "@/lib/works/validation";
 
@@ -19,6 +29,61 @@ type WorkRouteContext = {
     id: string;
   }>;
 };
+
+const WORK_OFFLINE_PREORDER_NOTICE = "关联作品已下架，本期预售已自动暂停接单；已有订单意向会保留，平台正在核查版权、内容与后续处理。";
+
+async function runWorkLifecycleTransaction<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(operation, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034" && attempt < 2) continue;
+      throw error;
+    }
+  }
+  throw new Error("作品下架与预售暂停发生并发冲突，请刷新后重试");
+}
+
+function isConfiguredLimitedPreorder(campaign: {
+  preorderStatus: LimitedPreorderStatus;
+  preorderTargetQuantity: number | null;
+  preorderCapacity: number | null;
+  preorderDeadline: Date | null;
+} | null) {
+  return Boolean(campaign && (
+    campaign.preorderStatus !== LimitedPreorderStatus.NOT_STARTED
+    || campaign.preorderTargetQuantity !== null
+    || campaign.preorderCapacity !== null
+    || campaign.preorderDeadline !== null
+  ));
+}
+
+function workOfferIsLocked(project: {
+  presaleCampaign: {
+    id: string;
+    preorderStatus: LimitedPreorderStatus;
+    preorderTargetQuantity: number | null;
+    preorderCapacity: number | null;
+    preorderDeadline: Date | null;
+  } | null;
+  designAuthorizations: Array<{
+    status: ProjectDesignAuthorizationStatus;
+    preorderCampaignId: string | null;
+  }>;
+}) {
+  const campaign = project.presaleCampaign;
+  if (!isConfiguredLimitedPreorder(campaign)) return false;
+  return campaign!.preorderStatus !== LimitedPreorderStatus.NOT_STARTED
+    || project.designAuthorizations.some((authorization) => (
+      authorization.preorderCampaignId === campaign!.id
+      && (
+        authorization.status === ProjectDesignAuthorizationStatus.PENDING
+        || authorization.status === ProjectDesignAuthorizationStatus.ACCEPTED
+      )
+    ));
+}
 
 export async function PATCH(request: Request, context: WorkRouteContext) {
   const user = await getCurrentUser();
@@ -33,7 +98,24 @@ export async function PATCH(request: Request, context: WorkRouteContext) {
   const work = await prisma.work.findUnique({
     where: { id },
     include: {
-      images: true
+      images: true,
+      collaborationProjects: {
+        where: { presaleCampaignId: { not: null } },
+        select: {
+          presaleCampaign: {
+            select: {
+              id: true,
+              preorderStatus: true,
+              preorderTargetQuantity: true,
+              preorderCapacity: true,
+              preorderDeadline: true
+            }
+          },
+          designAuthorizations: {
+            select: { status: true, preorderCampaignId: true }
+          }
+        }
+      }
     }
   });
 
@@ -46,12 +128,85 @@ export async function PATCH(request: Request, context: WorkRouteContext) {
       if (!canOfflineWork(work)) {
         return NextResponse.json({ ok: false, message: "当前作品状态不能下架；如需归档历史记录，需要后续 Migration 支持。" }, { status: 422 });
       }
-      const updated = await prisma.work.update({
-        where: { id },
-        data: {
-          reviewStatus: ReviewStatus.OFFLINE,
-          contentStatus: ContentStatus.OFFLINE
+      const { updated, pausedCampaignIds } = await runWorkLifecycleTransaction(async (tx) => {
+        const currentWork = await tx.work.findUnique({
+          where: { id },
+          select: { id: true, userId: true, title: true, reviewStatus: true, contentStatus: true }
+        });
+        if (!currentWork || !canOfflineWork(currentWork)) {
+          throw new Error("作品状态已变化，不能重复下架；请刷新后重试");
         }
+        const openProjects = await tx.collaborationProject.findMany({
+          where: {
+            workId: id,
+            presaleCampaignId: { not: null },
+            presaleCampaign: { is: { preorderStatus: LimitedPreorderStatus.OPEN } }
+          },
+          select: { id: true, status: true, presaleCampaignId: true }
+        });
+        const offlineAt = new Date();
+        const nextWork = await tx.work.update({
+          where: { id },
+          data: {
+            reviewStatus: ReviewStatus.OFFLINE,
+            contentStatus: ContentStatus.OFFLINE
+          }
+        });
+        const pausedIds: string[] = [];
+
+        for (const project of openProjects) {
+          const campaignId = project.presaleCampaignId;
+          if (!campaignId || pausedIds.includes(campaignId)) continue;
+          const paused = await tx.presaleCampaign.updateMany({
+            where: { id: campaignId, workId: id, preorderStatus: LimitedPreorderStatus.OPEN },
+            data: {
+              preorderStatus: LimitedPreorderStatus.PAUSED,
+              preorderPausedAt: offlineAt,
+              preorderDecisionReason: "关联作品下架，系统自动停止接单",
+              preorderPublicNotice: WORK_OFFLINE_PREORDER_NOTICE
+            }
+          });
+          if (paused.count !== 1) continue;
+
+          await tx.collaborationProject.updateMany({
+            where: { id: project.id, workId: id, status: CollaborationProjectStatus.PREORDER_OPEN },
+            data: { status: CollaborationProjectStatus.PREORDER_READY }
+          });
+          await tx.projectProduct.updateMany({
+            where: { projectId: project.id, preorderCampaignId: campaignId, status: ProjectProductStatus.PREORDER_OPEN },
+            data: { status: ProjectProductStatus.PAUSED }
+          });
+          await tx.commerceStateEvent.create({
+            data: {
+              aggregateType: CommerceAggregateType.CAMPAIGN,
+              aggregateId: campaignId,
+              fromState: LimitedPreorderStatus.OPEN,
+              toState: LimitedPreorderStatus.PAUSED,
+              actorId: user.id,
+              reason: "WORK_OFFLINED",
+              metadata: { projectId: project.id, workId: id, automatic: true }
+            }
+          });
+          await tx.adminLog.create({
+            data: {
+              adminId: user.id,
+              action: "WORK_OFFLINE_PAUSE_LIMITED_PREORDER",
+              targetType: "PresaleCampaign",
+              targetId: campaignId,
+              detail: {
+                projectId: project.id,
+                workId: id,
+                oldCampaignStatus: LimitedPreorderStatus.OPEN,
+                newCampaignStatus: LimitedPreorderStatus.PAUSED,
+                oldProjectStatus: project.status,
+                publicNotice: WORK_OFFLINE_PREORDER_NOTICE
+              }
+            }
+          });
+          pausedIds.push(campaignId);
+        }
+
+        return { updated: nextWork, pausedCampaignIds: pausedIds };
       });
       if (user.role === "ADMIN" && updated.userId !== user.id) {
         await createNotificationSafe({
@@ -63,7 +218,7 @@ export async function PATCH(request: Request, context: WorkRouteContext) {
           targetUrl: "/me?tab=works"
         });
       }
-      return NextResponse.json({ ok: true, action: "offline", work: updated });
+      return NextResponse.json({ ok: true, action: "offline", work: updated, pausedCampaignIds });
     }
 
     if (action === "resubmit") {
@@ -95,7 +250,41 @@ export async function PATCH(request: Request, context: WorkRouteContext) {
 
   const data = parsed.data;
 
+  if (work.collaborationProjects.some((project) => isConfiguredLimitedPreorder(project.presaleCampaign))) {
+    try {
+      if (data.title) assertNoLimitedPreorderPaymentSolicitation(data.title, "作品标题");
+      if (data.description) assertNoLimitedPreorderPaymentSolicitation(data.description, "作品说明");
+    } catch (error) {
+      return NextResponse.json({ message: error instanceof Error ? error.message : "作品信息包含不允许的付款指引。" }, { status: 422 });
+    }
+  }
+
+  if (work.collaborationProjects.some(workOfferIsLocked)) {
+    return NextResponse.json(
+      { message: "作品已进入本期限量预售邀请或生命周期，消费者可见作品资料与图片已冻结；如需调整，请先由作者拒绝或撤销并由平台按活动状态处理。" },
+      { status: 409 }
+    );
+  }
+
   const updated = await prisma.$transaction(async (tx) => {
+    const currentProjects = await tx.collaborationProject.findMany({
+      where: { workId: id, presaleCampaignId: { not: null } },
+      select: {
+        presaleCampaign: {
+          select: {
+            id: true,
+            preorderStatus: true,
+            preorderTargetQuantity: true,
+            preorderCapacity: true,
+            preorderDeadline: true
+          }
+        },
+        designAuthorizations: { select: { status: true, preorderCampaignId: true } }
+      }
+    });
+    if (currentProjects.some(workOfferIsLocked)) {
+      throw new Error("LIMITED_PREORDER_WORK_OFFER_LOCKED");
+    }
     if (data.images) {
       await tx.workImage.deleteMany({
         where: {
@@ -137,7 +326,17 @@ export async function PATCH(request: Request, context: WorkRouteContext) {
         }
       }
     });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).catch((error) => {
+    if (error instanceof Error && error.message === "LIMITED_PREORDER_WORK_OFFER_LOCKED") return null;
+    throw error;
   });
+
+  if (!updated) {
+    return NextResponse.json(
+      { message: "作品的限量预售授权状态刚刚发生变化，资料未保存；请刷新后重新核对。" },
+      { status: 409 }
+    );
+  }
 
   return NextResponse.json({
     work: {

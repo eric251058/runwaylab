@@ -9,6 +9,7 @@ type Product = {
   description: string | null;
   materialDescription: string | null;
   careInstructions: string | null;
+  imageStage: string | null;
   price: number;
   currency: string;
   preorderLimit: number;
@@ -20,6 +21,8 @@ type LimitedPreorderPanelProps = {
   projectId: string;
   products: Product[];
   isLoggedIn: boolean;
+  buyerContactVerified: boolean;
+  buyerQuantityLimit: number;
   campaign: {
     title: string;
     targetQuantity: number;
@@ -50,7 +53,7 @@ function formatDateTime(value: string) {
   return new Date(value).toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
 }
 
-export function LimitedPreorderPanel({ projectId, products, isLoggedIn, campaign }: LimitedPreorderPanelProps) {
+export function LimitedPreorderPanel({ projectId, products, isLoggedIn, buyerContactVerified, buyerQuantityLimit, campaign }: LimitedPreorderPanelProps) {
   const [productId, setProductId] = useState(products[0]?.id ?? "");
   const [skuId, setSkuId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -81,8 +84,10 @@ export function LimitedPreorderPanel({ projectId, products, isLoggedIn, campaign
           return;
         }
 
-        const lockNotice = campaign.qualificationMode === "PAID_ORDER" && data?.order?.reservationExpiresAt
-          ? `名额锁定至 ${formatDateTime(data.order.reservationExpiresAt)}，逾期且未确认付款需重新提交。`
+        const lockNotice = data?.order?.reservationExpiresAt
+          ? campaign.qualificationMode === "PAID_ORDER"
+            ? `名额锁定至 ${formatDateTime(data.order.reservationExpiresAt)}，逾期且未确认付款需重新提交。`
+            : `名额暂时锁定至 ${formatDateTime(data.order.reservationExpiresAt)}；平台须在此之前完成真实意向核验，逾期会释放名额。`
           : "平台后续会人工确认该订单意向。";
         setMessage(`${data?.repeated ? "已有相同规格的有效预订。" : "已提交预订意向。"}${lockNotice}`);
         setSubmittedOrderId(data?.order?.id ?? null);
@@ -104,7 +109,13 @@ export function LimitedPreorderPanel({ projectId, products, isLoggedIn, campaign
         <div><p className="text-xs text-ink/40">本期总限量</p><p className="mt-1 font-semibold">{campaign.capacity} 件</p></div>
         <div><p className="text-xs text-ink/40">截止时间</p><p className="mt-1 font-semibold">{formatDateTime(campaign.deadline)}</p></div>
       </div>
-      <p className="mt-3 text-xs leading-5 text-ink/48">达到成团目标后平台才会确认进入生产；未达标会关闭本期。若存在已付款订单，将先进入退款待处理并以实际退款记录为准。预计发货时间不是现货承诺，可能受打样、生产与质检影响。条款版本：{campaign.termsVersion}。</p>
+      <p className="mt-3 text-xs leading-5 text-ink/48">达到成团目标且生产责任方承接证据通过核验后，平台才会记录进入生产；未达标会关闭本期。预计发货时间不是现货承诺，可能受打样、生产与质检影响。条款版本：{campaign.termsVersion}。</p>
+      {campaign.qualificationMode === "CONFIRMED_ORDER" ? (
+        <div className="mt-4 rounded-[8px] border border-emerald-200 bg-emerald-50 p-4 text-xs leading-5 text-emerald-950">
+          <p className="font-semibold">本期不在线收款、不收定金，也不提供线下转账指引。</p>
+          <p className="mt-1">提交只会形成待平台人工核验的订单意向，不会扣款；请勿向任何个人、群聊、收款码或非官方链接付款。</p>
+        </div>
+      ) : null}
       {campaign.qualificationMode === "PAID_ORDER" ? (
         <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-950">
           <p className="font-semibold">当前为人工付款确认试点，不会在提交时自动扣款。</p>
@@ -123,6 +134,7 @@ export function LimitedPreorderPanel({ projectId, products, isLoggedIn, campaign
           </div>
           <p className="mt-3 whitespace-pre-line text-xs leading-5 text-ink/58">{product.description ?? "暂无商品补充说明。"}</p>
           <div className="mt-3 grid gap-2 text-xs leading-5 text-ink/52 sm:grid-cols-2">
+            <p className="rounded-[6px] bg-paper p-3"><span className="font-semibold text-ink/70">当前展示图片阶段：</span>{product.imageStage ?? "待确认"}</p>
             <p className="rounded-[6px] bg-paper p-3"><span className="font-semibold text-ink/70">面料与工艺：</span>{product.materialDescription ?? "待确认"}</p>
             <p className="rounded-[6px] bg-paper p-3"><span className="font-semibold text-ink/70">护理说明：</span>{product.careInstructions ?? "待确认"}</p>
           </div>
@@ -132,7 +144,7 @@ export function LimitedPreorderPanel({ projectId, products, isLoggedIn, campaign
         <p className="font-semibold text-ink">限量预售条款正文（{campaign.termsVersion}）</p>
         <p className="mt-2 whitespace-pre-line">{campaign.termsText}</p>
       </div>
-      {isLoggedIn ? (
+      {isLoggedIn && buyerContactVerified ? (
         <form action={submit} className="mt-4 grid gap-3 md:grid-cols-2">
           <select value={productId} onChange={(event) => { setProductId(event.target.value); setSkuId(""); }} className="h-11 rounded-[6px] border border-black/10 bg-paper px-3 text-sm">
             {products.map((item) => (
@@ -145,13 +157,18 @@ export function LimitedPreorderPanel({ projectId, products, isLoggedIn, campaign
               <option key={sku.id} value={sku.id}>{sku.size} / {sku.color} / {formatMoneyCents(sku.priceOverride ?? product.price, product.currency)} / 限 {sku.capacity ?? "待确认"}</option>
             ))}
           </select>
-          <input name="quantity" type="number" min={1} max={20} required defaultValue="1" className="h-11 rounded-[6px] border border-black/10 bg-paper px-3 text-sm" />
+          <input name="quantity" type="number" min={1} max={buyerQuantityLimit} required defaultValue="1" aria-label={`数量，每个账号本期最多 ${buyerQuantityLimit} 件`} className="h-11 rounded-[6px] border border-black/10 bg-paper px-3 text-sm" />
           <input name="buyerNote" placeholder="备注，可选" className="h-11 rounded-[6px] border border-black/10 bg-paper px-3 text-sm" />
-          <label className="flex items-start gap-2 text-xs leading-5 text-ink/58 md:col-span-2"><input name="acceptPreorderTerms" type="checkbox" required className="mt-1" />我已完整阅读并同意以上 {campaign.termsVersion} 条款正文，理解预售不等于现货；我提交的尺码、颜色和数量会作为真实订单意向记录。</label>
+          <label className="flex items-start gap-2 text-xs leading-5 text-ink/58 md:col-span-2"><input name="acceptPreorderTerms" type="checkbox" required className="mt-1" />我已完整阅读并同意以上 {campaign.termsVersion} 条款正文，理解预售不等于现货；本期不收款、不收定金，我提交的尺码、颜色和数量会作为真实订单意向记录。</label>
           <button disabled={isPending} className="h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-60 md:col-span-2">
             {isPending ? "提交中..." : "提交预订意向"}
           </button>
         </form>
+      ) : isLoggedIn ? (
+        <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+          <p className="font-semibold">首期仅允许已完成人工联系方式核验的账号提交。</p>
+          <p className="mt-1 text-xs">当前暂不提供自助验证。请联系 RunwayLab 平台，由工作人员在核对邮箱或手机号归属并记录证据编号后开放；核验不代表付款或订单确认。</p>
+        </div>
       ) : (
         <a href={`/login?next=/projects/${projectId}`} className="mt-4 inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">登录后提交预订</a>
       )}

@@ -6,6 +6,7 @@ import {
   LimitedPreorderStatus,
   PresaleCampaignStatus,
   ProjectDesignAuthorizationStatus,
+  ProjectOrderConfirmationChannel,
   ProjectOrderFulfillmentStatus,
   ProjectOrderPaymentStatus,
   ProjectOrderStatus,
@@ -13,10 +14,12 @@ import {
 } from "@prisma/client";
 import {
   assertLifecycleReason,
+  assertNoLimitedPreorderPaymentSolicitation,
   assertPublicPreorderNotice,
   canTransitionLimitedPreorder,
   evaluateLimitedPreorderAdmission,
   evaluateLimitedPreorderDecision,
+  LIMITED_PREORDER_NO_PAYMENT_NOTICE,
   orderQualifiesForCampaign,
   planFailedOrderDisposition,
   planGoalReachedOrderDisposition,
@@ -28,6 +31,18 @@ import {
 
 const now = new Date("2026-08-16T20:00:00.000Z");
 const deadline = new Date("2026-08-30T20:00:00.000Z");
+
+assert.doesNotThrow(() => assertNoLimitedPreorderPaymentSolicitation(LIMITED_PREORDER_NO_PAYMENT_NOTICE));
+assert.doesNotThrow(() => assertNoLimitedPreorderPaymentSolicitation("本记录未付款，也不代表已支付订单。"));
+for (const solicitation of [
+  "本期需付订金99元，扫码后锁定名额。",
+  "请汇款至以下账户后联系项目方。",
+  "打款 99 元即可确认订单。",
+  "加微信领取收款信息。",
+  "订金99元，扫码锁定。"
+]) {
+  assert.throws(() => assertNoLimitedPreorderPaymentSolicitation(solicitation), /不得包含/);
+}
 
 const validAdmission: LimitedPreorderAdmissionInput = {
   campaignId: "campaign_1",
@@ -46,6 +61,8 @@ const validAdmission: LimitedPreorderAdmissionInput = {
   authorizationDesignerUserId: "designer_1",
   authorizationOwnerUserId: "owner_1",
   authorizationTermsVersion: "v2.3-standard-2026-08",
+  authorizationOfferHash: "offer_hash_1",
+  currentOfferHash: "offer_hash_1",
   demandTargetQuantity: 10,
   confirmedDemandQuantity: 12,
   demandCampaignStatus: PresaleCampaignStatus.ACTIVE,
@@ -55,7 +72,7 @@ const validAdmission: LimitedPreorderAdmissionInput = {
   preorderCapacity: 10,
   preorderDeadline: deadline,
   preorderTermsVersion: "limited-preorder-v1",
-  preorderTermsText: "This is a limited preorder, not in-stock merchandise. Production starts only after the stated goal is reached.",
+  preorderTermsText: `${LIMITED_PREORDER_NO_PAYMENT_NOTICE} This is a limited preorder, not in-stock merchandise. Production starts only after the stated goal is reached.`,
   preorderPaymentInstructions: null,
   products: [
     {
@@ -63,6 +80,9 @@ const validAdmission: LimitedPreorderAdmissionInput = {
       preorderCampaignId: null,
       title: "Limited jacket",
       description: "A complete preorder product description for buyer review.",
+      materialDescription: "Cotton linen main fabric with a viscose lining and documented finishing process.",
+      careInstructions: "Cold gentle hand wash, do not bleach, dry flat and use low-temperature steam.",
+      imageStage: "SAMPLE_CONFIRMED",
       price: 19_900,
       targetQuantity: 6,
       preorderLimit: 10,
@@ -106,12 +126,28 @@ assert(issueCodes({ ...validAdmission, authorizationRecordWorkId: "work_other" }
 assert(issueCodes({ ...validAdmission, authorizationDesignerUserId: "designer_other" }).has("DESIGN_AUTHORIZATION"));
 assert(issueCodes({ ...validAdmission, authorizationOwnerUserId: "owner_other" }).has("DESIGN_AUTHORIZATION"));
 assert(issueCodes({ ...validAdmission, authorizationTermsVersion: "v1" }).has("DESIGN_AUTHORIZATION"));
+assert(issueCodes({ ...validAdmission, authorizationOfferHash: null }).has("DESIGN_AUTHORIZATION"));
+assert(issueCodes({ ...validAdmission, currentOfferHash: "offer_hash_changed" }).has("DESIGN_AUTHORIZATION"));
 assert(issueCodes({ ...validAdmission, confirmedDemandQuantity: 9 }).has("DEMAND_TARGET"));
 assert(issueCodes({ ...validAdmission, demandCampaignStatus: PresaleCampaignStatus.CANCELLED }).has("DEMAND_CAMPAIGN_STATUS"));
 assert(issueCodes({ ...validAdmission, preorderTargetQuantity: 11 }).has("TARGET_OVER_CAPACITY"));
 assert(issueCodes({ ...validAdmission, preorderDeadline: now }).has("PREORDER_DEADLINE"));
 assert(issueCodes({ ...validAdmission, preorderTermsVersion: " " }).has("TERMS_VERSION"));
 assert(issueCodes({ ...validAdmission, preorderTermsText: "too short" }).has("TERMS_TEXT"));
+assert(issueCodes({ ...validAdmission, preorderTermsText: "This is a complete limited preorder terms text without the mandatory fixed no-payment disclosure." }).has("NO_PAYMENT_NOTICE"));
+assert(issueCodes({ ...validAdmission, preorderPaymentInstructions: "请向个人账户转账并发送付款截图" }).has("PAYMENT_DISABLED"));
+assert(issueCodes({
+  ...validAdmission,
+  products: validAdmission.products.map((product) => ({ ...product, materialDescription: null }))
+}).has("PRODUCT_MATERIAL"));
+assert(issueCodes({
+  ...validAdmission,
+  products: validAdmission.products.map((product) => ({ ...product, careInstructions: null }))
+}).has("PRODUCT_CARE"));
+assert(issueCodes({
+  ...validAdmission,
+  products: validAdmission.products.map((product) => ({ ...product, imageStage: null }))
+}).has("PRODUCT_IMAGE_STAGE"));
 assert(issueCodes({
   ...validAdmission,
   preorderQualificationMode: LimitedPreorderQualificationMode.PAID_ORDER,
@@ -172,33 +208,72 @@ assert.throws(() => assertLifecycleReason("no"), /至少 4 个字符/);
 assert.equal(assertPublicPreorderNotice("  本期预售已暂停接单  "), "本期预售已暂停接单");
 assert.throws(() => assertPublicPreorderNotice("停"), /消费者可见状态说明/);
 
+const expectedOfferHash = "offer_hash_1";
+const confirmationEvidence = {
+  confirmedAt: new Date("2026-08-18T08:30:00.000Z"),
+  confirmedById: "admin_1",
+  confirmationChannel: ProjectOrderConfirmationChannel.PHONE,
+  confirmationEvidenceRef: "CRM-2026-08-18-001",
+  confirmationSummary: "已电话核对款式、尺码、数量和预计发货时间，消费者确认提交真实订单意向。",
+  productSnapshot: { submissionOfferHash: expectedOfferHash }
+};
 const orders: LifecycleOrder[] = [
-  { id: "confirmed_unpaid", quantity: 2, status: ProjectOrderStatus.CONFIRMED, paymentStatus: ProjectOrderPaymentStatus.UNPAID },
-  { id: "confirmed_paid", quantity: 3, status: ProjectOrderStatus.CONFIRMED, paymentStatus: ProjectOrderPaymentStatus.PAID },
+  { id: "confirmed_unpaid", quantity: 2, status: ProjectOrderStatus.CONFIRMED, paymentStatus: ProjectOrderPaymentStatus.UNPAID, ...confirmationEvidence },
+  { id: "confirmed_paid", quantity: 3, status: ProjectOrderStatus.CONFIRMED, paymentStatus: ProjectOrderPaymentStatus.PAID, ...confirmationEvidence },
   { id: "reserved_paid", quantity: 4, status: ProjectOrderStatus.RESERVATION, paymentStatus: ProjectOrderPaymentStatus.PAID },
   { id: "pending_unpaid", quantity: 5, status: ProjectOrderStatus.PENDING_PAYMENT, paymentStatus: ProjectOrderPaymentStatus.PENDING },
   { id: "refund_pending", quantity: 1, status: ProjectOrderStatus.REFUND_PENDING, paymentStatus: ProjectOrderPaymentStatus.PAID }
 ];
 
-assert.equal(orderQualifiesForCampaign(orders[0], LimitedPreorderQualificationMode.CONFIRMED_ORDER), true);
-assert.equal(orderQualifiesForCampaign(orders[0], LimitedPreorderQualificationMode.PAID_ORDER), false);
-assert.equal(orderQualifiesForCampaign(orders[1], LimitedPreorderQualificationMode.CONFIRMED_ORDER), true);
-assert.equal(orderQualifiesForCampaign(orders[1], LimitedPreorderQualificationMode.PAID_ORDER), true);
-assert.equal(orderQualifiesForCampaign(orders[2], LimitedPreorderQualificationMode.PAID_ORDER), false, "payment alone must not qualify an unconfirmed reservation");
+assert.equal(orderQualifiesForCampaign(orders[0], LimitedPreorderQualificationMode.CONFIRMED_ORDER, expectedOfferHash), true);
+assert.equal(orderQualifiesForCampaign(orders[0], LimitedPreorderQualificationMode.PAID_ORDER, expectedOfferHash), false);
+assert.equal(orderQualifiesForCampaign(orders[1], LimitedPreorderQualificationMode.CONFIRMED_ORDER, expectedOfferHash), true);
+assert.equal(orderQualifiesForCampaign(orders[1], LimitedPreorderQualificationMode.PAID_ORDER, expectedOfferHash), true);
 assert.equal(orderQualifiesForCampaign({
   quantity: 1,
   status: ProjectOrderStatus.CONFIRMED,
-  paymentStatus: ProjectOrderPaymentStatus.REFUNDED
-}, LimitedPreorderQualificationMode.CONFIRMED_ORDER), false, "a refunded order must never qualify even in confirmed-intent mode");
+  paymentStatus: ProjectOrderPaymentStatus.UNPAID
+}, LimitedPreorderQualificationMode.CONFIRMED_ORDER, expectedOfferHash), false, "a status-only confirmation without structured evidence must not qualify");
+for (const missingField of Object.keys(confirmationEvidence) as Array<keyof typeof confirmationEvidence>) {
+  const incompleteEvidence: Partial<typeof confirmationEvidence> = { ...confirmationEvidence };
+  delete incompleteEvidence[missingField];
+  assert.equal(orderQualifiesForCampaign({
+    quantity: 1,
+    status: ProjectOrderStatus.CONFIRMED,
+    paymentStatus: ProjectOrderPaymentStatus.UNPAID,
+    ...incompleteEvidence
+  }, LimitedPreorderQualificationMode.CONFIRMED_ORDER, expectedOfferHash), false, `${missingField} is required to count a confirmed intent`);
+}
+for (const blankField of ["confirmationEvidenceRef", "confirmationSummary"] as const) {
+  assert.equal(orderQualifiesForCampaign({
+    quantity: 1,
+    status: ProjectOrderStatus.CONFIRMED,
+    paymentStatus: ProjectOrderPaymentStatus.UNPAID,
+    ...confirmationEvidence,
+    [blankField]: "   "
+  }, LimitedPreorderQualificationMode.CONFIRMED_ORDER, expectedOfferHash), false, `${blankField} cannot be blank evidence`);
+}
+assert.equal(orderQualifiesForCampaign(orders[2], LimitedPreorderQualificationMode.PAID_ORDER, expectedOfferHash), false, "payment alone must not qualify an unconfirmed reservation");
+assert.equal(orderQualifiesForCampaign({
+  quantity: 1,
+  status: ProjectOrderStatus.CONFIRMED,
+  paymentStatus: ProjectOrderPaymentStatus.REFUNDED,
+  ...confirmationEvidence
+}, LimitedPreorderQualificationMode.CONFIRMED_ORDER, expectedOfferHash), false, "a refunded order must never qualify even in confirmed-intent mode");
 
-assert.deepEqual(summarizeLimitedPreorderOrders(orders, LimitedPreorderQualificationMode.CONFIRMED_ORDER), {
+assert.equal(orderQualifiesForCampaign(orders[0], LimitedPreorderQualificationMode.CONFIRMED_ORDER, "offer_hash_2"), false, "an order submitted under an older offer must not qualify");
+assert.equal(orderQualifiesForCampaign(orders[0], LimitedPreorderQualificationMode.CONFIRMED_ORDER, null), false, "missing current offer hash must fail closed");
+assert.equal(orderQualifiesForCampaign({ ...orders[0], productSnapshot: null }, LimitedPreorderQualificationMode.CONFIRMED_ORDER, expectedOfferHash), false, "missing submission offer hash must fail closed");
+
+assert.deepEqual(summarizeLimitedPreorderOrders(orders, LimitedPreorderQualificationMode.CONFIRMED_ORDER, expectedOfferHash), {
   activeQuantity: 14,
   confirmedQuantity: 5,
   paidQuantity: 8,
   qualifiedQuantity: 5,
   refundPendingQuantity: 1
 });
-assert.equal(summarizeLimitedPreorderOrders(orders, LimitedPreorderQualificationMode.PAID_ORDER).qualifiedQuantity, 3);
+assert.equal(summarizeLimitedPreorderOrders(orders, LimitedPreorderQualificationMode.PAID_ORDER, expectedOfferHash).qualifiedQuantity, 3);
+assert.equal(summarizeLimitedPreorderOrders(orders, LimitedPreorderQualificationMode.CONFIRMED_ORDER, "offer_hash_2").qualifiedQuantity, 0);
 
 assert.equal(evaluateLimitedPreorderDecision({ qualifiedQuantity: 6, targetQuantity: 6, deadline, now }), LimitedPreorderStatus.GOAL_REACHED);
 assert.equal(evaluateLimitedPreorderDecision({ qualifiedQuantity: 5, targetQuantity: 6, deadline, now }), null);
@@ -226,18 +301,21 @@ assert.equal(planFailedOrderDisposition({
   fulfillmentStatus: ProjectOrderFulfillmentStatus.QUALITY_CHECK
 }), "MANUAL_REVIEW");
 
-assert.equal(planGoalReachedOrderDisposition(orders[0], LimitedPreorderQualificationMode.CONFIRMED_ORDER), "NOOP");
-assert.equal(planGoalReachedOrderDisposition(orders[0], LimitedPreorderQualificationMode.PAID_ORDER), "CANCEL");
-assert.equal(planGoalReachedOrderDisposition(orders[1], LimitedPreorderQualificationMode.PAID_ORDER), "NOOP");
-assert.equal(planGoalReachedOrderDisposition(orders[2], LimitedPreorderQualificationMode.PAID_ORDER), "MANUAL_REVIEW");
+assert.equal(planGoalReachedOrderDisposition(orders[0], LimitedPreorderQualificationMode.CONFIRMED_ORDER, expectedOfferHash), "NOOP");
+assert.equal(planGoalReachedOrderDisposition(orders[0], LimitedPreorderQualificationMode.CONFIRMED_ORDER, "offer_hash_2"), "CANCEL");
+assert.equal(planGoalReachedOrderDisposition(orders[0], LimitedPreorderQualificationMode.PAID_ORDER, expectedOfferHash), "CANCEL");
+assert.equal(planGoalReachedOrderDisposition(orders[1], LimitedPreorderQualificationMode.PAID_ORDER, expectedOfferHash), "NOOP");
+assert.equal(planGoalReachedOrderDisposition(orders[2], LimitedPreorderQualificationMode.PAID_ORDER, expectedOfferHash), "MANUAL_REVIEW");
 
-assert.equal(planProductionOrderDisposition(orders[1], LimitedPreorderQualificationMode.PAID_ORDER), "PRODUCTION");
-assert.equal(planProductionOrderDisposition(orders[0], LimitedPreorderQualificationMode.PAID_ORDER), "NOOP");
+assert.equal(planProductionOrderDisposition(orders[1], LimitedPreorderQualificationMode.PAID_ORDER, expectedOfferHash), "PRODUCTION");
+assert.equal(planProductionOrderDisposition(orders[1], LimitedPreorderQualificationMode.PAID_ORDER, "offer_hash_2"), "NOOP");
+assert.equal(planProductionOrderDisposition(orders[0], LimitedPreorderQualificationMode.PAID_ORDER, expectedOfferHash), "NOOP");
 assert.equal(planProductionOrderDisposition({
   quantity: 1,
   status: ProjectOrderStatus.PRODUCTION,
   paymentStatus: ProjectOrderPaymentStatus.PAID,
-  fulfillmentStatus: ProjectOrderFulfillmentStatus.PRODUCTION
-}, LimitedPreorderQualificationMode.PAID_ORDER), "NOOP");
+  fulfillmentStatus: ProjectOrderFulfillmentStatus.PRODUCTION,
+  productSnapshot: { submissionOfferHash: expectedOfferHash }
+}, LimitedPreorderQualificationMode.PAID_ORDER, expectedOfferHash), "NOOP");
 
 console.log("limited preorder lifecycle rules tests: PASS");
