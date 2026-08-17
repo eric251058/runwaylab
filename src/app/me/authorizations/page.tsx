@@ -57,7 +57,10 @@ export default async function MyDesignAuthorizationsPage() {
     }),
     prisma.collaborationProject.findMany({
       where: {
-        OR: [{ ownerUserId: user.id }, { createdById: user.id }],
+        OR: [
+          { ownerUserId: user.id },
+          { ownerUserId: null, createdById: user.id }
+        ],
         workId: { not: null }
       },
       select: {
