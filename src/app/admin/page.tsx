@@ -35,12 +35,13 @@ const adminLinks = [
   ["/admin/provider-applications", "服务商申请", "处理入驻申请"],
   ["/admin/provider-proposals", "服务商方案", "跟进打样、生产和买手方案"],
   ["/admin/contributions", "用户贡献", "查看投票和孵化建议"],
-  ["/admin/presale-campaigns", "预售活动", "创建和维护预售验证"],
-  ["/admin/presale-intents", "预售意向", "跟进用户和买手兴趣"],
+  ["/admin/presale-campaigns", "需求验证活动", "创建和维护 V2.1 需求验证"],
+  ["/admin/presale-intents", "需求验证意向", "跟进用户和买手兴趣"],
+  ["/admin/preorders/readiness", "限量预售试点准入", "集中查看 V2.3 候选项目与阻断项"],
   ["/admin/projects", "合作项目", "推进商业合作项目"],
   ["/admin/project-issues", "项目问题", "处理协作过程中的异常反馈"],
   ["/admin/demand", "需求意向", "查看用户想买和需求信号"],
-  ["/admin/orders", "预订订单", "管理限量预订意向和人工状态"],
+  ["/admin/orders", "限量预售订单", "管理 V2.3 订单意向和人工状态"],
   ["/admin/features", "功能开关", "分阶段开启新版本能力"],
   ["/admin/cases", "成功案例", "沉淀平台案例"],
   ["/admin/users", "用户管理", "查看用户与身份选择"]
@@ -50,7 +51,7 @@ const operationActions = [
   ["/admin/works", "审核作品", "先让优质作品通过审核，进入公开展示。"],
   ["/admin/project-intakes", "评估启动项目", "处理用户主动提交的项目资料。"],
   ["/admin/editorial", "设置首页精选", "把适合转化的作品放到首页和榜单入口。"],
-  ["/admin/presale-campaigns", "创建预售活动", "开启不收款的预售意向验证。"],
+  ["/admin/presale-campaigns", "创建需求验证活动", "开启不收款、不生成订单的 V2.1 需求验证。"],
   ["/admin/opportunities", "管理合格机会", "审核可打样、小单和规模生产项目。"],
   ["/admin/projects", "创建合作项目", "把成熟作品推进到合作项目展示。"]
 ] as const;
@@ -95,6 +96,7 @@ const adminGroups = [
       ["/admin/incubation", "孵化管理"],
       ["/admin/opportunities", "机会管理"],
       ["/admin/projects", "合作项目"],
+      ["/admin/preorders/readiness", "预售试点准入"],
       ["/admin/features", "功能开关"]
     ]
   }
