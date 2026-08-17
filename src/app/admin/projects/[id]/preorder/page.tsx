@@ -198,6 +198,7 @@ export default async function AdminPreorderPreparationPage({ params }: PageProps
           <p className="mt-4 text-sm text-ink/58">{project.title}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/admin/preorders/readiness" className="inline-flex h-10 items-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold">试点准入总览</Link>
           <Link href="/admin/presale-campaigns" className="inline-flex h-10 items-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold">返回需求验证</Link>
           <Link href={projectHref} className="inline-flex h-10 items-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold">查看公开项目</Link>
         </div>
