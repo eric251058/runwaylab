@@ -3,6 +3,7 @@
 import {
   CollaborationProjectStatus,
   LimitedPreorderStatus,
+  NotificationType,
   Prisma,
   UserRole,
   UserStatus
@@ -10,7 +11,6 @@ import {
 import { revalidatePath } from "next/cache";
 import { requireAdminUser } from "@/lib/auth/guards";
 import { requiredText } from "@/lib/commercial-collaboration";
-import { createNotificationSafe, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
 const OWNER_BOOTSTRAP_BLOCKED_PROJECT_STATUSES: readonly CollaborationProjectStatus[] = [
@@ -168,6 +168,16 @@ export async function assignCollaborationProjectOwner(formData: FormData) {
       }
     });
 
+    await tx.notification.create({
+      data: {
+        userId: owner.id,
+        type: NotificationType.REQUEST_HANDLED,
+        title: "你已被登记为项目负责人",
+        content: "平台已核实并登记你为《" + project.title + "》的真实负责人。请由你本人前往设计授权中心发送标准邀请；平台没有代你发送，也没有代作品作者作出决定。",
+        linkUrl: "/me/authorizations"
+      }
+    });
+
     return {
       changed: true,
       slug: project.slug,
@@ -175,18 +185,6 @@ export async function assignCollaborationProjectOwner(formData: FormData) {
       projectTitle: project.title
     };
   });
-
-  if (result.changed) {
-    await createNotificationSafe({
-      recipientId: result.ownerUserId,
-      actorId: admin.id,
-      eventType: NOTIFICATION_EVENTS.REQUEST_HANDLED,
-      title: "你已被登记为项目负责人",
-      body: `平台已核实并登记你为《${result.projectTitle}》的真实负责人。请由你本人前往设计授权中心发送标准邀请；平台没有代你发送，也没有代作品作者作出决定。`,
-      targetUrl: "/me/authorizations",
-      dedupe: true
-    });
-  }
 
   revalidatePath("/admin/preorders/readiness");
   revalidatePath(`/admin/projects/${projectId}/preorder`);
