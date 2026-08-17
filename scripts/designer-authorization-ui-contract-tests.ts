@@ -12,11 +12,14 @@ assert.match(actions, /if \(!canDesignerRespondToAuthorization/);
 assert.match(actions, /只有作品作者本人可以撤销设计授权/);
 assert.match(actions, /ProjectDesignAuthorizationStatus.REVOKED/);
 
-assert.match(adminPage, /requestProjectDesignAuthorization/);
+assert.doesNotMatch(adminPage, /requestProjectDesignAuthorization/);
 assert.match(adminPage, /disabled={!authorizationReady}/);
-assert.match(adminPage, /项目方可以发起请求，但不能代替作品作者同意/);
+assert.match(adminPage, /平台不代替双方作商业决定/);
 assert.match(adminPage, /等待设计师授权/);
 
+assert.match(designerPage, /requestProjectDesignAuthorization/);
+assert.match(designerPage, /我发起的授权邀请/);
+assert.match(designerPage, /需要我决定的邀请/);
 assert.match(designerPage, /respondProjectDesignAuthorization/);
 assert.match(designerPage, /revokeProjectDesignAuthorization/);
 assert.match(designerPage, /接受授权/);
