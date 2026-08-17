@@ -49,6 +49,8 @@ jobs:
           node --import tsx scripts/authorization-discovery-contract-tests.ts
           node --import tsx scripts/authorization-outcome-notification-contract-tests.ts
           node --import tsx scripts/project-design-authorization-transaction-contract-tests.ts
+          node --import tsx scripts/authorization-decision-version-contract-tests.ts
+          node --import tsx scripts/project-owner-bootstrap-contract-tests.ts
 
       - name: Limited preorder regression
         run: |
