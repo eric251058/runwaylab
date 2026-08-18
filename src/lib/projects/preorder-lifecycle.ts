@@ -5,12 +5,14 @@ import {
   LimitedPreorderStatus,
   PresaleCampaignStatus,
   ProjectDesignAuthorizationStatus,
+  ProjectOrderConfirmationChannel,
   ProjectOrderFulfillmentStatus,
   ProjectOrderPaymentStatus,
   ProjectOrderStatus,
   ProjectProductStatus
 } from "@prisma/client";
 import { PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION } from "@/lib/projects/design-authorization-policy";
+import { readProjectOrderProductSnapshot } from "@/lib/projects/order-snapshots";
 
 export const LIMITED_PREORDER_STATUS_LABELS: Record<LimitedPreorderStatus, string> = {
   NOT_STARTED: "未开始",
@@ -27,6 +29,32 @@ export const LIMITED_PREORDER_QUALIFICATION_LABELS: Record<LimitedPreorderQualif
   CONFIRMED_ORDER: "已人工确认的真实订单意向",
   PAID_ORDER: "已确认付款的订单"
 };
+
+export const LIMITED_PREORDER_NO_PAYMENT_NOTICE =
+  "本期仅记录经平台人工核验的真实订单意向，不在线收款、不收定金，也不提供线下转账指引。";
+
+const NEGATED_PAYMENT_LANGUAGE = /(?:不|未|无需|无须|不会|不得|禁止|请勿|不可|不必)[^。；，,！？!\n]{0,12}(?:收款|付款|支付|转账|汇款|打款|缴费|付费|订金|定金)/gi;
+const PAYMENT_SOLICITATION_PATTERNS = [
+  /(?:收款|付款|支付|转账|汇款|打款|缴费|付费|订金|定金)/i,
+  /(?:收款码|二维码|扫码|银行卡号|银行账号|个人账户|付款链接|支付链接|收款信息|付款方式|支付方式)/i
+] as const;
+
+export function assertNoLimitedPreorderPaymentSolicitation(value: string, label = "消费者可见内容") {
+  // Explicitly negative disclosures such as “不收定金” are required and
+  // safe. Everything else that asks for or routes money fails closed.
+  const textToInspect = value.replace(NEGATED_PAYMENT_LANGUAGE, "");
+  if (PAYMENT_SOLICITATION_PATTERNS.some((pattern) => pattern.test(textToInspect))) {
+    throw new Error(`${label}不得包含转账、定金、收款码或其他付款指引。`);
+  }
+  return value;
+}
+
+export function normalizeLimitedPreorderNoPaymentTerms(value: string) {
+  const terms = assertNoLimitedPreorderPaymentSolicitation(value.trim(), "预售条款");
+  return terms.includes(LIMITED_PREORDER_NO_PAYMENT_NOTICE)
+    ? terms
+    : `${LIMITED_PREORDER_NO_PAYMENT_NOTICE}\n\n${terms}`;
+}
 
 const CAMPAIGN_TRANSITIONS: Record<LimitedPreorderStatus, readonly LimitedPreorderStatus[]> = {
   NOT_STARTED: [LimitedPreorderStatus.OPEN, LimitedPreorderStatus.CANCELLED],
@@ -52,7 +80,7 @@ export function assertLifecycleReason(value: string | null | undefined) {
 export function assertPublicPreorderNotice(value: string | null | undefined) {
   const notice = value?.trim();
   if (!notice || notice.length < 4) throw new Error("生命周期操作必须填写至少 4 个字符的消费者可见状态说明。");
-  return notice.slice(0, 500);
+  return assertNoLimitedPreorderPaymentSolicitation(notice.slice(0, 500), "消费者可见状态说明");
 }
 
 export type AdmissionSku = {
@@ -69,6 +97,9 @@ export type AdmissionProduct = {
   preorderCampaignId: string | null;
   title: string;
   description: string | null;
+  materialDescription: string | null;
+  careInstructions: string | null;
+  imageStage: string | null;
   price: number;
   targetQuantity: number | null;
   preorderLimit: number | null;
@@ -90,6 +121,8 @@ export type LimitedPreorderAuthorizationInput = {
   authorizationDesignerUserId: string | null;
   authorizationOwnerUserId: string | null;
   authorizationTermsVersion: string | null;
+  authorizationOfferHash: string | null;
+  currentOfferHash: string | null;
 };
 
 export function hasCurrentLimitedPreorderAuthorization(input: LimitedPreorderAuthorizationInput) {
@@ -98,6 +131,8 @@ export function hasCurrentLimitedPreorderAuthorization(input: LimitedPreorderAut
     && input.projectAuthorizationStatus === ProjectDesignAuthorizationStatus.ACCEPTED
     && input.authorizationRecordStatus === ProjectDesignAuthorizationStatus.ACCEPTED
     && input.authorizationTermsVersion === PROJECT_DESIGN_AUTHORIZATION_TERMS_VERSION
+    && Boolean(input.authorizationOfferHash)
+    && input.authorizationOfferHash === input.currentOfferHash
     && input.authorizationPreorderCampaignId === input.campaignId
     && input.authorizationRecordWorkId === input.campaignWorkId
     && input.authorizationRecordWorkId === input.projectWorkId
@@ -166,10 +201,22 @@ export function evaluateLimitedPreorderAdmission(input: LimitedPreorderAdmission
     issues.push(issue("TERMS_TEXT", "必须锁定至少 40 个字符的预售条款正文，不能只记录版本号。"));
   }
   if (
+    input.preorderQualificationMode === LimitedPreorderQualificationMode.CONFIRMED_ORDER
+    && !input.preorderTermsText?.includes(LIMITED_PREORDER_NO_PAYMENT_NOTICE)
+  ) {
+    issues.push(issue("NO_PAYMENT_NOTICE", "首期条款必须包含不可删除的“不在线收款、不收定金、不提供线下转账指引”说明。"));
+  }
+  if (
     input.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER
     && (!input.preorderPaymentInstructions || input.preorderPaymentInstructions.trim().length < 20)
   ) {
     issues.push(issue("PAYMENT_INSTRUCTIONS", "按付款成团时必须提供至少 20 个字符的明确付款和人工确认指引。"));
+  }
+  if (
+    input.preorderQualificationMode === LimitedPreorderQualificationMode.CONFIRMED_ORDER
+    && input.preorderPaymentInstructions?.trim()
+  ) {
+    issues.push(issue("PAYMENT_DISABLED", "首期人工确认订单意向不收款，不得配置转账、定金或其他付款指引。"));
   }
 
   const launchProducts = input.products.filter((product) => (
@@ -183,6 +230,9 @@ export function evaluateLimitedPreorderAdmission(input: LimitedPreorderAdmission
   for (const product of launchProducts) {
     const prefix = `商品“${product.title || product.id}”`;
     if (!product.title.trim() || !product.description || product.description.trim().length < 20) issues.push(issue("PRODUCT_DESCRIPTION", `${prefix}需要标题及至少 20 字说明。`));
+    if (!product.materialDescription || product.materialDescription.trim().length < 10) issues.push(issue("PRODUCT_MATERIAL", `${prefix}需要至少 10 字的面料与工艺说明。`));
+    if (!product.careInstructions || product.careInstructions.trim().length < 10) issues.push(issue("PRODUCT_CARE", `${prefix}需要至少 10 字的护理说明。`));
+    if (!product.imageStage || product.imageStage.trim().length < 2) issues.push(issue("PRODUCT_IMAGE_STAGE", `${prefix}必须说明消费者所见图片的真实阶段。`));
     if (!Number.isInteger(product.price) || product.price <= 0) issues.push(issue("PRODUCT_PRICE", `${prefix}价格必须为正整数最小货币单位。`));
     if (!Number.isInteger(product.targetQuantity) || (product.targetQuantity ?? 0) < 1) issues.push(issue("PRODUCT_TARGET", `${prefix}必须设置有效目标量。`));
     if (!Number.isInteger(product.preorderLimit) || (product.preorderLimit ?? 0) < 1) issues.push(issue("PRODUCT_LIMIT", `${prefix}必须设置独立的硬限量。`));
@@ -220,6 +270,12 @@ export type LifecycleOrder = {
   status: ProjectOrderStatus;
   paymentStatus: ProjectOrderPaymentStatus;
   fulfillmentStatus?: ProjectOrderFulfillmentStatus;
+  confirmedAt?: Date | null;
+  confirmedById?: string | null;
+  confirmationChannel?: ProjectOrderConfirmationChannel | null;
+  confirmationEvidenceRef?: string | null;
+  confirmationSummary?: string | null;
+  productSnapshot?: unknown;
 };
 
 const CONFIRMED_QUALIFYING_STATUSES = [ProjectOrderStatus.CONFIRMED] as const;
@@ -229,18 +285,35 @@ const OPEN_ORDER_STATUSES = [
   ProjectOrderStatus.CONFIRMED
 ] as const;
 
-export function orderQualifiesForCampaign(order: LifecycleOrder, mode: LimitedPreorderQualificationMode) {
+export function orderQualifiesForCampaign(
+  order: LifecycleOrder,
+  mode: LimitedPreorderQualificationMode,
+  expectedOfferHash: string | null
+) {
+  const submissionOfferHash = readProjectOrderProductSnapshot(order.productSnapshot).submissionOfferHash;
+  if (!expectedOfferHash || submissionOfferHash !== expectedOfferHash) return false;
   if (!CONFIRMED_QUALIFYING_STATUSES.includes(order.status as (typeof CONFIRMED_QUALIFYING_STATUSES)[number])) return false;
   if (order.paymentStatus === ProjectOrderPaymentStatus.REFUNDED || order.paymentStatus === ProjectOrderPaymentStatus.PARTIALLY_REFUNDED) return false;
+  if (
+    !order.confirmedAt
+    || !order.confirmedById
+    || !order.confirmationChannel
+    || !order.confirmationEvidenceRef?.trim()
+    || !order.confirmationSummary?.trim()
+  ) return false;
   return mode === LimitedPreorderQualificationMode.CONFIRMED_ORDER || order.paymentStatus === ProjectOrderPaymentStatus.PAID;
 }
 
-export function summarizeLimitedPreorderOrders(orders: readonly LifecycleOrder[], mode: LimitedPreorderQualificationMode) {
+export function summarizeLimitedPreorderOrders(
+  orders: readonly LifecycleOrder[],
+  mode: LimitedPreorderQualificationMode,
+  expectedOfferHash: string | null
+) {
   return orders.reduce((summary, order) => {
     if (OPEN_ORDER_STATUSES.includes(order.status as (typeof OPEN_ORDER_STATUSES)[number])) summary.activeQuantity += order.quantity;
     if (order.status === ProjectOrderStatus.CONFIRMED) summary.confirmedQuantity += order.quantity;
     if (order.paymentStatus === ProjectOrderPaymentStatus.PAID) summary.paidQuantity += order.quantity;
-    if (orderQualifiesForCampaign(order, mode)) summary.qualifiedQuantity += order.quantity;
+    if (orderQualifiesForCampaign(order, mode, expectedOfferHash)) summary.qualifiedQuantity += order.quantity;
     if (order.status === ProjectOrderStatus.REFUND_PENDING) summary.refundPendingQuantity += order.quantity;
     return summary;
   }, { activeQuantity: 0, confirmedQuantity: 0, paidQuantity: 0, qualifiedQuantity: 0, refundPendingQuantity: 0 });
@@ -280,8 +353,12 @@ export function planFailedOrderDisposition(order: LifecycleOrder): OrderDisposit
   return "MANUAL_REVIEW";
 }
 
-export function planGoalReachedOrderDisposition(order: LifecycleOrder, mode: LimitedPreorderQualificationMode): OrderDisposition {
-  if (orderQualifiesForCampaign(order, mode)) return "NOOP";
+export function planGoalReachedOrderDisposition(
+  order: LifecycleOrder,
+  mode: LimitedPreorderQualificationMode,
+  expectedOfferHash: string | null
+): OrderDisposition {
+  if (orderQualifiesForCampaign(order, mode, expectedOfferHash)) return "NOOP";
   if (order.status === ProjectOrderStatus.REFUND_PENDING) return "NOOP";
   if (order.status === ProjectOrderStatus.REFUNDED) return order.paymentStatus === ProjectOrderPaymentStatus.REFUNDED ? "NOOP" : "MANUAL_REVIEW";
   if (hasMoneyToReturn(order.paymentStatus)) return "MANUAL_REVIEW";
@@ -290,7 +367,11 @@ export function planGoalReachedOrderDisposition(order: LifecycleOrder, mode: Lim
   return "MANUAL_REVIEW";
 }
 
-export function planProductionOrderDisposition(order: LifecycleOrder, mode: LimitedPreorderQualificationMode): OrderDisposition {
+export function planProductionOrderDisposition(
+  order: LifecycleOrder,
+  mode: LimitedPreorderQualificationMode,
+  expectedOfferHash: string | null
+): OrderDisposition {
   if (order.status === ProjectOrderStatus.PRODUCTION && order.fulfillmentStatus === ProjectOrderFulfillmentStatus.PRODUCTION) return "NOOP";
-  return orderQualifiesForCampaign(order, mode) ? "PRODUCTION" : "NOOP";
+  return orderQualifiesForCampaign(order, mode, expectedOfferHash) ? "PRODUCTION" : "NOOP";
 }

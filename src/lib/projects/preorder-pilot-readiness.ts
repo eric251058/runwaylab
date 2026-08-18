@@ -8,6 +8,7 @@ export const LIMITED_PREORDER_PILOT_TEMPLATE = {
   recommendedWindowDays: { min: 7, max: 14 },
   principles: [
     "仅记录经平台人工确认的真实订单意向，不在线收款、不收定金。",
+    "仅允许已核验邮箱或手机号的账号提交；首期每个账号每期最多 2 件，人工核验必须保留外部证据编号与审计记录。",
     "成团目标必须来自已核实的生产最小起订量，不能使用虚构默认值。",
     "活动硬限量必须等于开售商品硬限量合计，SKU 容量必须与商品硬限量一致。",
     "预计发货时间必须晚于截止时间，并在提交前向消费者明确展示。",
@@ -33,11 +34,16 @@ const AREA_CODES: Record<PilotReadinessArea, readonly string[]> = {
     "PREORDER_DEADLINE",
     "TERMS_VERSION",
     "TERMS_TEXT",
-    "PAYMENT_INSTRUCTIONS"
+    "NO_PAYMENT_NOTICE",
+    "PAYMENT_INSTRUCTIONS",
+    "PAYMENT_DISABLED"
   ],
   "商品与 SKU": [
     "PRODUCTS",
     "PRODUCT_DESCRIPTION",
+    "PRODUCT_MATERIAL",
+    "PRODUCT_CARE",
+    "PRODUCT_IMAGE_STAGE",
     "PRODUCT_PRICE",
     "PRODUCT_TARGET",
     "PRODUCT_LIMIT",

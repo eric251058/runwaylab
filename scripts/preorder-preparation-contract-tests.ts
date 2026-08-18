@@ -4,23 +4,57 @@ import {
   ProjectDesignAuthorizationStatus,
   ProjectProductStatus
 } from "@prisma/client";
-import { canSetProjectProductStatus } from "../src/lib/projects/rules";
+import {
+  canPrepareManagedLimitedPreorderProject,
+  canSetProjectProductStatus
+} from "../src/lib/projects/rules";
 
 function assertEqual(label: string, actual: unknown, expected: unknown) {
   if (actual !== expected) throw new Error(label + ": expected " + String(expected) + ", received " + String(actual));
 }
 
-assertEqual("draft requires authorization", canSetProjectProductStatus(
+assertEqual("ordinary draft still requires authorization", canSetProjectProductStatus(
   CollaborationProjectStatus.DRAFT,
   ProjectProductStatus.DRAFT,
   ProjectDesignAuthorizationStatus.PENDING
 ), false);
-assertEqual("authorized draft is allowed", canSetProjectProductStatus(
-  CollaborationProjectStatus.PLANNING,
+assertEqual("managed offer draft can be prepared before authorization", canSetProjectProductStatus(
+  CollaborationProjectStatus.DRAFT,
   ProjectProductStatus.DRAFT,
-  ProjectDesignAuthorizationStatus.ACCEPTED
+  ProjectDesignAuthorizationStatus.PENDING,
+  true
 ), true);
-assertEqual("approved product requires preorder-ready project", canSetProjectProductStatus(
+assertEqual("managed reviewed offer can be prepared before authorization", canSetProjectProductStatus(
+  CollaborationProjectStatus.PLANNING,
+  ProjectProductStatus.APPROVED,
+  ProjectDesignAuthorizationStatus.PENDING,
+  true
+), true);
+assertEqual("managed paused product cannot be forged before authorization", canSetProjectProductStatus(
+  CollaborationProjectStatus.PLANNING,
+  ProjectProductStatus.PAUSED,
+  ProjectDesignAuthorizationStatus.PENDING,
+  true
+), false);
+assertEqual("managed sold-out product cannot be forged before authorization", canSetProjectProductStatus(
+  CollaborationProjectStatus.PLANNING,
+  ProjectProductStatus.SOLD_OUT,
+  ProjectDesignAuthorizationStatus.PENDING,
+  true
+), false);
+assertEqual("production project cannot be regressed through offer preparation", canSetProjectProductStatus(
+  CollaborationProjectStatus.PRODUCTION,
+  ProjectProductStatus.APPROVED,
+  ProjectDesignAuthorizationStatus.PENDING,
+  true
+), false);
+assertEqual("sampling remains a valid preparation stage", canPrepareManagedLimitedPreorderProject(
+  CollaborationProjectStatus.SAMPLING
+), true);
+assertEqual("quality check is never a V2.3 preparation stage", canPrepareManagedLimitedPreorderProject(
+  CollaborationProjectStatus.QUALITY_CHECK
+), false);
+assertEqual("ordinary approved product requires preorder-ready project", canSetProjectProductStatus(
   CollaborationProjectStatus.PLANNING,
   ProjectProductStatus.APPROVED,
   ProjectDesignAuthorizationStatus.ACCEPTED
@@ -34,6 +68,12 @@ assertEqual("open product requires open project", canSetProjectProductStatus(
   CollaborationProjectStatus.PREORDER_READY,
   ProjectProductStatus.PREORDER_OPEN,
   ProjectDesignAuthorizationStatus.ACCEPTED
+), false);
+assertEqual("open product requires accepted authorization", canSetProjectProductStatus(
+  CollaborationProjectStatus.PREORDER_OPEN,
+  ProjectProductStatus.PREORDER_OPEN,
+  ProjectDesignAuthorizationStatus.PENDING,
+  true
 ), false);
 assertEqual("open product allowed on open project", canSetProjectProductStatus(
   CollaborationProjectStatus.PREORDER_OPEN,
@@ -49,6 +89,9 @@ for (const required of ["预订准备工作台", "不会自动创建订单、扣
 }
 for (const required of ["requireAdminUser()", "canSetProjectProductStatus", "existing.projectId !== projectId"]) {
   if (!actions.includes(required)) throw new Error("product action guard missing: " + required);
+}
+if (!actions.includes("canPrepareManagedLimitedPreorderProject(existingProject.status)")) {
+  throw new Error("managed project status guard missing");
 }
 if (!decisionPage.includes('"/preorder"') || !decisionPage.includes("准备限量预订")) {
   throw new Error("presale decision page missing preorder preparation entry");

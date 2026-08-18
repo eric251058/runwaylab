@@ -129,7 +129,7 @@ export async function PATCH(request: Request) {
     const profile = await prisma.$transaction(async (tx) => {
       const userBeforeUpdate = await tx.user.findUnique({
         where: { id: currentUser.id },
-        select: { persona: true, email: true }
+        select: { persona: true, email: true, phone: true }
       });
       const provider = await tx.provider.findFirst({
         where: {
@@ -141,12 +141,14 @@ export async function PATCH(request: Request) {
         select: { id: true }
       });
       const isProvider = Boolean(provider) || (userBeforeUpdate ? providerPersonas.has(userBeforeUpdate.persona) : false);
+      const phoneChanged = userBeforeUpdate?.phone !== phoneResult.normalized;
 
       const user = await tx.user.update({
         where: { id: currentUser.id },
         data: {
           nickname: parsed.data.nickname,
-          phone: phoneResult.normalized
+          phone: phoneResult.normalized,
+          phoneVerifiedAt: phoneChanged ? null : undefined
         },
         include: { designerProfile: true }
       });

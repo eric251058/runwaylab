@@ -15,6 +15,8 @@ import {
 assert.equal(LIMITED_PREORDER_PILOT_TEMPLATE.qualificationMode, LimitedPreorderQualificationMode.CONFIRMED_ORDER);
 assert.equal(LIMITED_PREORDER_PILOT_TEMPLATE.acceptsPayment, false);
 assert.ok(LIMITED_PREORDER_PILOT_TEMPLATE.principles.some((item) => item.includes("不在线收款")));
+assert.ok(LIMITED_PREORDER_PILOT_TEMPLATE.principles.some((item) => item.includes("已核验邮箱或手机号")));
+assert.ok(LIMITED_PREORDER_PILOT_TEMPLATE.principles.some((item) => item.includes("最多 2 件")));
 
 assert.deepEqual(pilotSafetyIssues(LimitedPreorderQualificationMode.CONFIRMED_ORDER), []);
 assert.equal(pilotSafetyIssues(LimitedPreorderQualificationMode.PAID_ORDER)[0]?.code, "PILOT_MODE");

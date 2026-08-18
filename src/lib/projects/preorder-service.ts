@@ -10,15 +10,32 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
+  hashLimitedPreorderOfferSnapshot,
+  readLimitedPreorderOfferSnapshot,
+  createLimitedPreorderOfferEnvelope
+} from "@/lib/projects/preorder-offer";
+import {
+  assertNoLimitedPreorderPaymentSolicitation,
+  hasCurrentLimitedPreorderAuthorization,
+  LIMITED_PREORDER_NO_PAYMENT_NOTICE
+} from "@/lib/projects/preorder-lifecycle";
+import {
   ACTIVE_RESERVATION_STATUSES,
   calculateOrderTotal,
   canOpenLimitedPreorder,
   canViewProject,
   type ProjectUser
 } from "@/lib/projects/rules";
+import {
+  exceedsPilotBuyerCampaignLimit,
+  hasVerifiedBuyerContact,
+  PILOT_BUYER_CAMPAIGN_QUANTITY_LIMIT,
+  type BuyerVerificationState
+} from "@/lib/projects/preorder-buyer-cap";
 import { isPublicQualityWork } from "@/lib/works/rules";
 
 const IDEMPOTENCY_SCOPE = "limited-preorder:create";
+export const CONFIRMED_ORDER_RESERVATION_TTL_MS = 24 * 60 * 60 * 1000;
 export class PreorderError extends Error {
   constructor(message: string, readonly code: string, readonly status = 400) {
     super(message);
@@ -48,10 +65,16 @@ function requestHash(input: CreatePreorderInput) {
   })).digest("hex");
 }
 
+function assertSupportedPreorderMode(mode: LimitedPreorderQualificationMode) {
+  if (mode === LimitedPreorderQualificationMode.PAID_ORDER) {
+    throw new PreorderError("按付款成团尚未具备真实退款记录闭环，本期不能接受新的付款预订。", "PAYMENT_MODE_NOT_AVAILABLE", 409);
+  }
+}
+
 export async function createLimitedPreorder(input: CreatePreorderInput) {
   if (!input.termsAccepted) throw new PreorderError("请先阅读并同意限量预售说明。", "TERMS_NOT_ACCEPTED");
-  if (!Number.isInteger(input.quantity) || input.quantity < 1 || input.quantity > 20) {
-    throw new PreorderError("预订数量必须是 1 至 20 的整数。", "INVALID_QUANTITY");
+  if (!Number.isInteger(input.quantity) || input.quantity < 1 || input.quantity > PILOT_BUYER_CAMPAIGN_QUANTITY_LIMIT) {
+    throw new PreorderError(`首期每个已验证账号每期最多提交 ${PILOT_BUYER_CAMPAIGN_QUANTITY_LIMIT} 件订单意向。`, "INVALID_QUANTITY");
   }
   const hash = requestHash(input);
 
@@ -89,14 +112,27 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
                 reviewStatus: true,
                 contentStatus: true,
                 visibility: true,
-                images: { select: { imageUrl: true } }
+                images: { select: { imageUrl: true }, orderBy: { sortOrder: "asc" } }
               }
             },
             presaleCampaign: true,
-            products: { where: { id: input.productId }, include: { skus: true }, take: 1 }
+            products: { include: { skus: true } },
+            designAuthorizations: {
+              select: {
+                status: true,
+                preorderCampaignId: true,
+                workId: true,
+                designerUserId: true,
+                ownerUserId: true,
+                termsVersion: true,
+                offerHash: true,
+                offerSnapshot: true
+              },
+              take: 1
+            }
           }
         });
-        const product = project?.products[0];
+        const product = project?.products.find((item) => item.id === input.productId);
         const campaign = project?.presaleCampaign;
         if (
           !project
@@ -111,10 +147,49 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
         ) {
           throw new PreorderError("该项目暂不可预订。", "PREORDER_NOT_OPEN");
         }
-        if (campaign.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER) {
-          throw new PreorderError("按付款成团尚未具备真实退款记录闭环，本期不能接受新的付款预订。", "PAYMENT_MODE_NOT_AVAILABLE", 409);
-        }
+        assertSupportedPreorderMode(campaign.preorderQualificationMode);
         const now = new Date();
+        const authorization = project.designAuthorizations[0] ?? null;
+        const authorizationSnapshot = readLimitedPreorderOfferSnapshot(authorization?.offerSnapshot);
+        const verifiedAuthorizationOfferHash = authorizationSnapshot
+          && authorization?.offerHash
+          && hashLimitedPreorderOfferSnapshot(authorizationSnapshot) === authorization.offerHash
+          ? authorization.offerHash
+          : null;
+        const currentOffer = createLimitedPreorderOfferEnvelope({
+          projectId: project.id,
+          projectTitle: project.title,
+          projectDescription: project.description,
+          projectTargetQuantity: project.targetQuantity,
+          projectEstimatedBudget: project.estimatedBudget,
+          workTitle: project.work.title,
+          workDescription: project.work.description,
+          campaign,
+          products: project.products,
+          displayImageUrls: project.work.images.map((image) => image.imageUrl),
+          now
+        });
+        if (
+          currentOffer.issues.length
+          || !hasCurrentLimitedPreorderAuthorization({
+            campaignId: campaign.id,
+            campaignWorkId: campaign.workId,
+            projectWorkId: project.workId,
+            workOwnerUserId: project.work.userId,
+            projectOwnerUserId: project.ownerUserId ?? project.createdById,
+            projectAuthorizationStatus: project.designerAuthorizationStatus,
+            authorizationRecordStatus: authorization?.status ?? null,
+            authorizationPreorderCampaignId: authorization?.preorderCampaignId ?? null,
+            authorizationRecordWorkId: authorization?.workId ?? null,
+            authorizationDesignerUserId: authorization?.designerUserId ?? null,
+            authorizationOwnerUserId: authorization?.ownerUserId ?? null,
+            authorizationTermsVersion: authorization?.termsVersion ?? null,
+            authorizationOfferHash: verifiedAuthorizationOfferHash,
+            currentOfferHash: currentOffer.hash
+          })
+        ) {
+          throw new PreorderError("当前作者授权已撤销、损坏或与公开开售资料不一致，已停止接受新意向。", "PREORDER_NOT_OPEN", 409);
+        }
         if (!campaign.preorderDeadline || campaign.preorderDeadline <= now || !product.preorderDeadline || product.preorderDeadline <= now) {
           throw new PreorderError("该商品预订已截止。", "PREORDER_CLOSED");
         }
@@ -122,6 +197,28 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
         const sku = input.skuId ? product.skus.find((item) => item.id === input.skuId && item.enabled) : null;
         if (product.skus.some((item) => item.enabled) && !sku) {
           throw new PreorderError("请选择有效规格。", "SKU_REQUIRED");
+        }
+
+        // Serialize all concurrent V2.3 submissions from the same account before
+        // evaluating its campaign-wide cap. This is deliberately after the
+        // idempotent replay return above, so a successful retry is never rejected
+        // by the capacity that its own original order already consumes.
+        const buyerRows = await tx.$queryRaw<Array<BuyerVerificationState & { id: string }>>(Prisma.sql`
+          SELECT "id", "email", "phone", "emailVerifiedAt", "phoneVerifiedAt"
+          FROM "User"
+          WHERE "id" = ${input.user.id}
+          FOR UPDATE
+        `);
+        const buyerAccount = buyerRows[0];
+        if (!buyerAccount) {
+          throw new PreorderError("当前账号不存在或已失效，请重新登录。", "BUYER_ACCOUNT_NOT_FOUND", 401);
+        }
+        if (!hasVerifiedBuyerContact(buyerAccount)) {
+          throw new PreorderError(
+            "首期试点仅允许已完成邮箱或手机验证的账号提交订单意向。当前没有自助验证入口，请联系 RunwayLab 平台完成核验后再提交。",
+            "BUYER_CONTACT_VERIFICATION_REQUIRED",
+            403
+          );
         }
 
         const expiringStatuses: readonly ProjectOrderStatus[] = [
@@ -133,6 +230,7 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
           OR: [
             { status: { in: durableCapacityStatuses } },
             {
+              status: { notIn: [ProjectOrderStatus.CANCELLED, ProjectOrderStatus.REFUNDED] },
               paymentStatus: { in: [ProjectOrderPaymentStatus.PAID, ProjectOrderPaymentStatus.PARTIALLY_REFUNDED] }
             },
             {
@@ -153,6 +251,22 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
         });
         if (existingBuyerOrder) {
           throw new PreorderError("你已提交过该商品与规格的有效订单意向；当前没有自助修改入口，请联系 RunwayLab 平台或管理员核对并处理原记录。", "ACTIVE_ORDER_EXISTS", 409);
+        }
+
+        const buyerCampaignReserved = await tx.projectOrder.aggregate({
+          where: {
+            preorderCampaignId: campaign.id,
+            buyerId: input.user.id,
+            ...activeReservationWhere
+          },
+          _sum: { quantity: true }
+        });
+        if (exceedsPilotBuyerCampaignLimit(buyerCampaignReserved._sum.quantity ?? 0, input.quantity)) {
+          throw new PreorderError(
+            `首期试点中，每个已验证账号每期合计最多提交 ${PILOT_BUYER_CAMPAIGN_QUANTITY_LIMIT} 件有效订单意向。请等待已有意向过期/取消，或联系 RunwayLab 平台核对。`,
+            "PILOT_BUYER_CAMPAIGN_LIMIT_EXCEEDED",
+            409
+          );
         }
 
         const productReserved = await tx.projectOrder.aggregate({
@@ -184,8 +298,19 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
         if (!campaign.preorderTermsText || campaign.preorderTermsText.trim().length < 40) {
           throw new PreorderError("本期预售条款尚未完整锁定，暂不可预订。", "TERMS_NOT_CONFIGURED");
         }
+        if (!campaign.preorderTermsText.includes(LIMITED_PREORDER_NO_PAYMENT_NOTICE)) {
+          throw new PreorderError("本期条款缺少不可删除的不收款说明，暂不可预订。", "TERMS_NOT_CONFIGURED");
+        }
+        try {
+          assertNoLimitedPreorderPaymentSolicitation(campaign.preorderTermsText, "本期预售条款");
+        } catch {
+          throw new PreorderError("本期条款包含不允许的付款指引，已停止接受新意向。", "PAYMENT_INSTRUCTIONS_NOT_ALLOWED", 409);
+        }
         const totalAmount = calculateOrderTotal(unitPrice, input.quantity);
-        const reservationExpiresAt = campaign.preorderDeadline;
+        const reservationExpiresAt = new Date(Math.min(
+          campaign.preorderDeadline.getTime(),
+          now.getTime() + CONFIRMED_ORDER_RESERVATION_TTL_MS
+        ));
         const order = await tx.projectOrder.create({
           data: {
             projectId: project.id,
@@ -206,9 +331,15 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
             idempotencyKey: input.idempotencyKey,
             productSnapshot: {
               title: product.title,
+              projectTitle: currentOffer.snapshot.projectTitle,
+              workTitle: currentOffer.snapshot.workTitle,
+              campaignTitle: currentOffer.snapshot.campaignTitle,
+              submissionOfferHash: currentOffer.hash,
               description: product.description,
               materialDescription: product.materialDescription,
               careInstructions: product.careInstructions,
+              imageStage: product.imageStage,
+              displayImageUrls: currentOffer.snapshot.displayImageUrls,
               price: product.price,
               currency: product.currency,
               preorderLimit: product.preorderLimit,
@@ -218,12 +349,14 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
               campaignCapacity: campaign.preorderCapacity
             },
             skuSnapshot: sku ? { id: sku.id, size: sku.size, color: sku.color, skuCode: sku.skuCode, priceOverride: sku.priceOverride } : Prisma.JsonNull,
-            preorderDeadlineSnapshot: product.preorderDeadline,
+            preorderDeadlineSnapshot: campaign.preorderDeadline,
             estimatedShipDate: product.estimatedShipDate,
             capacitySnapshot: capacity,
             termsVersion: campaign.preorderTermsVersion,
             termsTextSnapshot: campaign.preorderTermsText,
-            paymentInstructionsSnapshot: campaign.preorderPaymentInstructions,
+            paymentInstructionsSnapshot: campaign.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER
+              ? campaign.preorderPaymentInstructions
+              : null,
             termsAcceptedAt: now,
             reservationExpiresAt
           }
@@ -244,7 +377,8 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
               termsVersion: campaign.preorderTermsVersion,
               termsTextHash: createHash("sha256").update(campaign.preorderTermsText).digest("hex"),
               termsAcceptedAt: now.toISOString(),
-              reservationExpiresAt: reservationExpiresAt.toISOString()
+              reservationExpiresAt: reservationExpiresAt.toISOString(),
+              authorizationOfferHash: currentOffer.hash
             },
             idempotencyKey: input.idempotencyKey
           }

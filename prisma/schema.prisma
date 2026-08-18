@@ -568,6 +568,14 @@ enum ProjectOrderFulfillmentStatus {
   EXCEPTION
 }
 
+enum ProjectOrderConfirmationChannel {
+  PHONE
+  WECHAT
+  EMAIL
+  IN_PERSON
+  OTHER
+}
+
 enum ReviewTargetType {
   USER
   PROVIDER
@@ -748,6 +756,7 @@ model User {
   collaborationProjectEvents            CollaborationProjectEvent[]  @relation("CollaborationProjectEventActor")
   projectIssues                         ProjectIssue[]               @relation("ProjectIssueReporter")
   projectOrders                         ProjectOrder[]               @relation("ProjectOrderBuyer")
+  confirmedProjectOrders                ProjectOrder[]               @relation("ProjectOrderConfirmedBy")
   projectIntakes                        ProjectIntake[]
   reviewedProjectIntakes                ProjectIntake[]              @relation("ProjectIntakeReviewedBy")
   convertedProjectIntakes               ProjectIntake[]              @relation("ProjectIntakeConvertedBy")
@@ -2317,6 +2326,8 @@ model ProjectDesignAuthorization {
   acceptedAt         DateTime?
   revokedAt          DateTime?
   termsVersion       String                           @default("v1")
+  offerHash          String?
+  offerSnapshot      Json?
 
   project  CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   preorderCampaign PresaleCampaign? @relation("PresaleCampaignDesignAuthorizations", fields: [preorderCampaignId], references: [id], onDelete: SetNull)
@@ -2477,6 +2488,11 @@ model ProjectOrder {
   reservationExpiresAt        DateTime?
   cancelledAt                 DateTime?
   cancellationReason          String?
+  confirmedAt                 DateTime?
+  confirmedById               String?
+  confirmationChannel         ProjectOrderConfirmationChannel?
+  confirmationEvidenceRef     String?
+  confirmationSummary         String?
   paymentAttempts             CommercePaymentAttempt[]
   refunds                     CommerceRefund[]
 
@@ -2486,6 +2502,7 @@ model ProjectOrder {
   product          ProjectProduct?      @relation(fields: [productId], references: [id], onDelete: SetNull)
   sku              ProjectSku?          @relation(fields: [skuId], references: [id], onDelete: SetNull)
   buyer            User?                @relation("ProjectOrderBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
+  confirmedBy      User?                @relation("ProjectOrderConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
   provider         Provider?            @relation(fields: [providerId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -2497,6 +2514,8 @@ model ProjectOrder {
   @@index([productId])
   @@index([skuId])
   @@index([buyerId])
+  @@index([confirmedById])
+  @@index([confirmedAt])
   @@index([providerId])
   @@index([status])
   @@index([paymentStatus])

@@ -13,9 +13,9 @@ assert.match(actions, /只有作品作者本人可以撤销设计授权/);
 assert.match(actions, /ProjectDesignAuthorizationStatus.REVOKED/);
 
 assert.doesNotMatch(adminPage, /requestProjectDesignAuthorization/);
-assert.match(adminPage, /disabled={!authorizationReady}/);
-assert.match(adminPage, /平台不代替双方作商业决定/);
-assert.match(adminPage, /等待设计师授权/);
+assert.match(adminPage, /disabled={preparationLocked}/);
+assert.match(adminPage, /平台不能代替双方决定/);
+assert.match(adminPage, /等待作者接受当前最终版本/);
 
 assert.match(designerPage, /requestProjectDesignAuthorization/);
 assert.match(designerPage, /我发起的授权邀请/);

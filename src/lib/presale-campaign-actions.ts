@@ -15,6 +15,7 @@ import { createNotificationForMany, createNotificationSafe, NOTIFICATION_EVENTS 
 import { isAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { optionalDate, optionalText, positiveInt, requiredText, splitOptions } from "@/lib/presale-campaign";
+import { assertLimitedPreorderOfferEditable } from "@/lib/projects/preorder-offer";
 import { isPublicQualityWork } from "@/lib/works/rules";
 
 async function requireAdminUser() {
@@ -222,6 +223,16 @@ export async function savePresaleCampaign(formData: FormData) {
   }
 
   await runPresaleCampaignSaveTransaction(async (tx) => {
+    if (id) {
+      const offerAuthorization = await tx.projectDesignAuthorization.findFirst({
+        where: {
+          preorderCampaignId: id,
+          status: { in: [ProjectDesignAuthorizationStatus.PENDING, ProjectDesignAuthorizationStatus.ACCEPTED] }
+        },
+        select: { status: true }
+      });
+      assertLimitedPreorderOfferEditable(offerAuthorization?.status);
+    }
     if (collaborationProjectId) {
       const selectedProject = await tx.collaborationProject.findUnique({
         where: { id: collaborationProjectId },
@@ -265,7 +276,13 @@ export async function savePresaleCampaign(formData: FormData) {
     let campaign;
     if (id) {
       const changed = await tx.presaleCampaign.updateMany({
-        where: { id, preorderStatus: LimitedPreorderStatus.NOT_STARTED },
+        where: {
+          id,
+          preorderStatus: LimitedPreorderStatus.NOT_STARTED,
+          designAuthorizations: {
+            none: { status: { in: [ProjectDesignAuthorizationStatus.PENDING, ProjectDesignAuthorizationStatus.ACCEPTED] } }
+          }
+        },
         data
       });
       if (changed.count !== 1) {

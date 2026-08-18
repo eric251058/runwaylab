@@ -16,6 +16,11 @@ import {
   pilotReadinessAction,
   pilotSafetyIssues
 } from "@/lib/projects/preorder-pilot-readiness";
+import {
+  createLimitedPreorderOfferEnvelope,
+  hashLimitedPreorderOfferSnapshot,
+  readLimitedPreorderOfferSnapshot
+} from "@/lib/projects/preorder-offer";
 import { isPublicQualityWork } from "@/lib/works/rules";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +50,7 @@ export default async function LimitedPreorderReadinessPage() {
             reviewStatus: true,
             contentStatus: true,
             visibility: true,
-            images: { select: { imageUrl: true } }
+            images: { select: { imageUrl: true }, orderBy: { sortOrder: "asc" } }
           }
         },
         presaleCampaign: {
@@ -54,7 +59,16 @@ export default async function LimitedPreorderReadinessPage() {
           }
         },
         designAuthorizations: {
-          select: { status: true, preorderCampaignId: true, workId: true, designerUserId: true, ownerUserId: true, termsVersion: true },
+          select: {
+            status: true,
+            preorderCampaignId: true,
+            workId: true,
+            designerUserId: true,
+            ownerUserId: true,
+            termsVersion: true,
+            offerHash: true,
+            offerSnapshot: true
+          },
           take: 1
         },
         products: {
@@ -84,6 +98,25 @@ export default async function LimitedPreorderReadinessPage() {
       .filter((intent) => intent.status === PresaleCampaignIntentStatus.CONFIRMED)
       .reduce((sum, intent) => sum + intent.quantity, 0);
     const configurable = isPilotLifecycleConfigurable(campaign.preorderStatus);
+    const currentOffer = createLimitedPreorderOfferEnvelope({
+      projectId: project.id,
+      projectTitle: project.title,
+      projectDescription: project.description,
+      projectTargetQuantity: project.targetQuantity,
+      projectEstimatedBudget: project.estimatedBudget,
+      workTitle: project.work?.title ?? "",
+      workDescription: project.work?.description ?? null,
+      campaign,
+      products: project.products,
+      displayImageUrls: project.work?.images.map((image) => image.imageUrl) ?? []
+    });
+    const authorization = project.designAuthorizations[0] ?? null;
+    const authorizationSnapshot = readLimitedPreorderOfferSnapshot(authorization?.offerSnapshot);
+    const verifiedAuthorizationOfferHash = authorizationSnapshot
+      && authorization?.offerHash
+      && hashLimitedPreorderOfferSnapshot(authorizationSnapshot) === authorization.offerHash
+      ? authorization.offerHash
+      : null;
     const admission = configurable
       ? evaluateLimitedPreorderAdmission({
           campaignId: campaign.id,
@@ -102,6 +135,8 @@ export default async function LimitedPreorderReadinessPage() {
           authorizationDesignerUserId: project.designAuthorizations[0]?.designerUserId ?? null,
           authorizationOwnerUserId: project.designAuthorizations[0]?.ownerUserId ?? null,
           authorizationTermsVersion: project.designAuthorizations[0]?.termsVersion ?? null,
+          authorizationOfferHash: verifiedAuthorizationOfferHash,
+          currentOfferHash: currentOffer.hash,
           demandTargetQuantity: campaign.targetCount,
           confirmedDemandQuantity,
           demandCampaignStatus: campaign.status,

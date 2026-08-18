@@ -86,7 +86,7 @@ assert.match(authorizationsPage, /revokeProjectDesignAuthorization/);
 assert.doesNotMatch(adminPage, /requestProjectDesignAuthorization/);
 assert.doesNotMatch(adminPage, /name="termsVersion"/);
 assert.doesNotMatch(adminPage, /name="scope"/);
-assert.match(adminPage, /平台不代替双方作商业决定/);
+assert.match(adminPage, /平台不能代替双方决定/);
 assert.match(adminPage, /前往授权中心/);
 
 console.log("self-service design authorization tests: PASS");
