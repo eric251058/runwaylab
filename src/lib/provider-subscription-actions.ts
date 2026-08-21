@@ -61,7 +61,7 @@ export async function requestProviderSubscription(formData: FormData) {
 
 export async function reviewProviderSubscription(formData: FormData) {
   const admin = await getCurrentUser();
-  if (!isAdmin(admin)) throw new Error("需要管理员权限");
+  if (!admin || !isAdmin(admin)) throw new Error("需要管理员权限");
   const subscriptionId = value(formData, "subscriptionId");
   const action = value(formData, "action");
   const reviewNote = value(formData, "reviewNote");
