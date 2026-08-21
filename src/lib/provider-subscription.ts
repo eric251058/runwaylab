@@ -1,4 +1,4 @@
-import { ProviderSubscriptionPlan, ProviderSubscriptionStatus } from "@prisma/client";
+import { FabricStatus, ProviderShowcaseStatus, ProviderSubscriptionPlan, ProviderSubscriptionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { providerPlanById } from "@/lib/provider-membership";
 
@@ -41,6 +41,14 @@ export async function getEffectiveProviderSubscription(providerId: string, now =
     where: { providerId, status: ProviderSubscriptionStatus.ACTIVE, startsAt: { lte: now }, endsAt: { gt: now } },
     orderBy: [{ startsAt: "desc" }, { createdAt: "desc" }]
   });
+}
+
+export async function getProviderCatalogUsage(providerId: string) {
+  const [fabricCount, showcaseCount] = await Promise.all([
+    prisma.fabric.count({ where: { providerId, status: { not: FabricStatus.ARCHIVED } } }),
+    prisma.providerShowcaseItem.count({ where: { providerId, status: { not: ProviderShowcaseStatus.ARCHIVED } } })
+  ]);
+  return { fabricCount, showcaseCount, total: fabricCount + showcaseCount };
 }
 
 export async function getProviderEntitlements(providerId: string, now = new Date()) {
