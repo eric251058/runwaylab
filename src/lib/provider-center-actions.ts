@@ -30,6 +30,7 @@ import {
 import { isAdmin } from "@/lib/permissions";
 import { getAnyProviderForUser } from "@/lib/provider-access";
 import { providerShowcaseTypeForProvider } from "@/lib/provider-onboarding";
+import { getProviderEntitlements } from "@/lib/provider-subscription";
 import { prisma } from "@/lib/prisma";
 import { providerBelongsToUser, splitList } from "@/lib/supply-network";
 
@@ -314,6 +315,15 @@ export async function saveProviderCenterFabric(_state: ProviderFabricFormState, 
   }
 
   const id = textValue(formData, "id");
+  if (!id) {
+    const [entitlements, currentProductCount] = await Promise.all([
+      getProviderEntitlements(provider.id),
+      prisma.fabric.count({ where: { providerId: provider.id, status: { not: FabricStatus.ARCHIVED } } })
+    ]);
+    if (currentProductCount >= entitlements.productLimit) {
+      return providerFabricFormError(`当前权益最多发布 ${entitlements.productLimit} 个产品，请升级套餐或归档旧产品。`, formData);
+    }
+  }
   const parsed = fabricSchema.safeParse({
     name: formData.get("name"),
     slug: formData.get("slug"),
