@@ -3,6 +3,7 @@ import { ProviderStatus, ProviderType } from "@prisma/client";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAnyProviderForUser } from "@/lib/provider-access";
+import { getProviderEntitlements } from "@/lib/provider-subscription";
 
 export const runtime = "nodejs";
 
@@ -45,6 +46,10 @@ export async function POST(request: NextRequest) {
   const provider = await getAnyProviderForUser(user);
   if (!provider || provider.status !== ProviderStatus.ACTIVE || provider.type !== ProviderType.FABRIC_SUPPLIER) {
     return NextResponse.json({ error: "只有已审核的面料商可以使用 AI 产品录入" }, { status: 403 });
+  }
+  const entitlements = await getProviderEntitlements(provider.id);
+  if (!entitlements.aiProductExtractionEnabled) {
+    return NextResponse.json({ error: "当前权益未包含 AI 图片录入，请先申请并启用增长版套餐" }, { status: 403 });
   }
   if (process.env.AI_PRODUCT_EXTRACTION_ENABLED !== "true" || !process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: "AI 产品录入尚未启用，请先手动填写" }, { status: 503 });
