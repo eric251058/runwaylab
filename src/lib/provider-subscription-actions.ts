@@ -30,12 +30,17 @@ export async function requestProviderSubscription(formData: FormData) {
   if (!catalogPlan) throw new Error("套餐不存在");
 
   await prisma.$transaction(async (tx) => {
+    const now = new Date();
+    await tx.providerSubscription.updateMany({
+      where: { providerId: provider.id, status: ProviderSubscriptionStatus.ACTIVE, endsAt: { lte: now } },
+      data: { status: ProviderSubscriptionStatus.EXPIRED }
+    });
     const blocking = await tx.providerSubscription.findFirst({
       where: {
         providerId: provider.id,
         OR: [
           { status: ProviderSubscriptionStatus.PENDING },
-          { status: ProviderSubscriptionStatus.ACTIVE, endsAt: { gt: new Date() } }
+          { status: ProviderSubscriptionStatus.ACTIVE }
         ]
       }
     });
@@ -66,22 +71,30 @@ export async function reviewProviderSubscription(formData: FormData) {
   const action = value(formData, "action");
   const reviewNote = value(formData, "reviewNote");
   if (!subscriptionId || !["ACTIVATE", "REJECT", "CANCEL"].includes(action)) throw new Error("审核参数无效");
-  if (action !== "ACTIVATE" && reviewNote.length < 2) throw new Error("拒绝或取消时必须填写原因");
+  if (reviewNote.length < 4) throw new Error("启用、拒绝或取消套餐都必须填写至少 4 个字的审核说明");
 
   await prisma.$transaction(async (tx) => {
-    const subscription = await tx.providerSubscription.findUnique({ where: { id: subscriptionId } });
+    const subscription = await tx.providerSubscription.findUnique({
+      where: { id: subscriptionId },
+      include: { provider: { select: { status: true } } }
+    });
     if (!subscription) throw new Error("套餐申请不存在");
     const now = new Date();
+    await tx.providerSubscription.updateMany({
+      where: { providerId: subscription.providerId, id: { not: subscription.id }, status: ProviderSubscriptionStatus.ACTIVE, endsAt: { lte: now } },
+      data: { status: ProviderSubscriptionStatus.EXPIRED }
+    });
 
     if (action === "ACTIVATE") {
       if (subscription.status !== ProviderSubscriptionStatus.PENDING) throw new Error("只有待审核申请可以启用");
+      if (subscription.provider.status !== ProviderStatus.ACTIVE) throw new Error("服务商当前不是正常运营状态，不能启用套餐");
       await tx.providerSubscription.updateMany({
         where: { providerId: subscription.providerId, id: { not: subscription.id }, status: ProviderSubscriptionStatus.ACTIVE },
         data: { status: ProviderSubscriptionStatus.CANCELLED, reviewedById: admin.id, reviewedAt: now, reviewNote: "新套餐生效，旧套餐已结束" }
       });
       await tx.providerSubscription.update({
         where: { id: subscription.id },
-        data: { status: ProviderSubscriptionStatus.ACTIVE, reviewedById: admin.id, reviewedAt: now, reviewNote: reviewNote || null, ...providerSubscriptionPeriod(subscription.plan, now) }
+        data: { status: ProviderSubscriptionStatus.ACTIVE, reviewedById: admin.id, reviewedAt: now, reviewNote, ...providerSubscriptionPeriod(subscription.plan, now) }
       });
     } else {
       const nextStatus = action === "REJECT" ? ProviderSubscriptionStatus.REJECTED : ProviderSubscriptionStatus.CANCELLED;
@@ -99,7 +112,7 @@ export async function reviewProviderSubscription(formData: FormData) {
         action: `PROVIDER_SUBSCRIPTION_${action}`,
         targetType: "ProviderSubscription",
         targetId: subscription.id,
-        detail: { providerId: subscription.providerId, plan: subscription.plan, previousStatus: subscription.status, reviewNote: reviewNote || null }
+        detail: { providerId: subscription.providerId, plan: subscription.plan, previousStatus: subscription.status, reviewNote }
       }
     });
   });
