@@ -30,7 +30,7 @@ import {
 import { isAdmin } from "@/lib/permissions";
 import { getAnyProviderForUser } from "@/lib/provider-access";
 import { providerShowcaseTypeForProvider } from "@/lib/provider-onboarding";
-import { getProviderEntitlements } from "@/lib/provider-subscription";
+import { getProviderCatalogUsage, getProviderEntitlements } from "@/lib/provider-subscription";
 import { prisma } from "@/lib/prisma";
 import { providerBelongsToUser, splitList } from "@/lib/supply-network";
 
@@ -316,11 +316,11 @@ export async function saveProviderCenterFabric(_state: ProviderFabricFormState, 
 
   const id = textValue(formData, "id");
   if (!id) {
-    const [entitlements, currentProductCount] = await Promise.all([
+    const [entitlements, catalogUsage] = await Promise.all([
       getProviderEntitlements(provider.id),
-      prisma.fabric.count({ where: { providerId: provider.id, status: { not: FabricStatus.ARCHIVED } } })
+      getProviderCatalogUsage(provider.id)
     ]);
-    if (currentProductCount >= entitlements.productLimit) {
+    if (catalogUsage.total >= entitlements.productLimit) {
       return providerFabricFormError(`当前权益最多发布 ${entitlements.productLimit} 个产品，请升级套餐或归档旧产品。`, formData);
     }
   }
@@ -454,6 +454,15 @@ const showcaseSchema = z.object({
 export async function saveProviderShowcaseItem(formData: FormData) {
   const { provider } = await requireProviderForWrite();
   const id = textValue(formData, "id");
+  if (!id) {
+    const [entitlements, catalogUsage] = await Promise.all([
+      getProviderEntitlements(provider.id),
+      getProviderCatalogUsage(provider.id)
+    ]);
+    if (catalogUsage.total >= entitlements.productLimit) {
+      throw new Error(`当前权益最多发布 ${entitlements.productLimit} 个产品或案例，请升级套餐或归档旧内容。`);
+    }
+  }
   const intent = textValue(formData, "intent") ?? "draft";
   const parsed = showcaseSchema.safeParse({
     type: formData.get("type"),
