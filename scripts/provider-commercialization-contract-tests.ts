@@ -23,5 +23,31 @@ assert.match(form, /仅填充空白字段/);
 assert.match(form, /不会自动保存或发布/);
 assert.match(form, /if \(control\.value\.trim\(\)\) continue/);
 
+const schema = fs.readFileSync("prisma/schema.prisma", "utf8");
+assert.match(schema, /model ProviderSubscription \{/);
+assert.match(schema, /enum ProviderSubscriptionStatus \{/);
+assert.match(schema, /requestedProviderSubscriptions/);
+
+const migration = fs.readFileSync("prisma/migrations/20260821080000_add_provider_subscriptions/migration.sql", "utf8");
+assert.match(migration, /CREATE TABLE "ProviderSubscription"/);
+assert.match(migration, /ON DELETE CASCADE/);
+
+const subscription = fs.readFileSync("src/lib/provider-subscription.ts", "utf8");
+assert.match(subscription, /LEGACY_GRACE/);
+assert.match(subscription, /productLimit: 10/);
+assert.match(subscription, /aiProductExtractionEnabled: paid/);
+assert.match(subscription, /endsAt: \{ gt: now \}/);
+
+const actions = fs.readFileSync("src/lib/provider-subscription-actions.ts", "utf8");
+assert.match(actions, /PROVIDER_SUBSCRIPTION_\$\{action\}/);
+assert.match(actions, /已有待审核或生效中的套餐/);
+assert.match(actions, /首批试运营权益每个服务商只能申请一次/);
+assert.doesNotMatch(actions, /paymentStatus/);
+
+const providerActions = fs.readFileSync("src/lib/provider-center-actions.ts", "utf8");
+assert.match(providerActions, /getProviderEntitlements/);
+assert.match(providerActions, /currentProductCount >= entitlements\.productLimit/);
+assert.match(route, /aiProductExtractionEnabled/);
+
 console.log("provider commercialization contract tests: PASS");
 
