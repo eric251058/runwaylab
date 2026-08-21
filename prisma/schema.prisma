@@ -129,6 +129,21 @@ enum ProviderApplicationStatus {
   REJECTED
 }
 
+enum ProviderSubscriptionPlan {
+  FOUNDING_TRIAL
+  GROWTH_MONTHLY
+  GROWTH_QUARTERLY
+  GROWTH_YEARLY
+}
+
+enum ProviderSubscriptionStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  REJECTED
+  CANCELLED
+}
+
 enum FabricStatus {
   ACTIVE
   INACTIVE
@@ -769,6 +784,8 @@ model User {
   ownedProviders                        Provider[]                   @relation("ProviderOwner")
   providerApplications                  ProviderApplication[]        @relation("ProviderApplicationUser")
   reviewedProviderShowcaseItems         ProviderShowcaseItem[]       @relation("ProviderShowcaseReviewedBy")
+  requestedProviderSubscriptions       ProviderSubscription[]       @relation("ProviderSubscriptionRequestedBy")
+  reviewedProviderSubscriptions        ProviderSubscription[]       @relation("ProviderSubscriptionReviewedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1240,6 +1257,8 @@ model Provider {
   caseStudies                CaseStudy[]
   showcaseItems              ProviderShowcaseItem[]
   inquiries                  CooperationRequest[]
+  subscriptions              ProviderSubscription[]
+  aiUsageMonths              ProviderAiUsageMonthly[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1253,6 +1272,48 @@ model Provider {
   @@index([orderPreference])
   @@index([capacityStatus])
   @@index([availabilityStatus])
+}
+
+model ProviderSubscription {
+  id            String                     @id @default(cuid())
+  providerId    String
+  requestedById String
+  reviewedById  String?
+  plan          ProviderSubscriptionPlan
+  status        ProviderSubscriptionStatus @default(PENDING)
+  priceCny      Int
+  startsAt      DateTime?
+  endsAt        DateTime?
+  trialEndsAt   DateTime?
+  reviewNote    String?
+  requestedAt   DateTime                   @default(now())
+  reviewedAt    DateTime?
+
+  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  requestedBy User     @relation("ProviderSubscriptionRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedBy  User?    @relation("ProviderSubscriptionReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([providerId, status])
+  @@index([requestedById])
+  @@index([reviewedById])
+  @@index([endsAt])
+}
+
+model ProviderAiUsageMonthly {
+  providerId   String
+  monthStart   DateTime
+  requestCount Int      @default(0)
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([providerId, monthStart])
+  @@index([monthStart])
 }
 
 model WorkOpportunityProfile {

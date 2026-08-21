@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useRef, useState, type ReactNode } from "react";
 import type { Fabric } from "@prisma/client";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import { ImageUploader } from "@/components/upload/ImageUploader";
@@ -50,6 +50,9 @@ function textareaClass(error?: string) {
 export function ProviderFabricForm({ fabric }: ProviderFabricFormProps) {
   const [state, formAction] = useActionState(saveProviderCenterFabric, initialFormState);
   const [isUploading, setIsUploading] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractMessage, setExtractMessage] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const fieldErrors = state.fieldErrors ?? {};
 
   function fieldValue(name: FieldName, fallback = "") {
@@ -58,8 +61,48 @@ export function ProviderFabricForm({ fabric }: ProviderFabricFormProps) {
 
   const hiddenImageUrls = fieldValue("imageUrls", fabric?.imageUrls.join(", ") ?? "");
 
+  async function handleAiExtract() {
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
+    const imageUrl = String(formData.get("imageUrl") ?? "").trim();
+    if (!imageUrl) {
+      setExtractMessage("请先上传一张清晰的产品或标签图片。");
+      return;
+    }
+
+    setIsExtracting(true);
+    setExtractMessage("正在读取图片中的产品资料…");
+    try {
+      const response = await fetch("/api/provider/fabrics/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl })
+      });
+      const result = await response.json() as { error?: string; notice?: string; draft?: Record<string, unknown> };
+      if (!response.ok || !result.draft) throw new Error(result.error || "识别失败，请手动填写。");
+
+      let filled = 0;
+      for (const [name, rawValue] of Object.entries(result.draft)) {
+        if (name === "confidence" || name === "warnings") continue;
+        const value = Array.isArray(rawValue) ? rawValue.join(", ") : typeof rawValue === "string" ? rawValue.trim() : "";
+        if (!value) continue;
+        const control = formRef.current?.elements.namedItem(name);
+        if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement || control instanceof HTMLSelectElement)) continue;
+        if (control.value.trim()) continue;
+        control.value = value;
+        filled += 1;
+      }
+      const warnings = Array.isArray(result.draft.warnings) ? result.draft.warnings.filter((item): item is string => typeof item === "string") : [];
+      setExtractMessage(`${result.notice || "AI 草稿已生成"} 已填充 ${filled} 个空白字段。${warnings.length ? ` 注意：${warnings.join("；")}` : ""}`);
+    } catch (error) {
+      setExtractMessage(error instanceof Error ? error.message : "识别失败，请手动填写。");
+    } finally {
+      setIsExtracting(false);
+    }
+  }
+
   return (
-    <form action={formAction} className="space-y-5">
+    <form ref={formRef} action={formAction} className="space-y-5">
       {fabric ? <input type="hidden" name="id" value={fieldValue("id", fabric.id)} /> : null}
       <input type="hidden" name="imageUrls" value={hiddenImageUrls} />
       <input type="hidden" name="imageUploadState" value={isUploading ? "uploading" : "idle"} />
@@ -85,6 +128,18 @@ export function ProviderFabricForm({ fabric }: ProviderFabricFormProps) {
             onUploadingChange={setIsUploading}
           />
           {fieldErrors.imageUrl ? <p className="mt-2 text-xs font-medium text-red-600">{fieldErrors.imageUrl}</p> : null}
+        </div>
+        <div className="mt-4 rounded-[12px] border border-black/8 bg-paper p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-ink">AI 辅助录入</p>
+              <p className="mt-1 text-xs leading-5 text-ink/48">仅填充空白字段，不会自动保存或发布。图片会发送给平台配置的 AI 服务进行识别；成分、克重、幅宽、价格、MOQ 和交期必须人工核对。</p>
+            </div>
+            <button type="button" onClick={handleAiExtract} disabled={isUploading || isExtracting} className="h-10 shrink-0 rounded-full bg-ink px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45">
+              {isExtracting ? "正在识别…" : "AI 读取并填充空白项"}
+            </button>
+          </div>
+          {extractMessage ? <p role="status" className="mt-3 text-xs leading-5 text-ink/58">{extractMessage}</p> : null}
         </div>
       </section>
 

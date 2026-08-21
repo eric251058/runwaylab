@@ -19,7 +19,9 @@ assert.doesNotMatch(providerPage, /contactVisible/, "public page should not use 
 assert.doesNotMatch(providerPage, /provider\.contactEmail|provider\.contactPhone|provider\.wechat|provider\.whatsapp/, "public provider page must not render full contact fields");
 
 assert.match(supplyNetwork, /export function isProviderOwner/, "supply network should expose a real owner helper");
-assert.match(supplyNetwork, /Legacy fallback/, "legacy email fallback should be documented");
+assert.match(supplyNetwork, /return provider\.ownerId === user\.id/, "provider ownership must require an explicit ownerId binding");
+const ownerHelper = supplyNetwork.slice(supplyNetwork.indexOf("export function isProviderOwner"), supplyNetwork.indexOf("export function publicProviderWhere"));
+assert.doesNotMatch(ownerHelper, /contactEmail|user\.email/, "contact email must never be used as an authorization credential");
 assert.doesNotMatch(supplyNetwork, /user\.role === UserRole\.ADMIN\)\s*return true/, "admin must not automatically belong to every provider");
 assert.doesNotMatch(providerAccess, /user\.role === UserRole\.ADMIN[\s\S]*updatedAt/, "admin must not get an arbitrary provider-center context");
 
