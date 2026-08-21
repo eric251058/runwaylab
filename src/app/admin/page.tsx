@@ -33,6 +33,7 @@ const adminLinks = [
   ["/admin/recommendations", "老师推荐", "维护老师推荐作品"],
   ["/admin/work-fabric-recommendations", "面料推荐", "为作品匹配面料资源"],
   ["/admin/provider-applications", "服务商申请", "处理入驻申请"],
+  ["/admin/provider-subscriptions", "服务商套餐", "审核套餐申请、有效期与权益"],
   ["/admin/provider-proposals", "服务商方案", "跟进打样、生产和买手方案"],
   ["/admin/contributions", "用户贡献", "查看投票和孵化建议"],
   ["/admin/presale-campaigns", "需求验证活动", "创建和维护 V2.1 需求验证"],
@@ -86,6 +87,7 @@ const adminGroups = [
     title: "服务商",
     links: [
       ["/admin/providers", "服务商资料"],
+      ["/admin/provider-subscriptions", "套餐审核"],
       ["/admin/provider-proposals", "服务商方案"],
       ["/admin/work-fabric-recommendations", "面料推荐"]
     ]
