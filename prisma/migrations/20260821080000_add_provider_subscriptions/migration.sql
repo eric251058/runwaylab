@@ -24,6 +24,7 @@ CREATE INDEX "ProviderSubscription_providerId_status_idx" ON "ProviderSubscripti
 CREATE INDEX "ProviderSubscription_requestedById_idx" ON "ProviderSubscription"("requestedById");
 CREATE INDEX "ProviderSubscription_reviewedById_idx" ON "ProviderSubscription"("reviewedById");
 CREATE INDEX "ProviderSubscription_endsAt_idx" ON "ProviderSubscription"("endsAt");
+CREATE UNIQUE INDEX "ProviderSubscription_one_open_per_provider_idx" ON "ProviderSubscription"("providerId") WHERE "status" IN ('PENDING', 'ACTIVE');
 
 ALTER TABLE "ProviderSubscription" ADD CONSTRAINT "ProviderSubscription_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "ProviderSubscription" ADD CONSTRAINT "ProviderSubscription_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
