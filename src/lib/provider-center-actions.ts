@@ -30,7 +30,7 @@ import {
 import { isAdmin } from "@/lib/permissions";
 import { getAnyProviderForUser } from "@/lib/provider-access";
 import { providerShowcaseTypeForProvider } from "@/lib/provider-onboarding";
-import { getProviderCatalogUsage, getProviderEntitlements } from "@/lib/provider-subscription";
+import { getProviderEntitlements } from "@/lib/provider-subscription";
 import { prisma } from "@/lib/prisma";
 import { providerBelongsToUser, splitList } from "@/lib/supply-network";
 
@@ -197,6 +197,36 @@ async function requireProviderForWrite() {
   return { user, provider };
 }
 
+class ProviderCatalogLimitError extends Error {
+  constructor(readonly limit: number) {
+    super(`当前权益最多发布 ${limit} 个产品或案例，请升级套餐或归档旧内容。`);
+    this.name = "ProviderCatalogLimitError";
+  }
+}
+
+async function createWithinProviderCatalogLimit<T>(
+  providerId: string,
+  create: (tx: Prisma.TransactionClient) => Promise<T>
+) {
+  return prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "Provider" WHERE "id" = ${providerId} FOR UPDATE
+    `;
+    if (!locked.length) throw new Error("服务商不存在");
+
+    const entitlements = await getProviderEntitlements(providerId);
+    const [fabricCount, showcaseCount] = await Promise.all([
+      tx.fabric.count({ where: { providerId, status: { not: FabricStatus.ARCHIVED } } }),
+      tx.providerShowcaseItem.count({ where: { providerId, status: { not: ProviderShowcaseStatus.ARCHIVED } } })
+    ]);
+    if (fabricCount + showcaseCount >= entitlements.productLimit) {
+      throw new ProviderCatalogLimitError(entitlements.productLimit);
+    }
+
+    return create(tx);
+  });
+}
+
 const profileSchema = z.object({
   name: z.string().trim().min(1, "服务商名称不能为空").max(100),
   tagline: z.string().trim().max(180).optional().nullable(),
@@ -315,15 +345,6 @@ export async function saveProviderCenterFabric(_state: ProviderFabricFormState, 
   }
 
   const id = textValue(formData, "id");
-  if (!id) {
-    const [entitlements, catalogUsage] = await Promise.all([
-      getProviderEntitlements(provider.id),
-      getProviderCatalogUsage(provider.id)
-    ]);
-    if (catalogUsage.total >= entitlements.productLimit) {
-      return providerFabricFormError(`当前权益最多发布 ${entitlements.productLimit} 个产品，请升级套餐或归档旧产品。`, formData);
-    }
-  }
   const parsed = fabricSchema.safeParse({
     name: formData.get("name"),
     slug: formData.get("slug"),
@@ -380,18 +401,20 @@ export async function saveProviderCenterFabric(_state: ProviderFabricFormState, 
         });
       });
     } else {
-      await prisma.fabric.create({ data: { ...data, isFeatured: false } }).catch(async (error) => {
+      try {
+        await createWithinProviderCatalogLimit(provider.id, (tx) => tx.fabric.create({ data: { ...data, isFeatured: false } }));
+      } catch (error) {
         if (!isFabricSlugConflict(error)) throw error;
-        await prisma.fabric.create({
-          data: {
-            ...data,
-            slug: await findAvailableFabricSlug(`${parsed.data.name}-${shortRandomSuffix()}`),
-            isFeatured: false
-          }
-        });
-      });
+        const retrySlug = await findAvailableFabricSlug(`${parsed.data.name}-${shortRandomSuffix()}`);
+        await createWithinProviderCatalogLimit(provider.id, (tx) => tx.fabric.create({
+          data: { ...data, slug: retrySlug, isFeatured: false }
+        }));
+      }
     }
   } catch (error) {
+    if (error instanceof ProviderCatalogLimitError) {
+      return providerFabricFormError(error.message, formData);
+    }
     logProviderFabricSaveError(error);
     if (isFabricSlugConflict(error)) {
       return providerFabricFormError("产品链接生成失败，请重新保存。", formData);
@@ -454,15 +477,6 @@ const showcaseSchema = z.object({
 export async function saveProviderShowcaseItem(formData: FormData) {
   const { provider } = await requireProviderForWrite();
   const id = textValue(formData, "id");
-  if (!id) {
-    const [entitlements, catalogUsage] = await Promise.all([
-      getProviderEntitlements(provider.id),
-      getProviderCatalogUsage(provider.id)
-    ]);
-    if (catalogUsage.total >= entitlements.productLimit) {
-      throw new Error(`当前权益最多发布 ${entitlements.productLimit} 个产品或案例，请升级套餐或归档旧内容。`);
-    }
-  }
   const intent = textValue(formData, "intent") ?? "draft";
   const parsed = showcaseSchema.safeParse({
     type: formData.get("type"),
@@ -497,7 +511,7 @@ export async function saveProviderShowcaseItem(formData: FormData) {
     if (!item || item.providerId !== provider.id) throw new Error("没有权限编辑该案例");
     await prisma.providerShowcaseItem.update({ where: { id }, data });
   } else {
-    await prisma.providerShowcaseItem.create({ data });
+    await createWithinProviderCatalogLimit(provider.id, (tx) => tx.providerShowcaseItem.create({ data }));
   }
 
   revalidatePath("/provider-center/showcase");

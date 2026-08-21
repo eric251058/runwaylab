@@ -3,7 +3,9 @@ import { ProviderStatus, ProviderType } from "@prisma/client";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getAnyProviderForUser } from "@/lib/provider-access";
-import { getProviderEntitlements } from "@/lib/provider-subscription";
+import { consumeProviderAiExtraction, getProviderEntitlements } from "@/lib/provider-subscription";
+import { tooManyRequests } from "@/lib/security/api-response";
+import { checkRateLimits, getClientIp } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -55,6 +57,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "AI 产品录入尚未启用，请先手动填写" }, { status: 503 });
   }
 
+  const ip = getClientIp(request);
+  const requestLimit = checkRateLimits([`provider-ai:user:${user.id}`, `provider-ai:provider:${provider.id}`, `provider-ai:ip:${ip}`], [
+    { windowMs: 60 * 1000, limit: 6 },
+    { windowMs: 60 * 60 * 1000, limit: 30 }
+  ]);
+  if (requestLimit.limited) return tooManyRequests("AI 图片识别请求过于频繁，请稍后再试。", requestLimit.retryAfter);
+
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "请先上传一张有效的面料图片" }, { status: 400 });
 
@@ -64,6 +73,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "图片地址无效" }, { status: 400 });
   }
+
+  const monthlyUsage = await consumeProviderAiExtraction(provider.id, entitlements.aiProductExtractionMonthlyLimit);
+  if (!monthlyUsage.allowed) return tooManyRequests(`本月 AI 图片识别额度已用完（${monthlyUsage.limit} 次），请下月再试或手动填写。`, 3600);
 
   const properties = Object.fromEntries(draftFields.map((field) => [field, field === "tags" ? { type: "array", items: { type: "string" } } : { type: "string" }]));
   const aiResponse = await fetch("https://api.openai.com/v1/responses", {
@@ -107,9 +119,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const draft = JSON.parse(text) as Record<string, unknown>;
-    return NextResponse.json({ draft, notice: "AI 仅填充空白字段，请逐项核对后再保存发布。" });
+    return NextResponse.json({
+      draft,
+      notice: "AI 仅填充空白字段，请逐项核对后再保存发布。",
+      usage: { remaining: monthlyUsage.remaining, limit: monthlyUsage.limit }
+    });
   } catch {
     return NextResponse.json({ error: "识别结果格式异常，请手动填写" }, { status: 502 });
   }
 }
-

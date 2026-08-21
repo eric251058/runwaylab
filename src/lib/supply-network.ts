@@ -93,26 +93,17 @@ export function isAdminUser(user: Pick<User, "role" | "status"> | null | undefin
   return Boolean(user && user.role === UserRole.ADMIN && user.status === UserStatus.ACTIVE);
 }
 
-export function normalizeProviderContactEmail(value?: string | null) {
-  return cleanText(value)?.toLowerCase() ?? null;
-}
-
 export function isProviderOwner(
-  provider: Pick<Provider, "ownerId" | "contactEmail">,
-  user: Pick<User, "id" | "email" | "status"> | null | undefined
+  provider: Pick<Provider, "ownerId">,
+  user: Pick<User, "id" | "status"> | null | undefined
 ) {
   if (!user || user.status !== UserStatus.ACTIVE) return false;
-  if (provider.ownerId === user.id) return true;
-
-  // Legacy fallback for early provider records that were bound by contact email before ownerId existed.
-  const providerEmail = normalizeProviderContactEmail(provider.contactEmail);
-  const userEmail = normalizeProviderContactEmail(user.email);
-  return Boolean(providerEmail && userEmail && providerEmail === userEmail);
+  return provider.ownerId === user.id;
 }
 
 export function providerBelongsToUser(
-  provider: Pick<Provider, "ownerId" | "contactEmail">,
-  user: Pick<User, "id" | "email" | "status"> | null | undefined
+  provider: Pick<Provider, "ownerId">,
+  user: Pick<User, "id" | "status"> | null | undefined
 ) {
   return isProviderOwner(provider, user);
 }

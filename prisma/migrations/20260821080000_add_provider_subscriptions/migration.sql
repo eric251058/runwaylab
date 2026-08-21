@@ -29,3 +29,16 @@ CREATE UNIQUE INDEX "ProviderSubscription_one_open_per_provider_idx" ON "Provide
 ALTER TABLE "ProviderSubscription" ADD CONSTRAINT "ProviderSubscription_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "ProviderSubscription" ADD CONSTRAINT "ProviderSubscription_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "ProviderSubscription" ADD CONSTRAINT "ProviderSubscription_reviewedById_fkey" FOREIGN KEY ("reviewedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+CREATE TABLE "ProviderAiUsageMonthly" (
+  "providerId" TEXT NOT NULL,
+  "monthStart" TIMESTAMP(3) NOT NULL,
+  "requestCount" INTEGER NOT NULL DEFAULT 0,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+  CONSTRAINT "ProviderAiUsageMonthly_pkey" PRIMARY KEY ("providerId", "monthStart")
+);
+
+CREATE INDEX "ProviderAiUsageMonthly_monthStart_idx" ON "ProviderAiUsageMonthly"("monthStart");
+
+ALTER TABLE "ProviderAiUsageMonthly" ADD CONSTRAINT "ProviderAiUsageMonthly_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -51,6 +51,36 @@ export async function getProviderCatalogUsage(providerId: string) {
   return { fabricCount, showcaseCount, total: fabricCount + showcaseCount };
 }
 
+export function providerAiExtractionMonthlyLimit() {
+  const configured = Number.parseInt(process.env.AI_PRODUCT_EXTRACTION_MONTHLY_LIMIT ?? "100", 10);
+  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, 10_000) : 100;
+}
+
+export function providerAiUsageMonthStart(now = new Date()) {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
+
+export async function consumeProviderAiExtraction(providerId: string, limit: number, now = new Date()) {
+  const monthStart = providerAiUsageMonthStart(now);
+  const rows = await prisma.$queryRaw<Array<{ requestCount: number }>>`
+    INSERT INTO "ProviderAiUsageMonthly" ("providerId", "monthStart", "requestCount", "createdAt", "updatedAt")
+    VALUES (${providerId}, ${monthStart}, 1, ${now}, ${now})
+    ON CONFLICT ("providerId", "monthStart") DO UPDATE
+    SET "requestCount" = "ProviderAiUsageMonthly"."requestCount" + 1,
+        "updatedAt" = EXCLUDED."updatedAt"
+    WHERE "ProviderAiUsageMonthly"."requestCount" < ${limit}
+    RETURNING "requestCount"
+  `;
+  const requestCount = rows[0]?.requestCount;
+  return {
+    allowed: typeof requestCount === "number",
+    requestCount: requestCount ?? limit,
+    remaining: typeof requestCount === "number" ? Math.max(0, limit - requestCount) : 0,
+    limit,
+    monthStart
+  };
+}
+
 export async function getProviderEntitlements(providerId: string, now = new Date()) {
   const subscription = await getEffectiveProviderSubscription(providerId, now);
   if (!subscription) {
@@ -60,6 +90,7 @@ export async function getProviderEntitlements(providerId: string, now = new Date
       plan: null,
       productLimit: 10,
       aiProductExtractionEnabled: false,
+      aiProductExtractionMonthlyLimit: 0,
       label: "历史服务商过渡权益"
     };
   }
@@ -71,6 +102,7 @@ export async function getProviderEntitlements(providerId: string, now = new Date
     plan: subscription.plan,
     productLimit: paid ? 50 : 10,
     aiProductExtractionEnabled: paid,
+    aiProductExtractionMonthlyLimit: paid ? providerAiExtractionMonthlyLimit() : 0,
     label: providerPlanById(subscription.plan)?.name ?? subscription.plan
   };
 }

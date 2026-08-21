@@ -30,7 +30,7 @@ export const PROVIDER_MEMBERSHIP_PLANS: ProviderMembershipPlan[] = [
     priceCny: 299,
     priceLabel: "¥299 / 月",
     description: "适合需要持续展示产品、接收需求并验证获客效果的服务商。",
-    benefits: ["最多 50 个产品或案例", "AI 图片资料提取", "合作机会优先匹配", "询盘工作台与数据摘要"],
+    benefits: ["最多 50 个产品或案例", "AI 图片资料提取每月 100 次", "合作机会优先匹配", "询盘工作台与数据摘要"],
     limits: ["平台不代替服务商报价", "成交与履约由合作双方确认"]
   },
   {
@@ -59,4 +59,3 @@ export const PROVIDER_MEMBERSHIP_PLANS: ProviderMembershipPlan[] = [
 export function providerPlanById(id: string | null | undefined) {
   return PROVIDER_MEMBERSHIP_PLANS.find((plan) => plan.id === id) ?? null;
 }
-

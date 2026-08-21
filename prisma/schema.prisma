@@ -1258,6 +1258,7 @@ model Provider {
   showcaseItems              ProviderShowcaseItem[]
   inquiries                  CooperationRequest[]
   subscriptions              ProviderSubscription[]
+  aiUsageMonths              ProviderAiUsageMonthly[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1299,6 +1300,20 @@ model ProviderSubscription {
   @@index([requestedById])
   @@index([reviewedById])
   @@index([endsAt])
+}
+
+model ProviderAiUsageMonthly {
+  providerId   String
+  monthStart   DateTime
+  requestCount Int      @default(0)
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([providerId, monthStart])
+  @@index([monthStart])
 }
 
 model WorkOpportunityProfile {
