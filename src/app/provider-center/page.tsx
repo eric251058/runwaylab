@@ -165,7 +165,7 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
         {actionCard(workbenchCopy.opportunityLabel, fullProvider.type === "FABRIC_SUPPLIER" ? "查看推荐给设计师的产品和反馈。" : "查看适合参与的作品机会。", workbenchCopy.opportunityHref)}
         {actionCard("收到的合作需求", "查看并回应设计师发来的需求。", "/provider-center/inquiries")}
         {actionCard("服务商资料", "更新品牌形象和联系方式。", "/provider-center/profile")}
-        {actionCard("会员与权益", "查看试运营规则、套餐与收费边界。", "/providers/join")}
+        {actionCard("会员与权益", "查看当前额度、套餐申请与审核记录。", "/provider-center/membership")}
       </section>
     </div>
   );
