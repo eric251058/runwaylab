@@ -1,4 +1,4 @@
-import { Home, Images, PlusCircle, SwatchBook, User, type LucideIcon } from "lucide-react";
+import { Compass, FolderKanban, Home, PlusCircle, User, type LucideIcon } from "lucide-react";
 
 export type NavItem = {
   label: string;
@@ -8,8 +8,8 @@ export type NavItem = {
 
 export const mobileNavItems: NavItem[] = [
   { label: "首页", href: "/", icon: Home },
-  { label: "作品", href: "/works", icon: Images },
-  { label: "发布", href: "/publish", icon: PlusCircle },
-  { label: "面料", href: "/fabrics", icon: SwatchBook },
+  { label: "发现", href: "/works", icon: Compass },
+  { label: "发布作品", href: "/publish", icon: PlusCircle },
+  { label: "项目", href: "/projects", icon: FolderKanban },
   { label: "我的", href: "/me", icon: User }
 ];

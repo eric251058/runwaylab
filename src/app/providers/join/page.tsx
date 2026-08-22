@@ -1,5 +1,11 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { PROVIDER_MEMBERSHIP_PLANS } from "@/lib/provider-membership";
+
+export const metadata: Metadata = {
+  title: "服务商入驻",
+  description: "加入 RunwayLab 服务商网络，展示真实产品、案例与可承接能力。"
+};
 
 const steps = [
   ["01", "提交真实资料", "填写服务能力、地区、MOQ、周期与联系方式。"],
@@ -73,4 +79,3 @@ export default function ProviderJoinPage() {
     </main>
   );
 }
-

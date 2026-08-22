@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { CaseStudyStatus, ContentStatus, FabricStatus, OpportunityStage } from "@prisma/client";
+import { CaseStudyStatus, ContentStatus, OpportunityStage } from "@prisma/client";
 import { HomeFeed, type FeedCommentPreview, type HomeFeedWork } from "@/components/works/HomeFeed";
 import { visualFor } from "@/components/works/work-visuals";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-import { publicProviderWhere, SUPPLY_PROVIDER_TYPE_LABELS } from "@/lib/supply-network";
+import { publicFabricWhere, publicProviderWhere, SUPPLY_PROVIDER_TYPE_LABELS } from "@/lib/supply-network";
 import { isPublicQualityWork } from "@/lib/works/rules";
 import { attachWorkCardInteractionState, getPublicQualityWorkIds } from "@/lib/works/queries";
 
@@ -152,13 +152,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       take: 3
     }),
     prisma.fabric.findMany({
-      where: { status: FabricStatus.ACTIVE },
+      where: publicFabricWhere(),
       include: { provider: true },
       orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
       take: 3
     }),
     prisma.caseStudy.findFirst({
-      where: { status: CaseStudyStatus.PUBLISHED },
+      where: {
+        status: CaseStudyStatus.PUBLISHED,
+        OR: [
+          { providerId: null },
+          { provider: { is: publicProviderWhere() } }
+        ]
+      },
       include: { work: true, provider: true, project: true },
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }]
     })
@@ -184,29 +190,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <Link href="/works" className="inline-flex h-12 items-center justify-center rounded-full border border-white/22 px-6 text-sm font-semibold text-white">
               浏览新锐设计
             </Link>
-            <Link href="/providers/apply" className="inline-flex h-10 items-center justify-center text-sm font-semibold text-white/58 hover:text-white">
+            <Link href="/providers/join" className="inline-flex h-10 items-center justify-center text-sm font-semibold text-white/58 hover:text-white">
               我是服务商
             </Link>
           </div>
-        </div>
-      </section>
-
-      <section className="mt-10 md:mt-12">
-        <div className="mb-5">
-          <h2 className="text-2xl font-semibold text-ink md:text-3xl">两种开始方式</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/52">不需要一次写完整计划。先选择你现在拥有的起点，再逐步补充。</p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Link href="/start?source=design" className="rounded-[8px] border border-black/8 bg-white p-5 transition hover:border-ink/35">
-            <h3 className="text-xl font-semibold text-ink">我有设计作品</h3>
-            <p className="mt-2 text-sm leading-6 text-ink/55">适合已经有设计稿、样衣图或作品页面，希望继续推进面料、打样或合作的人。</p>
-            <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-ink">启动项目 <ArrowRight className="h-4 w-4" /></span>
-          </Link>
-          <Link href="/start?source=idea" className="rounded-[8px] border border-black/8 bg-white p-5 transition hover:border-ink/35">
-            <h3 className="text-xl font-semibold text-ink">我有产品想法</h3>
-            <p className="mt-2 text-sm leading-6 text-ink/55">适合还没有完整设计稿，但已经想推进一件服装产品或小品牌方向的人。</p>
-            <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-ink">启动项目 <ArrowRight className="h-4 w-4" /></span>
-          </Link>
         </div>
       </section>
 
@@ -231,14 +218,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       <section className="mt-10 md:mt-12">
         <div className="mb-5">
-          <h2 className="text-2xl font-semibold text-ink md:text-3xl">RunwayLab 如何推进项目</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/52">先记录起点，再根据真实进展进入作品、打样、合作或市场反馈路径。</p>
+          <h2 className="text-2xl font-semibold text-ink md:text-3xl">从想法到第一件产品</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/52">每次只完成当前最重要的一步，项目会随着真实进展逐步展开。</p>
         </div>
         <div className="grid gap-3 md:grid-cols-4">
           <Step title="启动项目" description="用一句话记录产品方向。" />
-          <Step title="补充资料" description="逐步明确定位、场景和价格带。" />
-          <Step title="连接资源" description="需要时再进入面料、打样或供应链。" />
-          <Step title="验证反馈" description="用真实互动判断是否继续推进。" />
+          <Step title="明确产品" description="逐步确认定位、场景和价格带。" />
+          <Step title="制作样衣" description="匹配面料、打样与生产资源。" />
+          <Step title="验证需求" description="用真实反馈决定是否继续生产。" />
         </div>
       </section>
 

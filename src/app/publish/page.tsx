@@ -1,10 +1,17 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth/session";
 import { canEditWork } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { PublishWorkForm, type PublishInitialWork } from "@/components/publish/PublishWorkForm";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "发布作品",
+  description: "在 RunwayLab 发布原创服装设计作品。",
+  robots: { index: false, follow: false }
+};
 
 type PublishPageProps = {
   searchParams?: Promise<{

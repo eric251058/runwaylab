@@ -1,4 +1,5 @@
 import {
+  FabricStatus,
   ProviderAvailabilityStatus,
   ProviderInquiryType,
   ProviderShowcaseStatus,
@@ -111,9 +112,29 @@ export function providerBelongsToUser(
 export function publicProviderWhere() {
   return {
     status: ProviderStatus.ACTIVE,
+    // A public provider must be explicitly bound to an active account. Early
+    // demo records were created without an owner and must never leak into the
+    // customer-facing directory, statistics, products, or inquiries.
+    ownerId: {
+      not: null
+    },
+    owner: {
+      is: {
+        status: UserStatus.ACTIVE
+      }
+    },
     opportunityVisible: true,
     type: {
       in: [...SUPPLY_PROVIDER_TYPES]
+    }
+  };
+}
+
+export function publicFabricWhere() {
+  return {
+    status: FabricStatus.ACTIVE,
+    provider: {
+      is: publicProviderWhere()
     }
   };
 }

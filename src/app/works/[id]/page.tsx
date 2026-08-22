@@ -40,6 +40,7 @@ import { getProviderForUser } from "@/lib/provider-access";
 import { prisma } from "@/lib/prisma";
 import { PROVIDER_PROPOSAL_STATUS_LABELS, PROVIDER_PROPOSAL_TYPE_LABELS } from "@/lib/provider-market";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site-config";
+import { publicFabricWhere, publicProviderWhere } from "@/lib/supply-network";
 import { getPublicWorkShareInfo } from "@/lib/work-share-data";
 import { workCanonicalUrl, workShareDescription, workShareTitle } from "@/lib/work-share";
 import { getWorkDetailById } from "@/lib/works/queries";
@@ -452,9 +453,8 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
     select: {
       fabricRecommendations: {
         where: {
-          status: {
-            not: RecommendationStatus.WITHDRAWN
-          }
+          status: { not: RecommendationStatus.WITHDRAWN },
+          fabric: { is: publicFabricWhere() }
         },
         include: {
           fabric: {
@@ -476,6 +476,9 @@ export default async function WorkDetailPage({ params }: WorkDetailPageProps) {
         take: 12
       },
       providerWorkProposals: {
+        where: {
+          provider: { is: publicProviderWhere() }
+        },
         include: {
           provider: true
         },

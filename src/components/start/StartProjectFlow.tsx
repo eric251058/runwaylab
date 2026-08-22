@@ -28,11 +28,8 @@ const draftKey = "runwaylab.startProject.v1";
 const draftTtlMs = 1000 * 60 * 60 * 24 * 7;
 
 const sourceOptions: Array<{ value: StartSourceType; label: string; description: string }> = [
-  { value: "DESIGN", label: "我有设计作品", description: "从已有作品开始，继续推进打样或合作。" },
-  { value: "IDEA", label: "我有产品想法", description: "先把想法记录下来，后续再补充设计资料。" },
-  { value: "AUDIENCE", label: "我有粉丝或客户", description: "围绕已有反馈整理第一件产品。" },
-  { value: "STORE", label: "我有服装店", description: "从门店需求开始寻找合适产品方向。" },
-  { value: "BRAND", label: "我已经有品牌", description: "为品牌补充新的产品线或样衣方向。" }
+  { value: "DESIGN", label: "选择已有作品", description: "从设计稿、效果图或已发布作品继续推进。" },
+  { value: "IDEA", label: "创建产品想法", description: "还没有完整设计也没关系，先记录产品方向。" }
 ];
 
 const categoryOptions: Array<{ value: StartCategory; label: string }> = [
@@ -90,12 +87,13 @@ function readDraft(initialSource: StartSourceType | null): Draft {
       return fallback;
     }
 
+    const storedSource = parsed.sourceType === "DESIGN" || parsed.sourceType === "IDEA" ? parsed.sourceType : "";
     return {
       ...fallback,
       ...parsed,
       clientDraftId: parsed.clientDraftId || fallback.clientDraftId,
-      sourceType: parsed.sourceType || fallback.sourceType,
-      step: Math.min(Math.max(Number(parsed.step ?? 0), 0), 3)
+      sourceType: initialSource ?? storedSource,
+      step: storedSource || initialSource ? Math.min(Math.max(Number(parsed.step ?? 0), 0), 3) : 0
     };
   } catch {
     window.sessionStorage.removeItem(draftKey);
@@ -250,7 +248,7 @@ export function StartProjectFlow({ initialSource, isLoggedIn }: StartProjectFlow
               <span className="mt-2 block text-xs text-ink/40">{draft.ideaText.length} / 180</span>
             </label>
             <div className="rounded-[8px] border border-black/8 bg-paper p-4 text-sm leading-6 text-ink/55">
-              图片可在项目建立后补充。本轮不会把启动草稿图片写入公开 uploads。
+              图片和更完整的资料可以在项目创建后继续补充。
             </div>
           </div>
         ) : null}

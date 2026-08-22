@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ProviderApplicationStatus } from "@prisma/client";
 import { MyActivityLists, type MyFavoriteItem, type MyRequestItem } from "@/components/me/MyActivityLists";
@@ -9,6 +10,11 @@ import { prisma } from "@/lib/prisma";
 import { SUPPLY_PROVIDER_TYPE_LABELS, providerCompleteness, providerPublicUrl } from "@/lib/supply-network";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "我的 RunwayLab",
+  robots: { index: false, follow: false }
+};
 
 type MeTab = "works" | "progress" | "favorites" | "profile";
 

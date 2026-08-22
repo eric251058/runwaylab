@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { NotificationCenterClient } from "@/components/notifications/NotificationCenterClient";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
@@ -9,6 +10,11 @@ import {
 } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "消息中心",
+  robots: { index: false, follow: false }
+};
 
 type NotificationsPageProps = {
   searchParams?: Promise<{

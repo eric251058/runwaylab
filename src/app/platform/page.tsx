@@ -1,147 +1,121 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  PLATFORM_AVAILABILITY_LABELS,
-  PLATFORM_JOURNEYS,
-  PLATFORM_PERSONAS,
-  PLATFORM_PRINCIPLES,
-  PLATFORM_SALES_MODEL,
-  PLATFORM_VERSION
-} from "@/lib/platform-capabilities";
 
 export const metadata: Metadata = {
-  title: "平台全景｜RunwayLab",
-  description: "从创意发布、项目协作到限量预售与达标生产，了解 RunwayLab 的完整业务链路。"
+  title: "平台如何运作",
+  description: "了解 RunwayLab 如何连接设计、项目、样衣、需求验证与小单生产。"
 };
 
-const availabilityStyle = {
-  LIVE: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  PARTIAL: "bg-amber-50 text-amber-800 ring-amber-200",
-  PLANNED: "bg-black/5 text-ink/55 ring-black/10"
-} as const;
+const lifecycle = [
+  { number: "01", title: "发现设计", description: "让作品被看见，也让真实反馈回到创作者。" },
+  { number: "02", title: "启动项目", description: "把已有作品或产品想法整理成可推进的项目。" },
+  { number: "03", title: "制作样衣", description: "按项目需要连接面料、打样与生产服务。" },
+  { number: "04", title: "验证需求", description: "用明确、可追踪的用户反馈判断市场意愿。" },
+  { number: "05", title: "小单生产", description: "条件成熟后，再由项目相关方决定是否进入生产。" }
+] as const;
+
+const roles = [
+  {
+    title: "设计师与创作者",
+    description: "发布作品、积累反馈，并自主决定是否进入合作与产品开发。",
+    href: "/publish",
+    action: "发布作品"
+  },
+  {
+    title: "品牌与项目主理人",
+    description: "从作品或产品想法出发，逐步明确产品并连接所需资源。",
+    href: "/start",
+    action: "启动项目"
+  },
+  {
+    title: "供应链服务商",
+    description: "展示真实能力与产品，围绕明确项目获得合作机会。",
+    href: "/providers/join",
+    action: "了解入驻"
+  }
+] as const;
+
+const principles = [
+  "作品作者自主决定授权，平台不替任何一方作出合作决定。",
+  "服务商、产品和案例经过归属核验后，才进入公开展示与合作路径。",
+  "需求反馈不等于付款或订单；生产、价格与交付由相关方另行确认。",
+  "平台记录关键状态与操作，为合作双方保留清晰、可追踪的依据。"
+] as const;
 
 export default function PlatformPage() {
   return (
     <main className="min-h-screen bg-paper pb-24 text-ink">
-      <section className="border-b border-black/8 bg-[radial-gradient(circle_at_top_left,_#f0e9ff,_transparent_42%),radial-gradient(circle_at_top_right,_#ffe9dc,_transparent_40%)]">
+      <section className="border-b border-black/8 bg-white">
         <div className="mx-auto max-w-7xl px-5 py-20 md:px-8 md:py-28">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ink/45">
-            RunwayLab Platform · V{PLATFORM_VERSION}
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-ink/40">RunwayLab</p>
           <h1 className="mt-5 max-w-4xl text-4xl font-semibold leading-tight tracking-[-0.04em] md:text-7xl">
-            让创意走到成交，
+            让好设计，
             <br />
-            不停在作品墙。
+            走向真实产品。
           </h1>
-          <p className="mt-7 max-w-2xl text-base leading-8 text-ink/65 md:text-lg">
-            RunwayLab 把设计师、项目方、供应链和消费者放进同一个链路：
-            作品被发现，需求变成项目，项目产品化，再通过限量预售验证真实市场。
+          <p className="mt-7 max-w-2xl text-base leading-8 text-ink/62 md:text-lg">
+            RunwayLab 把作品、项目与供应链放在同一条清晰路径里。每个人只处理与自己相关的下一步，让合作建立在真实信息和自主决定之上。
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
-            <Link href="/presale" className="inline-flex h-12 items-center rounded-full bg-ink px-6 text-sm font-semibold text-white">
-              浏览限量预售
+            <Link href="/start" className="inline-flex h-12 items-center rounded-full bg-ink px-6 text-sm font-semibold text-white">
+              启动服装项目
             </Link>
-            <Link href="/start" className="inline-flex h-12 items-center rounded-full border border-black/15 bg-white/70 px-6 text-sm font-semibold">
-              发起一个项目
-            </Link>
-            <Link href="/me/platform" className="inline-flex h-12 items-center rounded-full px-5 text-sm font-semibold text-ink/65 hover:bg-white/70">
-              进入我的工作台 →
+            <Link href="/works" className="inline-flex h-12 items-center rounded-full border border-black/12 px-6 text-sm font-semibold text-ink">
+              浏览新锐设计
             </Link>
           </div>
         </div>
       </section>
 
       <div className="mx-auto max-w-7xl space-y-20 px-5 py-16 md:px-8 md:py-24">
-        <section className="overflow-hidden rounded-[20px] bg-ink text-white">
-          <div className="grid gap-10 p-7 md:grid-cols-[0.9fr_1.1fr] md:p-12">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/45">Core sales model</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-5xl">{PLATFORM_SALES_MODEL.label}</h2>
-              <p className="mt-5 max-w-xl leading-7 text-white/65">{PLATFORM_SALES_MODEL.summary}</p>
-              <div className="mt-7 rounded-[12px] border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/65">
-                这是商品预售机制，不是投资或收益型众筹；平台不出售股权，也不承诺投资回报。
-              </div>
-            </div>
-            <ol className="grid gap-3 sm:grid-cols-2">
-              {PLATFORM_SALES_MODEL.lifecycle.map((step, index) => (
-                <li key={step} className="rounded-[12px] border border-white/10 bg-white/[0.06] p-5">
-                  <span className="text-xs font-semibold text-white/35">{String(index + 1).padStart(2, "0")}</span>
-                  <p className="mt-3 font-semibold">{step}</p>
-                </li>
-              ))}
-            </ol>
+        <section>
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink/38">One clear path</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-5xl">一条路径，逐步向前</h2>
+            <p className="mt-5 leading-7 text-ink/58">不要求任何人一开始就准备完整商业计划。先完成当前最重要的一步，后续能力会随着项目进展出现。</p>
           </div>
+          <ol className="mt-10 grid gap-3 md:grid-cols-5">
+            {lifecycle.map((step) => (
+              <li key={step.number} className="rounded-[12px] border border-black/8 bg-white p-5">
+                <span className="text-xs font-semibold text-ink/28">{step.number}</span>
+                <h3 className="mt-4 text-lg font-semibold">{step.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-ink/55">{step.description}</p>
+              </li>
+            ))}
+          </ol>
         </section>
 
         <section>
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink/40">Three connected journeys</p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-5xl">三条链路，一个平台对象体系</h2>
-            <p className="mt-5 leading-7 text-ink/60">
-              每一步都指向已经存在或正在补齐的真实操作入口。状态标签用于区分当前可用能力和后续交易建设，不把页面壳当作完成。
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink/38">Start from your role</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-5xl">从你现在的位置开始</h2>
           </div>
-          <div className="mt-10 grid gap-6 lg:grid-cols-3">
-            {PLATFORM_JOURNEYS.map((journey) => (
-              <article key={journey.id} className={`rounded-[18px] bg-gradient-to-br ${journey.accent} p-6 ring-1 ring-black/8`}>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/40">{journey.eyebrow}</p>
-                <h3 className="mt-3 text-3xl font-semibold tracking-[-0.03em]">{journey.title}</h3>
-                <p className="mt-3 min-h-14 text-sm leading-6 text-ink/60">{journey.summary}</p>
-                <div className="mt-7 space-y-3">
-                  {journey.stages.map((stage, index) => (
-                    <Link key={stage.id} href={stage.href} className="block rounded-[12px] bg-white/80 p-4 ring-1 ring-black/8 transition hover:-translate-y-0.5 hover:bg-white">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <span className="text-xs font-semibold text-ink/30">{index + 1}</span>
-                          <h4 className="mt-1 font-semibold">{stage.label}</h4>
-                        </div>
-                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${availabilityStyle[stage.availability]}`}>
-                          {PLATFORM_AVAILABILITY_LABELS[stage.availability]}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-ink/55">{stage.summary}</p>
-                    </Link>
-                  ))}
-                </div>
+          <div className="mt-9 grid gap-4 md:grid-cols-3">
+            {roles.map((role) => (
+              <article key={role.title} className="rounded-[14px] border border-black/8 bg-white p-6">
+                <h3 className="text-xl font-semibold">{role.title}</h3>
+                <p className="mt-3 min-h-16 text-sm leading-7 text-ink/56">{role.description}</p>
+                <Link href={role.href} className="mt-6 inline-flex text-sm font-semibold text-ink">
+                  {role.action} →
+                </Link>
               </article>
             ))}
           </div>
         </section>
 
-        <section>
-          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink/40">Choose your role</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-5xl">从你的角色开始</h2>
-            </div>
-            <p className="max-w-xl text-sm leading-6 text-ink/55">
-              同一个账号未来可以拥有多个平台身份；V2.0B.6 先统一入口，后续再完成组织成员与多角色权限。
-            </p>
-          </div>
-          <div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {PLATFORM_PERSONAS.map((persona) => (
-              <Link key={persona.id} href={persona.primaryHref} className="group rounded-[14px] border border-black/10 bg-white p-5 transition hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(31,28,25,0.08)]">
-                <h3 className="font-semibold">{persona.label}</h3>
-                <p className="mt-3 min-h-20 text-sm leading-6 text-ink/55">{persona.summary}</p>
-                <p className="mt-5 text-sm font-semibold">{persona.primaryAction} <span className="transition group-hover:translate-x-1">→</span></p>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section className="grid gap-6 rounded-[18px] border border-black/10 bg-white p-7 md:grid-cols-[0.8fr_1.2fr] md:p-10">
+        <section className="grid gap-8 rounded-[18px] bg-ink p-7 text-white md:grid-cols-[0.8fr_1.2fr] md:p-11">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink/40">Trust by design</p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-[-0.03em]">平台规则先于规模</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/38">Trust by design</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-[-0.03em]">规则先于规模</h2>
           </div>
-          <ul className="space-y-4">
-            {PLATFORM_PRINCIPLES.map((principle, index) => (
-              <li key={principle} className="flex gap-4 border-b border-black/8 pb-4 last:border-0 last:pb-0">
-                <span className="text-xs font-semibold text-ink/30">{String(index + 1).padStart(2, "0")}</span>
-                <p className="text-sm leading-6 text-ink/65">{principle}</p>
+          <ol className="space-y-4">
+            {principles.map((principle, index) => (
+              <li key={principle} className="flex gap-4 border-b border-white/10 pb-4 last:border-0 last:pb-0">
+                <span className="text-xs font-semibold text-white/28">{String(index + 1).padStart(2, "0")}</span>
+                <p className="text-sm leading-7 text-white/68">{principle}</p>
               </li>
             ))}
-          </ul>
+          </ol>
         </section>
       </div>
     </main>
