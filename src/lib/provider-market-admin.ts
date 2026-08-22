@@ -300,11 +300,21 @@ export async function reviewProviderApplication(formData: FormData) {
   const id = requiredText(formData.get("id"), "申请 ID");
   const status = enumValue(Object.values(ProviderApplicationStatus), formData.get("status"), ProviderApplicationStatus.PENDING);
   const reviewNote = optionalText(formData.get("reviewNote"));
+  if (status === ProviderApplicationStatus.PENDING) {
+    throw new Error("审核状态无效。");
+  }
 
-  const application = await prisma.providerApplication.update({
-    where: { id },
-    data: { status, reviewNote }
-  });
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.providerApplication.updateMany({
+      where: { id, status: ProviderApplicationStatus.PENDING },
+      data: { status, reviewNote }
+    });
+    if (claimed.count !== 1) {
+      throw new Error("该入驻申请已处理，请刷新页面查看最新状态。");
+    }
+
+    const application = await tx.providerApplication.findUnique({ where: { id } });
+    if (!application) throw new Error("入驻申请不存在。");
 
   if (status === ProviderApplicationStatus.APPROVED) {
     const applicationEmail = normalizeProviderEmail(application.email);
@@ -313,7 +323,7 @@ export async function reviewProviderApplication(formData: FormData) {
       ...(applicationEmail ? [{ contactEmail: { equals: applicationEmail, mode: Prisma.QueryMode.insensitive } }] : [])
     ];
     const exists = duplicateConditions.length
-      ? await prisma.provider.findFirst({
+      ? await tx.provider.findFirst({
           where: {
             OR: duplicateConditions
           },
@@ -322,7 +332,7 @@ export async function reviewProviderApplication(formData: FormData) {
       : null;
 
     if (!exists) {
-      await prisma.provider.create({
+      await tx.provider.create({
         data: {
           name: application.companyName,
           ownerId: application.userId,
@@ -364,7 +374,7 @@ export async function reviewProviderApplication(formData: FormData) {
         }
       });
     } else if (application.userId) {
-      await prisma.provider.update({
+      await tx.provider.update({
         where: { id: exists.id },
         data: {
           ownerId: application.userId,
@@ -374,6 +384,7 @@ export async function reviewProviderApplication(formData: FormData) {
       });
     }
   }
+  });
 
   revalidatePath("/admin/provider-applications");
   revalidatePath("/admin/providers");

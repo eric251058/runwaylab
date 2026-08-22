@@ -154,16 +154,22 @@ export default async function AdminProviderApplicationsPage({ searchParams }: Ad
                 {application.qualityControl ? <p className="mt-1 text-xs leading-5 text-ink/45">品控说明：{application.qualityControl}</p> : null}
                 <p className="mt-1 text-xs text-ink/40">申请时间：{formatDate(application.createdAt)}</p>
               </div>
-              <div className="grid gap-2 md:w-72">
-                {[ProviderApplicationStatus.APPROVED, ProviderApplicationStatus.REJECTED].map((status) => (
-                  <form key={status} action={reviewProviderApplication} className="grid gap-2">
-                    <input type="hidden" name="id" value={application.id} />
-                    <input type="hidden" name="status" value={status} />
-                    <input name="reviewNote" placeholder="审核备注" className="h-9 rounded-[6px] border border-black/10 px-3 text-xs" />
-                    <button className="h-9 rounded-full border border-black/10 px-3 text-xs font-semibold">{status === "APPROVED" ? "通过并生成服务商" : "拒绝"}</button>
-                  </form>
-                ))}
-              </div>
+              {application.status === ProviderApplicationStatus.PENDING ? (
+                <div className="grid gap-2 md:w-72">
+                  {[ProviderApplicationStatus.APPROVED, ProviderApplicationStatus.REJECTED].map((status) => (
+                    <form key={status} action={reviewProviderApplication} className="grid gap-2">
+                      <input type="hidden" name="id" value={application.id} />
+                      <input type="hidden" name="status" value={status} />
+                      <input name="reviewNote" placeholder="审核备注" className="h-9 rounded-[6px] border border-black/10 px-3 text-xs" />
+                      <button className="h-9 rounded-full border border-black/10 px-3 text-xs font-semibold">{status === "APPROVED" ? "通过并生成服务商" : "拒绝"}</button>
+                    </form>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-[6px] bg-paper px-4 py-3 text-xs leading-5 text-ink/55 md:w-72">
+                  该申请已完成审核，不可重复操作。
+                </p>
+              )}
             </div>
           </article>
           );
