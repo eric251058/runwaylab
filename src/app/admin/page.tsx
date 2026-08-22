@@ -87,6 +87,7 @@ const adminGroups = [
     title: "服务商",
     links: [
       ["/admin/providers", "服务商资料"],
+        ["/admin/providers/readiness", "试点准入"],
       ["/admin/provider-subscriptions", "套餐审核"],
       ["/admin/provider-proposals", "服务商方案"],
       ["/admin/work-fabric-recommendations", "面料推荐"]
