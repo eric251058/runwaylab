@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { PROVIDER_MEMBERSHIP_PLANS } from "@/lib/provider-membership";
+import { QuickProviderOnboardingForm } from "./QuickProviderOnboardingForm";
 
 export const metadata: Metadata = {
   title: "服务商入驻",
@@ -28,7 +29,7 @@ export default function ProviderJoinPage() {
             <p className="text-sm font-semibold text-white/55">首批招募原则</p>
             <p className="mt-3 text-2xl font-semibold">先验证价值，再开始收费</p>
             <p className="mt-3 text-sm leading-6 text-white/65">首批通过审核的真实服务商享 90 天共创期。我们会用询盘、响应与合作结果验证平台价值，不用虚假流量证明成功。</p>
-            <Link href="/providers/apply" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-ink">申请首批入驻</Link>
+            <Link href="#quick-apply" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-ink">3 分钟提交入驻意向</Link>
           </div>
         </div>
       </section>
@@ -42,6 +43,24 @@ export default function ProviderJoinPage() {
               <p className="mt-3 text-sm leading-6 text-ink/55">{description}</p>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section id="quick-apply" className="border-b border-black/8 bg-paper">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 md:px-8 md:py-20 lg:grid-cols-[0.72fr_1.28fr]">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/35">Start small</p>
+            <h2 className="mt-4 text-4xl font-semibold leading-tight md:text-5xl">先建立联系，<br />再补齐资料</h2>
+            <p className="mt-5 text-sm leading-7 text-ink/55">
+              首次只提交审核与联系必需的信息。平台确认主体和服务方向后，再进入资料、案例和商品完善阶段。
+            </p>
+            <ul className="mt-7 space-y-3 text-sm leading-6 text-ink/60">
+              <li>01 · 不要求一次填完全部档案</li>
+              <li>02 · 未审核通过前不公开展示</li>
+              <li>03 · 不承诺订单、排名或收益</li>
+            </ul>
+          </div>
+          <QuickProviderOnboardingForm />
         </div>
       </section>
 
@@ -72,7 +91,8 @@ export default function ProviderJoinPage() {
           ))}
         </div>
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Link href="/providers/apply" className="inline-flex h-12 items-center justify-center rounded-full bg-ink px-6 text-sm font-semibold text-white">申请成为服务商</Link>
+          <Link href="#quick-apply" className="inline-flex h-12 items-center justify-center rounded-full bg-ink px-6 text-sm font-semibold text-white">提交入驻意向</Link>
+          <Link href="/providers/apply" className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white px-6 text-sm font-semibold text-ink">填写完整申请</Link>
           <Link href="/providers" className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white px-6 text-sm font-semibold text-ink">查看服务商网络</Link>
         </div>
       </section>
