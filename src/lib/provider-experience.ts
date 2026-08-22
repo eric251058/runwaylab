@@ -37,12 +37,21 @@ export const PROVIDER_RECOMMENDATION_TYPES = [
   { value: "PROCESS", label: "提供工艺建议" }
 ] as const;
 
-export const quickProviderSchema = z.object({
-  name: z.string().trim().min(1, "请填写服务商名称。").max(100, "服务商名称最多 100 个字。"),
-  services: z.array(z.enum(PROVIDER_SERVICE_TAGS)).min(1, "请至少选择一项服务。").max(8),
-  intro: z.string().trim().max(120, "一句话介绍最多 120 个字。").optional().nullable(),
-  skipProfile: z.boolean().optional()
-});
+export const quickProviderSchema = z
+  .object({
+    name: z.string().trim().min(1, "请填写服务商名称。").max(100, "服务商名称最多 100 个字。"),
+    contactName: z.string().trim().min(1, "请填写联系人姓名。").max(60, "联系人姓名最多 60 个字。"),
+    phone: z.string().trim().min(5, "请填写可联系的手机号。").max(30, "联系电话最多 30 个字。"),
+    city: z.string().trim().min(1, "请填写所在城市。").max(60, "所在城市最多 60 个字。"),
+    services: z.array(z.enum(PROVIDER_SERVICE_TAGS)).min(1, "请至少选择一项服务。").max(8),
+    intro: z.string().trim().max(120, "一句话介绍最多 120 个字。").optional().nullable(),
+    acceptRules: z.literal(true, { errorMap: () => ({ message: "请先确认并接受平台合作规则。" }) })
+  })
+  .superRefine((value, context) => {
+    if (providerTypeFromServices(value.services) === ProviderType.OTHER) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["services"], message: "请选择面料、打样或生产相关服务。" });
+    }
+  });
 
 export type QuickProviderInput = z.infer<typeof quickProviderSchema>;
 

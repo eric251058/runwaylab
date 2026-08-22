@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { PROVIDER_SERVICE_TAGS } from "@/lib/provider-experience";
 
 type ClientProviderType = "FABRIC_SUPPLIER" | "SAMPLE_STUDIO" | "FACTORY";
@@ -12,8 +13,12 @@ type SubmitProviderApplicationFormProps = {
 
 type Draft = {
   name: string;
+  contactName: string;
+  phone: string;
+  city: string;
   services: string[];
   intro: string;
+  acceptRules: boolean;
 };
 
 const draftKey = "runwaylab.provider.quickCreate.v1";
@@ -27,25 +32,33 @@ const serviceDefaults: Record<ClientProviderType, string[]> = {
 function emptyDraft(initialType?: ClientProviderType | null): Draft {
   return {
     name: "",
+    contactName: "",
+    phone: "",
+    city: "",
     services: initialType ? serviceDefaults[initialType] : [],
-    intro: ""
+    intro: "",
+    acceptRules: false
   };
 }
 
 function readDraft(initialType?: ClientProviderType | null): Draft {
   if (typeof window === "undefined") return emptyDraft(initialType);
   const fallback = emptyDraft(initialType);
-  const stored = window.localStorage.getItem(draftKey);
+  const stored = window.sessionStorage.getItem(draftKey);
   if (!stored) return fallback;
   try {
     const parsed = JSON.parse(stored) as Partial<Draft>;
     return {
       name: typeof parsed.name === "string" ? parsed.name : fallback.name,
+      contactName: typeof parsed.contactName === "string" ? parsed.contactName : fallback.contactName,
+      phone: typeof parsed.phone === "string" ? parsed.phone : fallback.phone,
+      city: typeof parsed.city === "string" ? parsed.city : fallback.city,
       services:
         Array.isArray(parsed.services) && parsed.services.length
           ? parsed.services.filter((item): item is string => typeof item === "string" && (PROVIDER_SERVICE_TAGS as readonly string[]).includes(item))
           : fallback.services,
-      intro: typeof parsed.intro === "string" ? parsed.intro : fallback.intro
+      intro: typeof parsed.intro === "string" ? parsed.intro : fallback.intro,
+      acceptRules: false
     };
   } catch {
     return fallback;
@@ -73,7 +86,7 @@ export function SubmitProviderApplicationForm({ initialType }: SubmitProviderApp
 
   useEffect(() => {
     if (!ready) return;
-    window.localStorage.setItem(draftKey, JSON.stringify(draft));
+    window.sessionStorage.setItem(draftKey, JSON.stringify(draft));
   }, [draft, ready]);
 
   const introCount = useMemo(() => draft.intro.trim().length, [draft.intro]);
@@ -96,18 +109,21 @@ export function SubmitProviderApplicationForm({ initialType }: SubmitProviderApp
     setMessage("");
   }
 
-  function validate(skipProfile = false) {
-    if (skipProfile) return {};
+  function validate() {
     const nextErrors: Record<string, string> = {};
     if (!draft.name.trim()) nextErrors.name = "请填写服务商名称。";
+    if (!draft.contactName.trim()) nextErrors.contactName = "请填写联系人姓名。";
+    if (draft.phone.trim().length < 5) nextErrors.phone = "请填写可联系的手机号。";
+    if (!draft.city.trim()) nextErrors.city = "请填写所在城市。";
     if (!draft.services.length) nextErrors.services = "请至少选择一项服务。";
     if (draft.intro.trim().length > 120) nextErrors.intro = "一句话介绍最多 120 个字。";
+    if (!draft.acceptRules) nextErrors.acceptRules = "请先确认并接受平台合作规则。";
     return nextErrors;
   }
 
-  function submit(skipProfile = false) {
+  function submit() {
     setMessage("");
-    const nextErrors = validate(skipProfile);
+    const nextErrors = validate();
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
       requestAnimationFrame(() => {
@@ -118,19 +134,15 @@ export function SubmitProviderApplicationForm({ initialType }: SubmitProviderApp
     }
 
     startTransition(async () => {
-      const payload = skipProfile
-        ? {
-            name: draft.name.trim() || undefined,
-            services: draft.services,
-            intro: "",
-            skipProfile: true
-          }
-        : {
-            name: draft.name.trim(),
-            services: draft.services,
-            intro: draft.intro.trim(),
-            skipProfile: false
-          };
+      const payload = {
+        name: draft.name.trim(),
+        contactName: draft.contactName.trim(),
+        phone: draft.phone.trim(),
+        city: draft.city.trim(),
+        services: draft.services,
+        intro: draft.intro.trim(),
+        acceptRules: draft.acceptRules
+      };
 
       const response = await fetch("/api/provider/onboarding", {
         method: "POST",
@@ -155,7 +167,7 @@ export function SubmitProviderApplicationForm({ initialType }: SubmitProviderApp
         return;
       }
 
-      window.localStorage.removeItem(draftKey);
+      window.sessionStorage.removeItem(draftKey);
       router.push(result?.next ?? "/provider-center");
       router.refresh();
     });
@@ -165,8 +177,8 @@ export function SubmitProviderApplicationForm({ initialType }: SubmitProviderApp
     <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_50px_rgba(16,16,16,0.06)] md:p-7">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Provider</p>
-        <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">创建你的服务商主页</h1>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-ink/58">先填写最基本的信息，其他资料可以稍后完善。</p>
+        <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">申请成为服务商</h1>
+        <p className="mt-3 max-w-xl text-sm leading-6 text-ink/58">提交真实联系信息和核心服务。审核通过后，服务商主页才会公开。</p>
       </div>
 
       <div className="mt-6 grid gap-5">
@@ -183,6 +195,25 @@ export function SubmitProviderApplicationForm({ initialType }: SubmitProviderApp
             className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-base outline-none transition focus:border-ink focus:bg-white"
           />
           {fieldError(errors, "name")}
+        </label>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-sm font-semibold text-ink">联系人</span>
+            <input value={draft.contactName} onChange={(event) => updateDraft({ contactName: event.target.value })} maxLength={60} placeholder="姓名" className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-base outline-none transition focus:border-ink focus:bg-white" />
+            {fieldError(errors, "contactName")}
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-ink">联系电话</span>
+            <input value={draft.phone} onChange={(event) => updateDraft({ phone: event.target.value })} inputMode="tel" maxLength={30} placeholder="手机号" className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-base outline-none transition focus:border-ink focus:bg-white" />
+            {fieldError(errors, "phone")}
+          </label>
+        </div>
+
+        <label className="block">
+          <span className="text-sm font-semibold text-ink">所在城市</span>
+          <input value={draft.city} onChange={(event) => updateDraft({ city: event.target.value })} maxLength={60} placeholder="例如：杭州" className="mt-2 h-12 w-full rounded-[6px] border border-black/10 bg-paper px-4 text-base outline-none transition focus:border-ink focus:bg-white" />
+          {fieldError(errors, "city")}
         </label>
 
         <div>
@@ -223,22 +254,24 @@ export function SubmitProviderApplicationForm({ initialType }: SubmitProviderApp
           {fieldError(errors, "intro")}
         </label>
 
-        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <label className="flex items-start gap-3 rounded-[8px] border border-black/8 bg-paper p-4 text-sm leading-6 text-ink/65">
+          <input type="checkbox" checked={draft.acceptRules} onChange={(event) => updateDraft({ acceptRules: event.target.checked })} className="mt-1 size-4 accent-black" />
+          <span>
+            我确认提交的信息真实，并接受
+            <Link href="/legal/collaboration-rules" target="_blank" className="font-semibold text-ink underline underline-offset-4">平台合作规则</Link>
+            ；平台审核不代表订单承诺。
+          </span>
+        </label>
+        {fieldError(errors, "acceptRules")}
+
+        <div>
           <button
             type="button"
-            onClick={() => submit(false)}
+            onClick={() => submit()}
             disabled={isPending}
-            className="h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50"
+            className="h-12 w-full rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {isPending ? "处理中..." : "进入服务商中心"}
-          </button>
-          <button
-            type="button"
-            onClick={() => submit(true)}
-            disabled={isPending}
-            className="h-12 rounded-full border border-black/10 px-5 text-sm font-semibold text-ink disabled:opacity-50"
-          >
-            稍后完善
+            {isPending ? "提交中..." : "提交入驻申请"}
           </button>
         </div>
       </div>

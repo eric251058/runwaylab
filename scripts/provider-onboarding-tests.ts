@@ -5,8 +5,12 @@ import { quickProviderSchema, providerTypeFromServices } from "../src/lib/provid
 function parseIntro(intro: string) {
   return quickProviderSchema.safeParse({
     name: "华格纺织",
+    contactName: "陈经理",
+    phone: "13800138000",
+    city: "杭州",
     services: ["面料供应"],
-    intro
+    intro,
+    acceptRules: true
   });
 }
 
@@ -16,24 +20,30 @@ assert.equal(parseIntro("专注女装针织面料和小批量采购服务").succ
 assert.equal(parseIntro("一".repeat(120)).success, true, "120 chars intro should pass");
 assert.equal(parseIntro("一".repeat(121)).success, false, "over 120 chars intro should fail");
 assert.equal(
-  quickProviderSchema.safeParse({ name: "华格纺织", services: [], intro: "" }).success,
+  quickProviderSchema.safeParse({ name: "华格纺织", contactName: "陈经理", phone: "13800138000", city: "杭州", services: [], intro: "", acceptRules: true }).success,
   false,
   "services should be required for normal creation"
 );
 assert.equal(providerTypeFromServices(["面料供应"]), "FABRIC_SUPPLIER");
 assert.equal(providerTypeFromServices(["服装打样"]), "SAMPLE_STUDIO");
 assert.equal(providerTypeFromServices(["小单生产"]), "FACTORY");
+assert.equal(
+  quickProviderSchema.safeParse({ name: "其他", contactName: "陈经理", phone: "13800138000", city: "杭州", services: ["其他服务"], intro: "", acceptRules: true }).success,
+  false,
+  "unsupported catch-all service should not enter a workbench that only supports three provider types"
+);
 
 const formSource = readFileSync("src/app/providers/apply/SubmitProviderApplicationForm.tsx", "utf8");
 const actionSource = readFileSync("src/lib/provider-market-admin.ts", "utf8");
 const routeSource = readFileSync("src/app/api/provider/onboarding/route.ts", "utf8");
 
-assert.match(formSource, /localStorage/, "provider quick creation should preserve draft");
-assert.match(formSource, /进入服务商中心/, "primary action should enter provider center");
-assert.match(formSource, /稍后完善/, "secondary action should allow later completion");
+assert.match(formSource, /sessionStorage/, "provider application should preserve its draft only for the current browser session");
+assert.match(formSource, /提交入驻申请/, "primary action should submit an application for review");
+assert.doesNotMatch(formSource, /稍后完善/, "onboarding must not provide a bypass that creates an incomplete public provider");
 assert.doesNotMatch(formSource, /20-500|至少 20|minLength=\{?20/, "quick form should not require 20 chars");
 assert.doesNotMatch(actionSource, /min\(20|简介至少 20/, "legacy provider action should not retain 20-char intro rule");
-assert.match(routeSource, /status: ProviderStatus\.ACTIVE/, "quick creation should create a usable provider profile");
-assert.match(routeSource, /publicContactEnabled: false/, "private contact should stay hidden by default");
+assert.match(routeSource, /providerApplication\.create/, "quick onboarding should create a reviewable application");
+assert.match(routeSource, /status: ProviderApplicationStatus\.PENDING/, "quick onboarding should remain pending until review");
+assert.doesNotMatch(routeSource, /provider\.create/, "quick onboarding must not create a public provider before review");
 
 console.log("provider onboarding tests passed");

@@ -3,10 +3,12 @@ import {
   CollaborationProjectActionType,
   CollaborationProjectStatus,
   CollaborationProjectVisibility,
+  ContentStatus,
   NotificationType,
   Prisma,
   ProjectIntakeEventType,
   ProjectIntakeStatus,
+  ReviewStatus,
   UserRole,
   UserStatus,
   type ProjectIntake,
@@ -134,6 +136,18 @@ export const projectIntakeListSelect = {
   reviewedAt: true,
   reviewedById: true,
   linkedWorkId: true,
+  linkedWork: {
+    select: {
+      id: true,
+      title: true,
+      reviewStatus: true,
+      images: {
+        select: { imageUrl: true },
+        orderBy: { sortOrder: "asc" as const },
+        take: 1
+      }
+    }
+  },
   linkedCollaborationProjectId: true,
   linkedIncubationProjectId: true,
   submittedForReviewAt: true,
@@ -546,6 +560,7 @@ function createDataForUser(userId: string, input: ReturnType<typeof projectIntak
     ownerId: userId,
     clientDraftId: input.clientDraftId,
     sourceType: input.sourceType,
+    linkedWorkId: input.sourceType === "DESIGN" ? input.linkedWorkId : null,
     category: input.category,
     categoryOther: input.category === "OTHER" ? cleanText(input.categoryOther) : null,
     primaryNeed: input.primaryNeed,
@@ -567,6 +582,19 @@ export async function createProjectIntakeForUser(userId: string, rawInput: unkno
   }
 
   const input = parsed.data;
+
+  if (input.sourceType === "DESIGN") {
+    const ownedWork = await prisma.work.findFirst({
+      where: {
+        id: input.linkedWorkId ?? "",
+        userId,
+        contentStatus: { in: [ContentStatus.VISIBLE, ContentStatus.HIDDEN] },
+        reviewStatus: { in: [ReviewStatus.PENDING, ReviewStatus.APPROVED, ReviewStatus.PUBLISHED] }
+      },
+      select: { id: true }
+    });
+    if (!ownedWork) return { ok: false as const, error: "所选作品不存在、不可用或不属于当前账号。" };
+  }
 
   try {
     const intake = await prisma.$transaction(async (tx) => {
@@ -595,6 +623,7 @@ export async function createProjectIntakeForUser(userId: string, rawInput: unkno
           where: { id: existing.id },
           data: {
             sourceType: nextData.sourceType,
+            linkedWorkId: nextData.linkedWorkId,
             category: nextData.category,
             categoryOther: nextData.categoryOther,
             primaryNeed: nextData.primaryNeed,
