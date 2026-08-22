@@ -79,7 +79,12 @@ export default async function AdminProvidersPage({ searchParams }: AdminProvider
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
       <header className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Admin</p>
-        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">服务商管理</h1>
+        <div className="mt-3 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <h1 className="text-4xl font-semibold text-ink md:text-6xl">服务商管理</h1>
+          <Link href="/admin/providers/readiness" className="w-fit rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">
+            查看试点准入
+          </Link>
+        </div>
       </header>
 
       <nav className="mb-6 flex gap-2 overflow-x-auto pb-1">
