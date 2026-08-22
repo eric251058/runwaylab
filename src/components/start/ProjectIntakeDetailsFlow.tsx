@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type IntakeStatus = "DRAFT" | "READY_FOR_REVIEW" | "SUBMITTED" | "NEEDS_INFO" | "ACCEPTED" | "DECLINED";
 type EventType = "CREATED" | "DETAILS_UPDATED" | "SUBMITTED" | "WITHDRAWN" | "NEEDS_INFO" | "RESUBMITTED" | "ACCEPTED" | "DECLINED" | "CONVERTED";
@@ -38,6 +39,12 @@ export type ProjectIntakeDetailsDto = {
   submittedForReviewAt: string | null;
   reviewedAt: string | null;
   convertedAt: string | null;
+  linkedWork: {
+    id: string;
+    title: string;
+    reviewStatus: string;
+    imageUrl: string | null;
+  } | null;
   linkedCollaborationProjectId: string | null;
   linkedCollaborationProjectTitle: string | null;
   linkedCollaborationProjectHref: string | null;
@@ -327,6 +334,16 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
 
       {step === "overview" ? (
         <>
+          {intake.linkedWork ? (
+            <Link href={`/works/${intake.linkedWork.id}`} className="flex items-center gap-4 rounded-[8px] border border-black/8 bg-white p-4 transition hover:border-ink/25">
+              {intake.linkedWork.imageUrl ? <img src={intake.linkedWork.imageUrl} alt="" className="size-20 shrink-0 rounded-[6px] object-cover" /> : <span className="flex size-20 shrink-0 items-center justify-center rounded-[6px] bg-paper text-xs text-ink/35">暂无图</span>}
+              <span className="min-w-0">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/35">项目关联作品</span>
+                <span className="mt-2 block truncate text-lg font-semibold text-ink">{intake.linkedWork.title}</span>
+                <span className="mt-1 block text-sm text-ink/50">查看作品与审核状态</span>
+              </span>
+            </Link>
+          ) : null}
           <section className="grid gap-3 md:grid-cols-2">
             {summaryItem("项目来源", sourceLabels[intake.sourceType] ?? "启动项目")}
             {summaryItem("产品品类", intake.category === "OTHER" ? intake.categoryOther ?? "其他" : categoryLabels[intake.category])}

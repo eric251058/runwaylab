@@ -1,21 +1,16 @@
 import { NextResponse } from "next/server";
-import { ProviderStatus, ProviderType, Prisma } from "@prisma/client";
+import { ProviderApplicationStatus, Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import {
   fieldErrorsFromZod,
   normalizeProviderServices,
-  personaForProviderType,
   providerTypeFromServices,
   quickProviderSchema
 } from "@/lib/provider-experience";
 
 function jsonError(message: string, status: number, fieldErrors?: Record<string, string>) {
   return NextResponse.json({ message, fieldErrors }, { status });
-}
-
-function defaultProviderName(nickname: string) {
-  return `${nickname || "RunwayLab"}的服务商主页`;
 }
 
 function contactEmailForUser(user: Awaited<ReturnType<typeof getCurrentUser>>) {
@@ -29,18 +24,19 @@ export async function POST(request: Request) {
   const raw = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   if (!raw) return jsonError("请求格式错误，请重新提交。", 400);
 
-  const skipProfile = raw.skipProfile === true;
-  const providedServices = normalizeProviderServices(raw.services);
   const normalized = {
-    name: skipProfile ? String(raw.name || defaultProviderName(user.nickname)).trim() : raw.name,
-    services: skipProfile ? (providedServices.length ? providedServices : ["其他服务"]) : raw.services,
-    intro: skipProfile ? "" : raw.intro,
-    skipProfile
+    name: raw.name,
+    contactName: raw.contactName,
+    phone: raw.phone,
+    city: raw.city,
+    services: normalizeProviderServices(raw.services),
+    intro: raw.intro,
+    acceptRules: raw.acceptRules
   };
 
   const parsed = quickProviderSchema.safeParse(normalized);
   if (!parsed.success) {
-    return jsonError("请检查服务商主页信息。", 422, fieldErrorsFromZod(parsed.error));
+    return jsonError("请检查入驻申请信息。", 422, fieldErrorsFromZod(parsed.error));
   }
 
   const services = parsed.data.services;
@@ -48,60 +44,51 @@ export async function POST(request: Request) {
   const contactEmail = contactEmailForUser(user);
 
   try {
-    const existingProvider = await prisma.provider.findFirst({
-      where: {
-        OR: [
-          { ownerId: user.id },
-          ...(contactEmail ? [{ contactEmail: { equals: contactEmail, mode: Prisma.QueryMode.insensitive } }] : [])
-        ]
-      },
-      select: { id: true, type: true, ownerId: true }
-    });
+    const [existingProvider, pendingApplication] = await Promise.all([
+      prisma.provider.findFirst({
+        where: {
+          OR: [
+            { ownerId: user.id },
+            ...(contactEmail ? [{ contactEmail: { equals: contactEmail, mode: Prisma.QueryMode.insensitive } }] : [])
+          ]
+        },
+        select: { id: true }
+      }),
+      prisma.providerApplication.findFirst({
+        where: { userId: user.id, status: ProviderApplicationStatus.PENDING },
+        select: { id: true }
+      })
+    ]);
 
-    const providerData = {
-      name: parsed.data.name,
-      ownerId: user.id,
-      type: providerType,
-      tagline: parsed.data.intro || null,
-      description: parsed.data.intro || null,
-      contactEmail,
-      contactPhone: user.phone || null,
-      specialties: services,
-      categories: services,
-      tags: services,
-      status: ProviderStatus.ACTIVE,
-      isVerified: false,
-      opportunityVisible: true,
-      publicContactEnabled: false,
-      acceptsSampling: providerType === ProviderType.FABRIC_SUPPLIER || providerType === ProviderType.SAMPLE_STUDIO,
-      acceptsSmallBatch: providerType === ProviderType.FACTORY || providerType === ProviderType.SAMPLE_STUDIO,
-      acceptsLargeOrder: providerType === ProviderType.FACTORY
-    };
+    if (existingProvider) return jsonError("当前账号已有服务商资料，请进入服务商中心维护。", 409);
+    if (pendingApplication) return NextResponse.json({ application: pendingApplication, next: "/provider-center" }, { status: 200 });
 
-    const provider = existingProvider
-      ? await prisma.provider.update({
-          where: { id: existingProvider.id },
-          data: providerData,
-          select: { id: true, name: true, type: true, status: true }
-        })
-      : await prisma.provider.create({
-          data: providerData,
-          select: { id: true, name: true, type: true, status: true }
-        });
-
-    await prisma.user.update({
-      where: { id: user.id },
+    const application = await prisma.providerApplication.create({
       data: {
-        persona: personaForProviderType(provider.type),
-        personaCompleted: true
-      }
+        userId: user.id,
+        providerType,
+        companyName: parsed.data.name,
+        contactName: parsed.data.contactName,
+        phone: parsed.data.phone,
+        email: contactEmail,
+        city: parsed.data.city,
+        specialties: services,
+        categories: services,
+        description: parsed.data.intro || null,
+        providerDetails: {
+          submissionChannel: "QUICK_ONBOARDING",
+          services
+        },
+        status: ProviderApplicationStatus.PENDING
+      },
+      select: { id: true, companyName: true, providerType: true, status: true }
     });
 
-    return NextResponse.json({ provider, next: "/provider-center" }, { status: existingProvider ? 200 : 201 });
+    return NextResponse.json({ application, next: "/provider-center" }, { status: 201 });
   } catch (error) {
     console.error("Provider onboarding failed", {
       errorType: error instanceof Error ? error.name : typeof error
     });
-    return jsonError("系统暂时无法创建服务商主页，请稍后再试。", 500);
+    return jsonError("系统暂时无法提交入驻申请，请稍后再试。", 500);
   }
 }

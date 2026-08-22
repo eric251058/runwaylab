@@ -47,6 +47,14 @@ function serializeIntake(intake: Awaited<ReturnType<typeof getProjectIntakeForVi
     submittedForReviewAt: intake.submittedForReviewAt?.toISOString() ?? null,
     reviewedAt: intake.reviewedAt?.toISOString() ?? null,
     convertedAt: intake.convertedAt?.toISOString() ?? null,
+    linkedWork: intake.linkedWork
+      ? {
+          id: intake.linkedWork.id,
+          title: intake.linkedWork.title,
+          reviewStatus: intake.linkedWork.reviewStatus,
+          imageUrl: intake.linkedWork.images[0]?.imageUrl ?? null
+        }
+      : null,
     linkedCollaborationProjectId: intake.linkedCollaborationProjectId,
     linkedCollaborationProjectTitle: intake.linkedCollaborationProject?.title ?? null,
     linkedCollaborationProjectHref: intake.linkedCollaborationProjectId ? privateCollaborationProjectHref(intake.linkedCollaborationProjectId) : null,

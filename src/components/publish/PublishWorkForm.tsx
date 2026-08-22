@@ -355,14 +355,14 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
         <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-accent text-ink">
           <Check size={24} />
         </div>
-        <h1 className="mt-6 text-3xl font-semibold text-ink md:text-4xl">{initialWork ? "作品已重新提交" : "作品已发布"}</h1>
+        <h1 className="mt-6 text-3xl font-semibold text-ink md:text-4xl">{initialWork ? "作品已重新提交审核" : "作品已提交审核"}</h1>
         <p className="mt-4 text-sm leading-6 text-ink/58">
-          下一步可以查看作品详情，或进入我的孵化进度。
+          审核通过后，作品会进入公开作品库。你可以随时查看作品与审核状态。
         </p>
         {createdWorkId ? (
           <div className="mt-5 rounded-[8px] border border-black/8 bg-white p-4 text-left shadow-[0_12px_34px_rgba(16,16,16,0.08)]">
             <p className="text-sm font-semibold text-ink">让 AI 帮我检查作品资料</p>
-            <p className="mt-2 text-sm leading-6 text-ink/58">AI 诊断需要你主动触发，仅供参考，不会影响作品发布和审核状态。</p>
+            <p className="mt-2 text-sm leading-6 text-ink/58">AI 诊断需要你主动触发，仅供参考，不会改变平台审核结果。</p>
             <div className="mt-3">
               <WorkAiDiagnosisRequestButton workId={createdWorkId} label="生成 AI 诊断" />
             </div>
@@ -371,11 +371,11 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
         <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap sm:justify-center">
           {createdWorkId ? (
             <Link href={`/works/${createdWorkId}`} className="inline-flex h-11 w-full items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white sm:w-auto">
-              查看作品
+              查看作品与审核状态
             </Link>
           ) : null}
-          <Link href="/me/incubation" className="inline-flex h-11 w-full items-center justify-center rounded-full border border-black/15 bg-white px-5 text-sm font-semibold text-ink sm:w-auto">
-            查看我的孵化
+          <Link href="/publish" className="inline-flex h-11 w-full items-center justify-center rounded-full border border-black/15 bg-white px-5 text-sm font-semibold text-ink sm:w-auto">
+            继续发布作品
           </Link>
         </div>
       </div>
@@ -387,7 +387,7 @@ export function PublishWorkForm({ initialWork }: PublishWorkFormProps) {
       <header className="mb-5 md:mb-8">
         <h1 className="text-3xl font-semibold text-ink md:text-5xl">{initialWork ? "编辑作品" : "发布作品"}</h1>
         <p className="mt-3 max-w-xl text-sm leading-6 text-ink/58">
-          上传图片，写清楚标题和设计说明，就可以先发布。
+          上传图片并写清楚设计说明。提交审核后，审核通过的作品会进入公开作品库。
         </p>
       </header>
 

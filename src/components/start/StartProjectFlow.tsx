@@ -13,6 +13,7 @@ type Draft = {
   clientDraftId: string;
   step: number;
   sourceType: StartSourceType | "";
+  linkedWorkId: string;
   category: StartCategory | "";
   categoryOther: string;
   primaryNeed: StartPrimaryNeed | "";
@@ -22,6 +23,12 @@ type Draft = {
 type StartProjectFlowProps = {
   initialSource: StartSourceType | null;
   isLoggedIn: boolean;
+  availableWorks: Array<{
+    id: string;
+    title: string;
+    reviewStatus: string;
+    images: Array<{ imageUrl: string }>;
+  }>;
 };
 
 const draftKey = "runwaylab.startProject.v1";
@@ -67,6 +74,7 @@ function emptyDraft(initialSource: StartSourceType | null): Draft {
     clientDraftId: newClientDraftId(),
     step: 0,
     sourceType: initialSource ?? "",
+    linkedWorkId: "",
     category: "",
     categoryOther: "",
     primaryNeed: "",
@@ -114,7 +122,7 @@ function optionClass(active: boolean) {
   }`;
 }
 
-export function StartProjectFlow({ initialSource, isLoggedIn }: StartProjectFlowProps) {
+export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: StartProjectFlowProps) {
   const router = useRouter();
   const [draft, setDraft] = useState<Draft>(() => emptyDraft(initialSource));
   const [ready, setReady] = useState(false);
@@ -132,11 +140,11 @@ export function StartProjectFlow({ initialSource, isLoggedIn }: StartProjectFlow
   }, [draft, ready]);
 
   const canContinue = useMemo(() => {
-    if (draft.step === 0) return Boolean(draft.sourceType);
+    if (draft.step === 0) return draft.sourceType === "DESIGN" ? availableWorks.some((work) => work.id === draft.linkedWorkId) : Boolean(draft.sourceType);
     if (draft.step === 1) return Boolean(draft.category);
     if (draft.step === 2) return Boolean(draft.primaryNeed);
     return true;
-  }, [draft.category, draft.primaryNeed, draft.sourceType, draft.step]);
+  }, [availableWorks, draft.category, draft.linkedWorkId, draft.primaryNeed, draft.sourceType, draft.step]);
 
   function updateDraft(next: Partial<Draft>) {
     setMessage("");
@@ -165,6 +173,7 @@ export function StartProjectFlow({ initialSource, isLoggedIn }: StartProjectFlow
       body: JSON.stringify({
         clientDraftId: draft.clientDraftId,
         sourceType: draft.sourceType,
+        linkedWorkId: draft.sourceType === "DESIGN" ? draft.linkedWorkId : null,
         category: draft.category,
         categoryOther: draft.category === "OTHER" ? draft.categoryOther : null,
         primaryNeed: draft.primaryNeed,
@@ -202,11 +211,37 @@ export function StartProjectFlow({ initialSource, isLoggedIn }: StartProjectFlow
         {draft.step === 0 ? (
           <div className="mt-6 grid gap-3">
             {sourceOptions.map((option) => (
-              <button key={option.value} type="button" onClick={() => updateDraft({ sourceType: option.value })} className={optionClass(draft.sourceType === option.value)}>
+              <button key={option.value} type="button" onClick={() => updateDraft({ sourceType: option.value, linkedWorkId: option.value === "DESIGN" ? draft.linkedWorkId : "" })} className={optionClass(draft.sourceType === option.value)}>
                 <span className="block text-base font-semibold">{option.label}</span>
                 <span className={`mt-1 block text-sm leading-6 ${draft.sourceType === option.value ? "text-white/68" : "text-ink/52"}`}>{option.description}</span>
               </button>
             ))}
+            {draft.sourceType === "DESIGN" ? (
+              <div className="mt-2 rounded-[8px] border border-black/8 bg-paper p-4">
+                <p className="text-sm font-semibold text-ink">选择要继续推进的作品</p>
+                {availableWorks.length ? (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {availableWorks.map((work) => {
+                      const active = draft.linkedWorkId === work.id;
+                      return (
+                        <button key={work.id} type="button" onClick={() => updateDraft({ linkedWorkId: work.id })} className={`flex items-center gap-3 rounded-[7px] border p-3 text-left transition ${active ? "border-ink bg-white ring-1 ring-ink" : "border-black/8 bg-white hover:border-ink/25"}`}>
+                          {work.images[0]?.imageUrl ? <img src={work.images[0].imageUrl} alt="" className="size-14 shrink-0 rounded-[5px] object-cover" /> : <span className="flex size-14 shrink-0 items-center justify-center rounded-[5px] bg-black/[.04] text-xs text-ink/35">暂无图</span>}
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-ink">{work.title}</span>
+                            <span className="mt-1 block text-xs text-ink/45">{work.reviewStatus === "PENDING" ? "审核中" : "可继续推进"}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-3 text-sm leading-6 text-ink/58">
+                    {isLoggedIn ? <p>当前账号还没有可用作品。你可以先发布作品，或改从产品想法开始。</p> : <p>登录后即可选择你已经提交的作品。</p>}
+                    <a href={isLoggedIn ? "/publish" : `/login?next=${encodeURIComponent("/start?source=design")}`} className="mt-2 inline-flex font-semibold text-ink underline underline-offset-4">{isLoggedIn ? "先发布作品" : "登录并选择作品"}</a>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         ) : null}
 

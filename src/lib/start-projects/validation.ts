@@ -99,6 +99,7 @@ export const projectIntakeCreateSchema = z
   .object({
     clientDraftId: safeDraftId,
     sourceType: z.enum(START_SOURCE_VALUES),
+    linkedWorkId: z.string().trim().min(1, "请选择要继续推进的作品。").max(80, "作品编号无效。").optional().nullable(),
     category: z.enum(START_CATEGORY_VALUES),
     categoryOther: z.string().trim().max(40, "补充品类最多 40 个字符。").optional().nullable(),
     primaryNeed: z.enum(START_NEED_VALUES),
@@ -106,6 +107,12 @@ export const projectIntakeCreateSchema = z
   })
   .strict()
   .superRefine((value, context) => {
+    if (value.sourceType === "DESIGN" && !value.linkedWorkId) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["linkedWorkId"], message: "请选择要继续推进的作品。" });
+    }
+    if (value.sourceType !== "DESIGN" && value.linkedWorkId) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["linkedWorkId"], message: "只有从已有作品开始时才能关联作品。" });
+    }
     if (value.category !== "OTHER" && value.categoryOther?.trim()) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
