@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { CaseStudyStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { publicProviderWhere } from "@/lib/supply-network";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,10 @@ export const metadata: Metadata = {
 
 export default async function CasesPage() {
   const cases = await prisma.caseStudy.findMany({
-    where: { status: CaseStudyStatus.PUBLISHED },
+    where: {
+      status: CaseStudyStatus.PUBLISHED,
+      OR: [{ providerId: null }, { provider: { is: publicProviderWhere() } }]
+    },
     include: { work: true, project: true, school: true, teacher: true, provider: true },
     orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
     take: 60

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { CrowdSubmissionForm } from "@/components/incubation/CrowdSubmissionForm";
 import { visualFor } from "@/components/works/work-visuals";
 import { PRESALE_CAMPAIGN_STATUS_LABELS, presaleProgress } from "@/lib/presale-campaign";
@@ -10,6 +11,11 @@ import { isPublicQualityWork } from "@/lib/works/rules";
 import { PresaleCampaignStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "需求验证",
+  description: "表达对设计产品的真实兴趣，帮助创作者判断是否继续推进。"
+};
 
 type PresalePageProps = {
   searchParams?: Promise<{

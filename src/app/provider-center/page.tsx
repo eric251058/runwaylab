@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { ProviderApplicationStatus, ProviderShowcaseStatus, ProviderStatus, RequestStatus } from "@prisma/client";
 import { getProviderCenterContext } from "@/lib/provider-center-context";
 import { PROVIDER_WORKBENCH_COPY, isOnboardingProviderType } from "@/lib/provider-onboarding";
@@ -11,6 +12,11 @@ import {
 } from "@/lib/supply-network";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "服务商工作台",
+  robots: { index: false, follow: false }
+};
 
 const applicationLabels: Record<ProviderApplicationStatus, string> = {
   PENDING: "审核中",

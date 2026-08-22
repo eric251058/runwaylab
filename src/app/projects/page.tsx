@@ -1,10 +1,16 @@
 import { CollaborationProjectStatus, Prisma } from "@prisma/client";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { PROJECT_STATUS_LABELS, publicProjectWhere } from "@/lib/commercial-collaboration";
 import { projectOpportunityNeeds } from "@/lib/project-applications";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "合作项目",
+  description: "发现正在推进的服装项目与明确的设计、面料、打样和生产合作需求。"
+};
 
 type ProjectsPageProps = {
   searchParams: Promise<{ q?: string; stage?: string; need?: string }>;

@@ -36,8 +36,12 @@ assert.match(apiSource, /X-RunwayLab-API-Version/);
 assert.match(apiSource, /getPlatformCapabilityContract/);
 
 const publicPage = readFileSync("src/app/platform/page.tsx", "utf8");
-assert.match(publicPage, /限量预售/);
-assert.match(publicPage, /达标生产/);
-assert.match(publicPage, /不是投资/);
+assert.match(publicPage, /发现设计/);
+assert.match(publicPage, /启动项目/);
+assert.match(publicPage, /制作样衣/);
+assert.match(publicPage, /验证需求/);
+assert.match(publicPage, /小单生产/);
+assert.match(publicPage, /需求反馈不等于付款或订单/);
+assert.doesNotMatch(publicPage, /基础可用|继续补齐|后续版本|V2\.0B/);
 
 console.log("platform-foundation-tests: PASS");

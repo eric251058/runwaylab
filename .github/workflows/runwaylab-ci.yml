@@ -84,5 +84,10 @@ jobs:
           node --import tsx scripts/project-marketplace-v22-tests.ts
           node --import tsx scripts/project-participation-marketplace-tests.ts
 
+      - name: Provider and product maturity contracts
+        run: |
+          node --import tsx scripts/provider-commercialization-contract-tests.ts
+          node --import tsx scripts/product-maturity-foundation-tests.ts
+
       - name: Production build
         run: npm run build

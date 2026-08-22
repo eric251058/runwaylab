@@ -51,15 +51,15 @@ function isProviderUser(user: AuthUser | null) {
   return Boolean(user?.hasProvider);
 }
 
-function navItems(providerMode: boolean) {
-  return [
-    { label: "平台", href: "/platform" },
-    { label: "作品", href: "/works" },
-    { label: "面料", href: "/fabrics" },
-    { label: "服务商", href: "/providers" },
-    { label: "业务机会", href: "/providers/opportunities" },
-    providerMode ? { label: "服务商工作台", href: "/provider-center", primary: true } : { label: "发布作品", href: "/publish", primary: true }
+function navItems(providerMode: boolean): Array<{ label: string; href: string; primary?: boolean }> {
+  const shared = [
+    { label: "发现", href: "/works" },
+    { label: "项目", href: "/projects" },
+    { label: "服务商", href: "/providers" }
   ];
+  return providerMode
+    ? [...shared, { label: "业务机会", href: "/providers/opportunities" }, { label: "服务商工作台", href: "/provider-center", primary: true }]
+    : [...shared, { label: "发布作品", href: "/publish", primary: true }];
 }
 
 export function AuthNav() {

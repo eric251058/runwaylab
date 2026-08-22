@@ -4,6 +4,7 @@ import { SafeImage } from "@/components/media/SafeImage";
 import { EmptyState } from "@/components/ui/minimal";
 import { prisma } from "@/lib/prisma";
 import { PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
+import { publicFabricWhere } from "@/lib/supply-network";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ function usageText(value?: string | null) {
 
 export default async function FabricsPage() {
   const fabrics = await prisma.fabric.findMany({
-    where: { status: "ACTIVE" },
+    where: publicFabricWhere(),
     include: { provider: true },
     orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }]
   });

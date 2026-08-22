@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CaseStudyStatus } from "@prisma/client";
 import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
+import { publicProviderWhere } from "@/lib/supply-network";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,13 @@ function StoryBlock({ title, children }: { title: string; children: ReactNode })
 export default async function CaseDetailPage({ params }: CasePageProps) {
   const { id } = await params;
   const item = await prisma.caseStudy.findFirst({
-    where: { OR: [{ id }, { slug: id }], status: CaseStudyStatus.PUBLISHED },
+    where: {
+      AND: [
+        { OR: [{ id }, { slug: id }] },
+        { status: CaseStudyStatus.PUBLISHED },
+        { OR: [{ providerId: null }, { provider: { is: publicProviderWhere() } }] }
+      ]
+    },
     include: { work: true, project: true, school: true, teacher: true, provider: true }
   });
   if (!item) notFound();

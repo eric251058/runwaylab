@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { ArrowRight, Bookmark, Heart, MessageCircle, Sparkles } from "lucide-react";
 import { IncubationProgress } from "@/components/incubation/IncubationProgress";
@@ -11,6 +12,11 @@ import { isPublicQualityWork } from "@/lib/works/rules";
 import { WorkIncubationStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "项目进展",
+  description: "查看设计作品从资源匹配、样衣制作到需求验证的真实进展。"
+};
 
 const sections = [
   { key: WorkIncubationStatus.CANDIDATE, title: "孵化候选作品", empty: "暂时还没有孵化候选作品" },

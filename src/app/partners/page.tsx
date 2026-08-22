@@ -1,9 +1,15 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { CrowdSubmissionForm, type CrowdSubmissionKind } from "@/components/incubation/CrowdSubmissionForm";
 import { prisma } from "@/lib/prisma";
 import { getPublicQualityWorkIds } from "@/lib/works/queries";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "参与项目",
+  description: "围绕真实作品提交面料、打样、生产或采购合作建议。"
+};
 
 type PartnersPageProps = {
   searchParams?: Promise<{

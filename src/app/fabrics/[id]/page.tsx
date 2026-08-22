@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { SafeImage } from "@/components/media/SafeImage";
 import { prisma } from "@/lib/prisma";
 import { PROVIDER_TYPE_LABELS } from "@/lib/provider-market";
+import { publicFabricWhere } from "@/lib/supply-network";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ function field(label: string, value?: string | null) {
 export default async function FabricDetailPage({ params }: FabricDetailPageProps) {
   const { id } = await params;
   const fabric = await prisma.fabric.findFirst({
-    where: { OR: [{ id }, { slug: id }], status: "ACTIVE" },
+    where: { OR: [{ id }, { slug: id }], ...publicFabricWhere() },
     include: {
       provider: true,
       recommendations: {
