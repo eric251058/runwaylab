@@ -18,7 +18,7 @@ const publicDetailSource = readFileSync("src/app/providers/[id]/showcase/[itemId
 assert.match(actionsSource, /getShowcaseDeleteDependencies/, "showcase delete should check inquiries");
 assert.match(actionsSource, /ProviderShowcaseStatus\.ARCHIVED/, "published showcase should go offline through ARCHIVED");
 assert.match(centerSource, /下架案例/, "provider showcase center should expose offline action");
-assert.match(centerSource, /重新提交/, "archived showcase should be resubmittable");
+assert.match(centerSource, /重新发布/, "archived showcase should be republishable by an active provider");
 assert.match(publicDetailSource, /status:\s*ProviderShowcaseStatus\.PUBLISHED/, "public showcase detail should only show published items");
 
 console.log("provider showcase lifecycle tests passed");

@@ -32,7 +32,7 @@ export default async function EditProviderFabricPage({ params }: EditProviderFab
         </div>
         <Link href="/provider-center/fabrics" className="rounded-full border border-black/10 bg-white px-5 py-2 text-sm font-semibold text-ink">取消</Link>
       </header>
-      <ProviderFabricForm fabric={fabric} />
+      <ProviderFabricForm fabric={fabric} providerStatus={provider.status} />
     </div>
   );
 }

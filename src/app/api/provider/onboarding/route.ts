@@ -8,6 +8,7 @@ import {
   providerTypeFromServices,
   quickProviderSchema
 } from "@/lib/provider-experience";
+import { providerDataFromApplication } from "@/lib/provider-self-service";
 
 function jsonError(message: string, status: number, fieldErrors?: Record<string, string>) {
   return NextResponse.json({ message, fieldErrors }, { status });
@@ -63,25 +64,35 @@ export async function POST(request: Request) {
     if (existingProvider) return jsonError("当前账号已有服务商资料，请进入服务商中心维护。", 409);
     if (pendingApplication) return NextResponse.json({ application: pendingApplication, next: "/provider-center" }, { status: 200 });
 
-    const application = await prisma.providerApplication.create({
-      data: {
-        userId: user.id,
-        providerType,
-        companyName: parsed.data.name,
-        contactName: parsed.data.contactName,
-        phone: parsed.data.phone,
-        email: contactEmail,
-        city: parsed.data.city,
-        specialties: services,
-        categories: services,
-        description: parsed.data.intro || null,
-        providerDetails: {
-          submissionChannel: "QUICK_ONBOARDING",
-          services
-        },
-        status: ProviderApplicationStatus.PENDING
-      },
-      select: { id: true, companyName: true, providerType: true, status: true }
+    const application = await prisma.$transaction(async (tx) => {
+      const created = await tx.providerApplication.create({
+        data: {
+          userId: user.id,
+          providerType,
+          companyName: parsed.data.name,
+          contactName: parsed.data.contactName,
+          phone: parsed.data.phone,
+          email: contactEmail,
+          city: parsed.data.city,
+          specialties: services,
+          categories: services,
+          description: parsed.data.intro || null,
+          providerDetails: {
+            submissionChannel: "QUICK_ONBOARDING",
+            workflow: "SELF_SERVICE_DRAFT",
+            services
+          },
+          status: ProviderApplicationStatus.PENDING
+        }
+      });
+
+      await tx.provider.create({ data: providerDataFromApplication(created) });
+      return {
+        id: created.id,
+        companyName: created.companyName,
+        providerType: created.providerType,
+        status: created.status
+      };
     });
 
     return NextResponse.json({ application, next: "/provider-center" }, { status: 201 });

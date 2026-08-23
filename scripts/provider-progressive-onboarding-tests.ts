@@ -21,8 +21,9 @@ mustInclude(form, "/login?next=/providers/join", "guest submission must offer a 
 mustInclude(page, "<QuickProviderOnboardingForm />", "public join page must expose quick onboarding");
 mustInclude(page, 'href="#quick-apply"', "primary CTA must lead to the quick form");
 mustInclude(page, 'href="/providers/apply"', "full application must remain available");
-mustInclude(route, "ProviderApplicationStatus.PENDING", "quick applications must remain pending for review");
+mustInclude(route, "ProviderApplicationStatus.PENDING", "quick applications must remain auditable while the provider prepares its page");
 mustInclude(route, 'submissionChannel: "QUICK_ONBOARDING"', "quick submissions must remain auditable");
 mustInclude(route, "if (existingProvider)", "duplicate provider creation must be blocked");
+mustInclude(route, "providerDataFromApplication", "quick onboarding must create a non-public provider workspace");
 
 console.log("provider progressive onboarding tests: PASS");

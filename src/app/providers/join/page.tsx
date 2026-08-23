@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 
 const steps = [
   ["01", "提交真实资料", "填写服务能力、地区、MOQ、周期与联系方式。"],
-  ["02", "平台审核", "核对身份与能力，不出售认证标识。"],
-  ["03", "建立可信主页", "上传产品、案例和可承接范围。"],
+  ["02", "进入私有工作台", "立即完善资料、产品、案例和可承接范围。"],
+  ["03", "自助公开主页", "达到最低可信标准即可开通；异常才由平台核验。"],
   ["04", "接收真实需求", "通过站内询盘沟通，双方自行确认报价与履约。"]
 ] as const;
 
@@ -28,8 +28,8 @@ export default function ProviderJoinPage() {
           <div className="rounded-[18px] bg-ink p-6 text-white">
             <p className="text-sm font-semibold text-white/55">首批招募原则</p>
             <p className="mt-3 text-2xl font-semibold">先验证价值，再开始收费</p>
-            <p className="mt-3 text-sm leading-6 text-white/65">首批通过审核的真实服务商享 90 天共创期。我们会用询盘、响应与合作结果验证平台价值，不用虚假流量证明成功。</p>
-            <Link href="#quick-apply" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-ink">3 分钟提交入驻意向</Link>
+            <p className="mt-3 text-sm leading-6 text-white/65">首批完成自助开通的真实服务商享 90 天共创期。我们会用询盘、响应与合作结果验证平台价值，不用虚假流量证明成功。</p>
+            <Link href="#quick-apply" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-ink">3 分钟创建工作台</Link>
           </div>
         </div>
       </section>
@@ -52,11 +52,11 @@ export default function ProviderJoinPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/35">Start small</p>
             <h2 className="mt-4 text-4xl font-semibold leading-tight md:text-5xl">先建立联系，<br />再补齐资料</h2>
             <p className="mt-5 text-sm leading-7 text-ink/55">
-              首次只提交审核与联系必需的信息。平台确认主体和服务方向后，再进入资料、案例和商品完善阶段。
+              首次只提交建立工作台所需的信息。进入后由你逐步完善资料、案例和商品，不必等待平台逐项审核。
             </p>
             <ul className="mt-7 space-y-3 text-sm leading-6 text-ink/60">
               <li>01 · 不要求一次填完全部档案</li>
-              <li>02 · 未审核通过前不公开展示</li>
+              <li>02 · 准备完成后由你自助公开</li>
               <li>03 · 不承诺订单、排名或收益</li>
             </ul>
           </div>
@@ -91,7 +91,7 @@ export default function ProviderJoinPage() {
           ))}
         </div>
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Link href="#quick-apply" className="inline-flex h-12 items-center justify-center rounded-full bg-ink px-6 text-sm font-semibold text-white">提交入驻意向</Link>
+          <Link href="#quick-apply" className="inline-flex h-12 items-center justify-center rounded-full bg-ink px-6 text-sm font-semibold text-white">创建服务商工作台</Link>
           <Link href="/providers/apply" className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white px-6 text-sm font-semibold text-ink">填写完整申请</Link>
           <Link href="/providers" className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white px-6 text-sm font-semibold text-ink">查看服务商网络</Link>
         </div>
