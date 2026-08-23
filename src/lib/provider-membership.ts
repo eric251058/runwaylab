@@ -20,7 +20,7 @@ export const PROVIDER_MEMBERSHIP_PLANS: ProviderMembershipPlan[] = [
     priceCny: 0,
     priceLabel: "首批 90 天免费",
     description: "适合首批真实服务商完成主页、产品与询盘流程验证。",
-    benefits: ["认证资料审核", "公开服务商主页", "最多 10 个产品或案例", "站内合作询盘"],
+    benefits: ["自助开通公开服务商主页", "最多 10 个产品或案例", "AI 图片资料提取每月 10 次", "站内合作询盘"],
     limits: ["不承诺订单数量", "试运营结束前另行确认是否续费"]
   },
   {

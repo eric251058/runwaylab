@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 function date(value: Date | null) {
-  return value ? value.toLocaleDateString("zh-CN") : "待后台确认";
+  return value ? value.toLocaleDateString("zh-CN") : "待生效";
 }
 
 export default async function ProviderMembershipPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
@@ -26,8 +26,9 @@ export default async function ProviderMembershipPage({ searchParams }: { searchP
     <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Provider membership</p>
       <h1 className="mt-3 text-4xl font-semibold text-ink">会员与权益</h1>
-      <p className="mt-3 max-w-3xl text-sm leading-7 text-ink/58">套餐必须由服务商申请、平台人工审核后才生效。当前不接在线支付、不自动扣费，也不出售虚假排名或承诺订单。</p>
-      {params?.requested === "1" ? <p className="mt-5 rounded-[8px] bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">申请已提交，平台将核对服务商资料和商务信息。</p> : null}
+      <p className="mt-3 max-w-3xl text-sm leading-7 text-ink/58">首批试运营权益由已开通服务商自行启用；付费套餐在未接在线支付前仍由平台核对后生效。平台不自动扣费，也不出售虚假排名或承诺订单。</p>
+      {params?.activated === "1" ? <p className="mt-5 rounded-[8px] bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">90 天首批试运营权益已开通，可以立即完善产品并接收询盘。</p> : null}
+      {params?.requested === "1" ? <p className="mt-5 rounded-[8px] bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">付费套餐申请已提交，平台仅核对套餐与商务信息。</p> : null}
 
       <section className="mt-7 grid gap-4 rounded-[8px] bg-white p-5 md:grid-cols-4">
         <div><p className="text-xs text-ink/40">当前权益</p><p className="mt-2 font-semibold text-ink">{entitlements.label}</p></div>
@@ -42,7 +43,7 @@ export default async function ProviderMembershipPage({ searchParams }: { searchP
             <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-ink">{plan.name}</h2><p className="mt-1 text-sm text-ink/50">{plan.description}</p></div><p className="shrink-0 font-semibold text-ink">{plan.priceLabel}</p></div>
             <ul className="mt-4 space-y-2 text-sm text-ink/65">{plan.benefits.map((benefit) => <li key={benefit}>• {benefit}</li>)}</ul>
             <ul className="mt-4 space-y-1 text-xs text-ink/42">{plan.limits.map((limit) => <li key={limit}>边界：{limit}</li>)}</ul>
-            <form action={requestProviderSubscription} className="mt-5"><input type="hidden" name="plan" value={plan.id} /><button disabled={blocked} className="h-11 w-full rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/20">{blocked ? "已有待审或生效套餐" : "申请此套餐"}</button></form>
+            <form action={requestProviderSubscription} className="mt-5"><input type="hidden" name="plan" value={plan.id} /><button disabled={blocked} className="h-11 w-full rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/20">{blocked ? "已有待审或生效套餐" : plan.id === "FOUNDING_TRIAL" ? "立即开通 90 天试运营" : "申请此套餐"}</button></form>
           </article>
         ))}
       </section>

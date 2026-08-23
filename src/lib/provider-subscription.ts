@@ -56,6 +56,11 @@ export function providerAiExtractionMonthlyLimit() {
   return Number.isFinite(configured) && configured > 0 ? Math.min(configured, 10_000) : 100;
 }
 
+export function providerFoundingTrialAiExtractionMonthlyLimit() {
+  const configured = Number.parseInt(process.env.AI_PRODUCT_EXTRACTION_TRIAL_MONTHLY_LIMIT ?? "10", 10);
+  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, 100) : 10;
+}
+
 export function providerAiUsageMonthStart(now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
@@ -95,14 +100,16 @@ export async function getProviderEntitlements(providerId: string, now = new Date
     };
   }
 
-  const paid = subscription.plan !== ProviderSubscriptionPlan.FOUNDING_TRIAL;
+  const foundingTrial = subscription.plan === ProviderSubscriptionPlan.FOUNDING_TRIAL;
   return {
     source: "SUBSCRIPTION" as const,
     subscription,
     plan: subscription.plan,
-    productLimit: paid ? 50 : 10,
-    aiProductExtractionEnabled: paid,
-    aiProductExtractionMonthlyLimit: paid ? providerAiExtractionMonthlyLimit() : 0,
+    productLimit: foundingTrial ? 10 : 50,
+    aiProductExtractionEnabled: true,
+    aiProductExtractionMonthlyLimit: foundingTrial
+      ? providerFoundingTrialAiExtractionMonthlyLimit()
+      : providerAiExtractionMonthlyLimit(),
     label: providerPlanById(subscription.plan)?.name ?? subscription.plan
   };
 }

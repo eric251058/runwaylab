@@ -28,6 +28,7 @@ export async function requestProviderSubscription(formData: FormData) {
   const plan = rawPlan as ProviderSubscriptionPlan;
   const catalogPlan = providerPlanById(plan);
   if (!catalogPlan) throw new Error("套餐不存在");
+  const selfActivated = plan === ProviderSubscriptionPlan.FOUNDING_TRIAL;
 
   await prisma.$transaction(async (tx) => {
     const now = new Date();
@@ -54,14 +55,27 @@ export async function requestProviderSubscription(formData: FormData) {
     }
 
     await tx.providerSubscription.create({
-      data: { providerId: provider.id, requestedById: user.id, plan, priceCny: catalogPlan.priceCny }
+      data: {
+        providerId: provider.id,
+        requestedById: user.id,
+        plan,
+        priceCny: catalogPlan.priceCny,
+        ...(selfActivated
+          ? {
+              status: ProviderSubscriptionStatus.ACTIVE,
+              reviewedAt: now,
+              reviewNote: "服务商自助开通首批试运营权益",
+              ...providerSubscriptionPeriod(plan, now)
+            }
+          : {})
+      }
     });
   });
 
   revalidatePath("/provider-center");
   revalidatePath("/provider-center/membership");
   revalidatePath("/admin/provider-subscriptions");
-  redirect("/provider-center/membership?requested=1");
+  redirect(selfActivated ? "/provider-center/membership?activated=1" : "/provider-center/membership?requested=1");
 }
 
 export async function reviewProviderSubscription(formData: FormData) {
