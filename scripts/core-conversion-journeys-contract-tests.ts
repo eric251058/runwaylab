@@ -10,7 +10,9 @@ const providerForm = source("src/app/providers/apply/SubmitProviderApplicationFo
 assert.match(providerRoute, /providerApplication\.create/, "provider onboarding must enter the review queue");
 assert.match(providerRoute, /ProviderApplicationStatus\.PENDING/, "provider onboarding must default to pending review");
 assert.doesNotMatch(providerRoute, /status:\s*ProviderStatus\.ACTIVE/, "provider onboarding must not self-activate");
-assert.match(providerForm, /审核通过后，服务商主页才会公开/, "provider form must explain the review boundary");
+assert.match(providerForm, /提交后立即获得私有工作台/, "provider onboarding must start in a private workspace");
+assert.match(providerForm, /可由你自助开通公开主页/, "ready providers must control when their public page opens");
+assert.match(providerForm, /平台仅处理重复主体与风险异常/, "platform work must stay limited to exception governance");
 assert.match(providerForm, /acceptRules/, "provider application must require explicit rule acceptance");
 assert.match(providerForm, /legal\/collaboration-rules/, "provider application must link to the rules it asks users to accept");
 assert.doesNotMatch(providerForm, /稍后完善/, "provider onboarding must not offer a public-profile bypass");
