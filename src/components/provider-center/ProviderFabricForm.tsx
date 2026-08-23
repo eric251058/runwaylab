@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState, useRef, useState, type ReactNode } from "react";
-import type { Fabric } from "@prisma/client";
+import { ProviderStatus, type Fabric } from "@prisma/client";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import { ImageUploader } from "@/components/upload/ImageUploader";
 import { saveProviderCenterFabric, type ProviderFabricFormState } from "@/lib/provider-center-actions";
 
 type ProviderFabricFormProps = {
   fabric?: Fabric | null;
+  providerStatus?: ProviderStatus;
 };
 
 type FieldName = NonNullable<ProviderFabricFormState["values"]> extends infer Values
@@ -47,7 +48,7 @@ function textareaClass(error?: string) {
   return `${baseTextareaClass} ${error ? "border-red-300" : "border-black/10"}`;
 }
 
-export function ProviderFabricForm({ fabric }: ProviderFabricFormProps) {
+export function ProviderFabricForm({ fabric, providerStatus = ProviderStatus.ACTIVE }: ProviderFabricFormProps) {
   const [state, formAction] = useActionState(saveProviderCenterFabric, initialFormState);
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -186,10 +187,10 @@ export function ProviderFabricForm({ fabric }: ProviderFabricFormProps) {
           <Field label="展示状态" error={fieldErrors.status}>
             <select
               name="status"
-              defaultValue={fieldValue("status", fabric?.status ?? "ACTIVE")}
+              defaultValue={fieldValue("status", fabric?.status ?? (providerStatus === ProviderStatus.ACTIVE ? "ACTIVE" : "INACTIVE"))}
               className={inputClass(fieldErrors.status)}
             >
-              <option value="ACTIVE">公开展示</option>
+              <option value="ACTIVE" disabled={providerStatus !== ProviderStatus.ACTIVE}>公开展示{providerStatus !== ProviderStatus.ACTIVE ? "（开通后可选）" : ""}</option>
               <option value="INACTIVE">暂不公开</option>
               <option value="ARCHIVED">归档</option>
             </select>

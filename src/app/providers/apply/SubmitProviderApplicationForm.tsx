@@ -178,7 +178,7 @@ export function SubmitProviderApplicationForm({ initialType }: SubmitProviderApp
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Provider</p>
         <h1 className="mt-3 text-3xl font-semibold text-ink md:text-5xl">申请成为服务商</h1>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-ink/58">提交真实联系信息和核心服务。审核通过后，服务商主页才会公开。</p>
+        <p className="mt-3 max-w-xl text-sm leading-6 text-ink/58">提交后立即获得私有工作台。资料和首个产品或案例准备完成后，可由你自助开通公开主页。</p>
       </div>
 
       <div className="mt-6 grid gap-5">
@@ -259,7 +259,7 @@ export function SubmitProviderApplicationForm({ initialType }: SubmitProviderApp
           <span>
             我确认提交的信息真实，并接受
             <Link href="/legal/collaboration-rules" target="_blank" className="font-semibold text-ink underline underline-offset-4">平台合作规则</Link>
-            ；平台审核不代表订单承诺。
+            ；平台仅处理重复主体与风险异常，不承诺订单、排名或收益。
           </span>
         </label>
         {fieldError(errors, "acceptRules")}
@@ -271,7 +271,7 @@ export function SubmitProviderApplicationForm({ initialType }: SubmitProviderApp
             disabled={isPending}
             className="h-12 w-full rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {isPending ? "提交中..." : "提交入驻申请"}
+            {isPending ? "创建中..." : "创建服务商工作台"}
           </button>
         </div>
       </div>

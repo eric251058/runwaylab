@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   FabricStatus,
   Prisma,
+  ProviderApplicationStatus,
   ProviderAvailabilityStatus,
   ProviderShowcaseStatus,
   ProviderShowcaseType,
@@ -29,7 +30,9 @@ import {
 } from "@/lib/content-lifecycle";
 import { isAdmin } from "@/lib/permissions";
 import { getAnyProviderForUser } from "@/lib/provider-access";
+import { providerDuplicateRisks } from "@/lib/provider-duplicates";
 import { providerShowcaseTypeForProvider } from "@/lib/provider-onboarding";
+import { providerSelfServiceReadiness } from "@/lib/provider-self-service";
 import { getProviderEntitlements } from "@/lib/provider-subscription";
 import { prisma } from "@/lib/prisma";
 import { providerBelongsToUser, splitList } from "@/lib/supply-network";
@@ -193,8 +196,72 @@ async function requireProviderForWrite() {
   if (!provider) throw new Error("请先完成服务商入驻和审核");
   if (!isAdmin(user) && !providerBelongsToUser(provider, user)) throw new Error("没有权限管理该服务商");
   if (provider.status === ProviderStatus.SUSPENDED) throw new Error("服务商账号已暂停，请联系平台处理");
-  if (provider.status !== ProviderStatus.ACTIVE && !isAdmin(user)) throw new Error("服务商尚未通过审核");
+  if (provider.status === ProviderStatus.REJECTED && !isAdmin(user)) throw new Error("服务商资料已被拒绝，请根据反馈重新申请");
   return { user, provider };
+}
+
+export async function activateProviderSelfService() {
+  const { user, provider } = await requireProviderForWrite();
+  if (provider.status === ProviderStatus.ACTIVE) redirect("/provider-center?activated=1");
+  if (provider.status !== ProviderStatus.PENDING) throw new Error("当前服务商状态不能自助开通");
+
+  const [fullProvider, application, candidates] = await Promise.all([
+    prisma.provider.findUnique({
+      where: { id: provider.id },
+      include: { fabrics: true, showcaseItems: true }
+    }),
+    prisma.providerApplication.findFirst({
+      where: { userId: user.id, status: ProviderApplicationStatus.PENDING },
+      orderBy: { createdAt: "desc" }
+    }),
+    prisma.provider.findMany({
+      where: { id: { not: provider.id } },
+      select: { id: true, name: true, city: true, ownerId: true, contactEmail: true, type: true }
+    })
+  ]);
+
+  if (!fullProvider) throw new Error("服务商资料不存在");
+  const readiness = providerSelfServiceReadiness(fullProvider);
+  if (!readiness.ready) {
+    throw new Error(`请先完成：${readiness.missing.join("、")}`);
+  }
+
+  const duplicateRisks = providerDuplicateRisks(
+    {
+      userId: user.id,
+      companyName: fullProvider.name,
+      city: fullProvider.city,
+      email: fullProvider.contactEmail,
+      providerType: fullProvider.type
+    },
+    candidates
+  );
+  if (duplicateRisks.some((risk) => risk.level === "high")) {
+    throw new Error("资料可能与现有服务商重复，已进入例外核验；你仍可继续维护工作台内容。");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const activated = await tx.provider.updateMany({
+      where: { id: provider.id, ownerId: user.id, status: ProviderStatus.PENDING },
+      data: { status: ProviderStatus.ACTIVE, opportunityVisible: true, isVerified: false }
+    });
+    if (activated.count !== 1) throw new Error("服务商状态已变化，请刷新后重试");
+
+    if (application) {
+      await tx.providerApplication.updateMany({
+        where: { id: application.id, status: ProviderApplicationStatus.PENDING },
+        data: {
+          status: ProviderApplicationStatus.APPROVED,
+          reviewNote: "系统自助开通：资料达到公开标准且未发现高风险重复主体。"
+        }
+      });
+    }
+  });
+
+  revalidatePath("/provider-center");
+  revalidatePath("/providers");
+  revalidatePath("/admin/provider-applications");
+  redirect("/provider-center?activated=1");
 }
 
 class ProviderCatalogLimitError extends Error {
@@ -334,7 +401,7 @@ export async function saveProviderCenterFabric(_state: ProviderFabricFormState, 
 
   if ("status" in providerContext) return providerContext;
 
-  const { provider } = providerContext;
+  const { provider, user } = providerContext;
   if (provider.type !== ProviderType.FABRIC_SUPPLIER) {
     return providerFabricFormError("只有面料商可以管理面料产品。", formData);
   }
@@ -389,7 +456,9 @@ export async function saveProviderCenterFabric(_state: ProviderFabricFormState, 
       imageUrls: formData.has("imageUrls") ? splitList(textValue(formData, "imageUrls"), 8) : existingFabric?.imageUrls ?? [],
       tags: splitList(textValue(formData, "tags")),
       providerId: provider.id,
-      status: parsed.data.status ?? FabricStatus.ACTIVE
+      status: provider.status === ProviderStatus.ACTIVE || isAdmin(user)
+        ? parsed.data.status ?? FabricStatus.ACTIVE
+        : FabricStatus.INACTIVE
     };
 
     if (id) {
@@ -444,6 +513,7 @@ export async function updateProviderFabricLifecycle(formData: FormData) {
     if (!canOfflineFabric(fabric)) throw new Error("当前面料不能下架");
     await prisma.fabric.update({ where: { id }, data: { status: FabricStatus.INACTIVE, isFeatured: false } });
   } else if (action === "restore") {
+    if (provider.status !== ProviderStatus.ACTIVE) throw new Error("请先完成自助开通，再恢复公开展示");
     if (!canRestoreFabric(fabric)) throw new Error("当前面料不能恢复展示");
     await prisma.fabric.update({ where: { id }, data: { status: FabricStatus.ACTIVE } });
   } else if (action === "delete") {
@@ -490,7 +560,9 @@ export async function saveProviderShowcaseItem(formData: FormData) {
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "请检查案例信息");
 
-  const nextStatus = intent === "submit" ? ProviderShowcaseStatus.PENDING_REVIEW : ProviderShowcaseStatus.DRAFT;
+  const nextStatus = intent === "submit" && provider.status === ProviderStatus.ACTIVE
+    ? ProviderShowcaseStatus.PUBLISHED
+    : ProviderShowcaseStatus.DRAFT;
   const data = {
     ...parsed.data,
     type: providerShowcaseTypeForProvider(provider.type),
@@ -503,7 +575,7 @@ export async function saveProviderShowcaseItem(formData: FormData) {
     status: nextStatus,
     providerId: provider.id,
     reviewNote: null,
-    publishedAt: null
+    publishedAt: nextStatus === ProviderShowcaseStatus.PUBLISHED ? new Date() : null
   };
 
   if (id) {
@@ -538,10 +610,11 @@ export async function updateProviderShowcaseLifecycle(formData: FormData) {
       data: { status: ProviderShowcaseStatus.ARCHIVED, isFeatured: false, publishedAt: null }
     });
   } else if (action === "resubmit") {
+    if (provider.status !== ProviderStatus.ACTIVE) throw new Error("请先完成自助开通，再公开案例");
     if (!canResubmitShowcase(item)) throw new Error("当前案例不能重新提交");
     await prisma.providerShowcaseItem.update({
       where: { id },
-      data: { status: ProviderShowcaseStatus.PENDING_REVIEW, reviewNote: null }
+      data: { status: ProviderShowcaseStatus.PUBLISHED, reviewNote: null, publishedAt: new Date() }
     });
   } else if (action === "delete") {
     const dependencies = await getShowcaseDeleteDependencies(id);

@@ -28,7 +28,7 @@ assert.doesNotMatch(
 const pageSource = fs.readFileSync("src/app/admin/provider-applications/page.tsx", "utf8");
 assert.match(
   pageSource,
-  /application\.status === ProviderApplicationStatus\.PENDING \? \(/,
+  /application\.status === ProviderApplicationStatus\.PENDING && !selfServiceManaged \? \(/,
   "review controls must only render for pending applications"
 );
 assert.match(pageSource, /该申请已完成审核，不可重复操作。/, "completed applications must explain that review is final");

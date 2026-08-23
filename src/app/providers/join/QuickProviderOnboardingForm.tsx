@@ -87,7 +87,7 @@ export function QuickProviderOnboardingForm() {
         setFieldErrors(payload.fieldErrors ?? {});
         setError(
           response.status === 401
-            ? "请先登录，再提交入驻意向。已填写的内容会保留在当前页面。"
+            ? "请先登录，再创建服务商工作台。已填写的内容会保留在当前页面。"
             : payload.message ?? "暂时无法提交，请检查信息后重试。"
         );
         return;
@@ -104,16 +104,16 @@ export function QuickProviderOnboardingForm() {
   if (submitted) {
     return (
       <div className="rounded-[18px] border border-emerald-200 bg-emerald-50 p-6 md:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Application received</p>
-        <h3 className="mt-3 text-2xl font-semibold text-ink">入驻意向已提交</h3>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Workspace ready</p>
+        <h3 className="mt-3 text-2xl font-semibold text-ink">服务商工作台已创建</h3>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-ink/60">
-          平台会核验主体与服务能力。审核通过前不会公开展示，也不会产生任何自动扣费。
+          提交后立即进入私有工作台。达到最低公开标准后可自助开通，也不会产生任何自动扣费。
         </p>
         <Link
           href="/provider-center"
           className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white"
         >
-          查看申请进度
+          进入服务商工作台
         </Link>
       </div>
     );
@@ -155,7 +155,7 @@ export function QuickProviderOnboardingForm() {
             maxLength={30}
             inputMode="tel"
             className={inputClass}
-            placeholder="用于审核联系"
+            placeholder="用于合作联系与风险核验"
           />
           {fieldErrors.phone ? <span className="mt-1 block text-xs text-red-600">{fieldErrors.phone}</span> : null}
         </label>
@@ -213,7 +213,7 @@ export function QuickProviderOnboardingForm() {
           className="mt-1 size-4 accent-black"
         />
         <span>
-          我确认信息真实，并同意平台仅在审核、项目匹配和双方明确授权的范围内使用这些资料。
+          我确认信息真实，并同意平台在公开展示、项目匹配及风险治理所需范围内使用这些资料。
         </span>
       </label>
       {fieldErrors.acceptRules ? <span className="mt-1 block text-xs text-red-600">{fieldErrors.acceptRules}</span> : null}
@@ -235,13 +235,13 @@ export function QuickProviderOnboardingForm() {
           disabled={submitting}
           className="inline-flex h-12 items-center justify-center rounded-full bg-ink px-7 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45"
         >
-          {submitting ? "正在提交…" : "提交入驻意向"}
+          {submitting ? "正在创建…" : "创建服务商工作台"}
         </button>
         <Link href="/providers/apply" className="text-center text-sm font-semibold text-ink/55 hover:text-ink">
           已准备完整资料？填写完整申请
         </Link>
       </div>
-      <p className="mt-4 text-xs leading-5 text-ink/40">提交不代表审核通过；平台不承诺订单、排名或收益。</p>
+      <p className="mt-4 text-xs leading-5 text-ink/40">公开主页由你自助开通；平台仅处理异常。平台不承诺订单、排名或收益。</p>
     </form>
   );
 }

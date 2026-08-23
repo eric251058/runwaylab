@@ -1,4 +1,4 @@
-import { ProviderType, type ProviderShowcaseItem } from "@prisma/client";
+import { ProviderStatus, ProviderType, type ProviderShowcaseItem } from "@prisma/client";
 import { ImageUploader } from "@/components/upload/ImageUploader";
 import { saveProviderShowcaseItem } from "@/lib/provider-center-actions";
 import { providerShowcaseTypeForProvider } from "@/lib/provider-onboarding";
@@ -6,6 +6,7 @@ import { providerShowcaseTypeForProvider } from "@/lib/provider-onboarding";
 type ProviderShowcaseFormProps = {
   item?: ProviderShowcaseItem | null;
   providerType: ProviderType;
+  providerStatus?: ProviderStatus;
 };
 
 function formCopy(type: ProviderType) {
@@ -42,7 +43,7 @@ function formCopy(type: ProviderType) {
   };
 }
 
-export function ProviderShowcaseForm({ item, providerType }: ProviderShowcaseFormProps) {
+export function ProviderShowcaseForm({ item, providerType, providerStatus = ProviderStatus.ACTIVE }: ProviderShowcaseFormProps) {
   const copy = formCopy(providerType);
   const showcaseType = providerShowcaseTypeForProvider(providerType);
 
@@ -78,7 +79,7 @@ export function ProviderShowcaseForm({ item, providerType }: ProviderShowcaseFor
       <textarea name="capacityText" defaultValue={item?.capacityText ?? ""} placeholder="能力说明，可选" className="min-h-24 rounded-[6px] border border-black/10 px-3 py-3 text-sm md:col-span-2" />
       <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
         <button name="intent" value="draft" className="h-12 rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">保存草稿</button>
-        <button name="intent" value="submit" className="h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white">提交审核</button>
+        <button name="intent" value="submit" className="h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white">{providerStatus === ProviderStatus.ACTIVE ? "发布案例" : "保存并加入公开准备"}</button>
       </div>
     </form>
   );

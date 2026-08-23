@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ProviderApplicationStatus, ProviderType } from "@prisma/client";
+import { ProviderApplicationStatus, ProviderStatus, ProviderType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reviewProviderApplication } from "@/lib/provider-market-admin";
 import { providerDuplicateRisks } from "@/lib/provider-duplicates";
@@ -69,6 +69,7 @@ function abilityText(application: {
 export default async function AdminProviderApplicationsPage({ searchParams }: AdminProviderApplicationsPageProps) {
   const params = await searchParams;
   const type = selectedType(params);
+  const showAll = params?.view === "all";
   const [applications, existingProviders] = await Promise.all([
     prisma.providerApplication.findMany({
       where: type ? { providerType: type } : undefined,
@@ -84,25 +85,47 @@ export default async function AdminProviderApplicationsPage({ searchParams }: Ad
         city: true,
         ownerId: true,
         contactEmail: true,
-        type: true
+        type: true,
+        status: true
       }
     })
   ]);
-  const pendingCount = applications.filter((application) => application.status === ProviderApplicationStatus.PENDING).length;
+  const riskEntries = applications.map((application) => {
+    const linkedDraft = existingProviders.find(
+      (provider) => provider.status === ProviderStatus.PENDING && provider.ownerId && provider.ownerId === application.userId
+    );
+    const duplicateRisks = providerDuplicateRisks(
+      application,
+      existingProviders.filter((provider) => provider.id !== linkedDraft?.id)
+    );
+    return { applicationId: application.id, linkedDraft, duplicateRisks };
+  });
+  const exceptionCount = riskEntries.filter((entry) =>
+    applications.find((application) => application.id === entry.applicationId)?.status === ProviderApplicationStatus.PENDING &&
+    entry.duplicateRisks.some((risk) => risk.level === "high")
+  ).length;
+  const selfServiceCount = riskEntries.filter((entry) => entry.linkedDraft && !entry.duplicateRisks.some((risk) => risk.level === "high")).length;
   const completeCount = applications.filter((application) => application.city && application.description && (application.phone || application.email || application.wechat)).length;
+  const applicationsNeedingAttention = applications.filter((application) => {
+    if (application.status !== ProviderApplicationStatus.PENDING) return false;
+    const entry = riskEntries.find((item) => item.applicationId === application.id);
+    return !entry?.linkedDraft || entry.duplicateRisks.some((risk) => risk.level === "high");
+  });
+  const displayedApplications = showAll ? applications : applicationsNeedingAttention;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
       <header className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Admin</p>
-        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">入驻审核</h1>
-        <p className="mt-4 max-w-3xl text-sm leading-6 text-ink/58">这里用于筛选面料商、打样工作室、工厂和专业服务。审核通过后会生成服务商主页，并绑定到申请账号。</p>
+        <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">服务商异常治理</h1>
+        <p className="mt-4 max-w-3xl text-sm leading-6 text-ink/58">正常入驻由服务商自助完成。这里优先处理重复主体、资料冲突和违规风险，不再逐个代替服务商开通或经营。</p>
       </header>
 
       <nav className="mb-6 flex gap-2 overflow-x-auto pb-1">
-        <Link href="/admin/provider-applications" className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${!type ? "bg-ink text-white" : "bg-white text-ink/60"}`}>全部</Link>
+        <Link href="/admin/provider-applications" className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${!showAll && !type ? "bg-ink text-white" : "bg-white text-ink/60"}`}>仅需处理</Link>
+        <Link href="/admin/provider-applications?view=all" className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${showAll && !type ? "bg-ink text-white" : "bg-white text-ink/60"}`}>全部记录</Link>
         {ONBOARDING_PROVIDER_TYPES.map((item) => (
-          <Link key={item} href={`/admin/provider-applications?type=${item}`} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${type === item ? "bg-ink text-white" : "bg-white text-ink/60"}`}>
+          <Link key={item} href={`/admin/provider-applications?type=${item}${showAll ? "&view=all" : ""}`} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${type === item ? "bg-ink text-white" : "bg-white text-ink/60"}`}>
             {PROVIDER_TYPE_SHORT_LABELS[item]}
           </Link>
         ))}
@@ -110,25 +133,27 @@ export default async function AdminProviderApplicationsPage({ searchParams }: Ad
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-[8px] border border-black/8 bg-white p-4">
-          <p className="text-xs font-semibold text-ink/45">待处理申请</p>
-          <p className="mt-2 text-3xl font-semibold text-ink">{pendingCount}</p>
-          <p className="mt-2 text-xs leading-5 text-ink/45">需要运营审核的服务商申请</p>
+          <p className="text-xs font-semibold text-ink/45">异常待核验</p>
+          <p className="mt-2 text-3xl font-semibold text-ink">{exceptionCount}</p>
+          <p className="mt-2 text-xs leading-5 text-ink/45">仅统计高风险重复主体</p>
+        </div>
+        <div className="rounded-[8px] border border-black/8 bg-white p-4">
+          <p className="text-xs font-semibold text-ink/45">自助准备中</p>
+          <p className="mt-2 text-3xl font-semibold text-ink">{selfServiceCount}</p>
+          <p className="mt-2 text-xs leading-5 text-ink/45">无需平台日常介入</p>
         </div>
         <div className="rounded-[8px] border border-black/8 bg-white p-4">
           <p className="text-xs font-semibold text-ink/45">资料较完整</p>
           <p className="mt-2 text-3xl font-semibold text-ink">{completeCount}</p>
-          <p className="mt-2 text-xs leading-5 text-ink/45">已填写城市、能力说明和联系方式</p>
-        </div>
-        <div className="rounded-[8px] border border-black/8 bg-white p-4">
-          <p className="text-xs font-semibold text-ink/45">申请总数</p>
-          <p className="mt-2 text-3xl font-semibold text-ink">{applications.length}</p>
-          <p className="mt-2 text-xs leading-5 text-ink/45">当前后台可查看的入驻申请</p>
+          <p className="mt-2 text-xs leading-5 text-ink/45">已填写城市、介绍和联系方式</p>
         </div>
       </section>
 
       <section className="space-y-3">
-        {applications.length ? applications.map((application) => {
-          const duplicateRisks = providerDuplicateRisks(application, existingProviders);
+        {displayedApplications.length ? displayedApplications.map((application) => {
+          const riskEntry = riskEntries.find((entry) => entry.applicationId === application.id);
+          const duplicateRisks = riskEntry?.duplicateRisks ?? [];
+          const selfServiceManaged = Boolean(riskEntry?.linkedDraft) && !duplicateRisks.some((risk) => risk.level === "high");
           return (
           <article key={application.id} className="rounded-[8px] border border-black/8 bg-white p-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -154,7 +179,7 @@ export default async function AdminProviderApplicationsPage({ searchParams }: Ad
                 {application.qualityControl ? <p className="mt-1 text-xs leading-5 text-ink/45">品控说明：{application.qualityControl}</p> : null}
                 <p className="mt-1 text-xs text-ink/40">申请时间：{formatDate(application.createdAt)}</p>
               </div>
-              {application.status === ProviderApplicationStatus.PENDING ? (
+              {application.status === ProviderApplicationStatus.PENDING && !selfServiceManaged ? (
                 <div className="grid gap-2 md:w-72">
                   {[ProviderApplicationStatus.APPROVED, ProviderApplicationStatus.REJECTED].map((status) => (
                     <form key={status} action={reviewProviderApplication} className="grid gap-2">
@@ -165,6 +190,10 @@ export default async function AdminProviderApplicationsPage({ searchParams }: Ad
                     </form>
                   ))}
                 </div>
+              ) : application.status === ProviderApplicationStatus.PENDING ? (
+                <p className="rounded-[6px] bg-paper px-4 py-3 text-xs leading-5 text-ink/55 md:w-72">
+                  服务商正在自助完善资料。无需后台操作；达到公开标准后可自行开通。
+                </p>
               ) : (
                 <p className="rounded-[6px] bg-paper px-4 py-3 text-xs leading-5 text-ink/55 md:w-72">
                   该申请已完成审核，不可重复操作。
@@ -173,7 +202,7 @@ export default async function AdminProviderApplicationsPage({ searchParams }: Ad
             </div>
           </article>
           );
-        }) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无入驻申请。</div>}
+        }) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">{showAll ? "暂无入驻记录。" : "暂无需要平台处理的异常。正常入驻会由服务商自助完成。"}</div>}
       </section>
     </div>
   );

@@ -2,7 +2,10 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ProviderApplicationStatus, ProviderShowcaseStatus, ProviderStatus, RequestStatus } from "@prisma/client";
 import { getProviderCenterContext } from "@/lib/provider-center-context";
+import { activateProviderSelfService } from "@/lib/provider-center-actions";
+import { providerDuplicateRisks } from "@/lib/provider-duplicates";
 import { PROVIDER_WORKBENCH_COPY, isOnboardingProviderType } from "@/lib/provider-onboarding";
+import { providerSelfServiceReadiness } from "@/lib/provider-self-service";
 import { prisma } from "@/lib/prisma";
 import {
   PROVIDER_AVAILABILITY_LABELS,
@@ -55,7 +58,7 @@ function searchValue(params: Record<string, string | string[] | undefined> | und
 
 export default async function ProviderCenterPage({ searchParams }: ProviderCenterPageProps) {
   const params = await searchParams;
-  const { provider, application } = await getProviderCenterContext("/provider-center");
+  const { user, provider, application } = await getProviderCenterContext("/provider-center");
 
   if (!provider) {
     return (
@@ -67,7 +70,7 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
               <p className="text-sm font-semibold text-ink">服务商申请{applicationLabels[application.status]}</p>
               <p className="mt-2 text-sm leading-6 text-ink/58">
                 {application.status === ProviderApplicationStatus.PENDING
-                  ? "审核通过后可创建服务商主页和发布产品。"
+                  ? "这是一条旧版申请，平台正在协助迁移到自助工作台。"
                   : application.reviewNote || "可以根据反馈重新完善申请资料。"}
               </p>
               {application.status === ProviderApplicationStatus.REJECTED ? <Link href="/providers/apply" className="mt-4 inline-flex rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white">重新提交申请</Link> : null}
@@ -97,6 +100,32 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
   }
 
   const completeness = providerCompleteness(fullProvider);
+  const selfServiceReadiness = providerSelfServiceReadiness(fullProvider);
+  const pending = fullProvider.status === ProviderStatus.PENDING;
+  const duplicateCandidates = pending
+    ? await prisma.provider.findMany({
+        where: {
+          id: { not: fullProvider.id },
+          OR: [
+            { ownerId: user.id },
+            ...(fullProvider.contactEmail ? [{ contactEmail: { equals: fullProvider.contactEmail, mode: "insensitive" as const } }] : []),
+            ...(fullProvider.city ? [{ city: fullProvider.city }] : [])
+          ]
+        },
+        select: { id: true, name: true, city: true, ownerId: true, contactEmail: true, type: true }
+      })
+    : [];
+  const duplicateRisks = providerDuplicateRisks(
+    {
+      userId: user.id,
+      companyName: fullProvider.name,
+      city: fullProvider.city,
+      email: fullProvider.contactEmail,
+      providerType: fullProvider.type
+    },
+    duplicateCandidates
+  );
+  const hasHighDuplicateRisk = duplicateRisks.some((risk) => risk.level === "high");
   const publicFabrics = fullProvider.fabrics.filter((fabric) => fabric.status === "ACTIVE").length;
   const publicShowcase = fullProvider.showcaseItems.filter((item) => item.status === ProviderShowcaseStatus.PUBLISHED).length;
   const newInquiries = fullProvider.inquiries.filter((item) => item.status === RequestStatus.PENDING).length;
@@ -115,7 +144,10 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
         opportunityHref: "/providers/opportunities"
       };
   const profileUpdated = searchValue(params, "profile") === "updated";
-  const nextTask = !fullProvider.logoUrl || !fullProvider.coverUrl
+  const activated = searchValue(params, "activated") === "1";
+  const nextTask = pending && selfServiceReadiness.missing.length
+    ? { title: "完成公开准备", description: `还需补充：${selfServiceReadiness.missing.slice(0, 3).join("、")}。`, href: !fullProvider.logoUrl && !fullProvider.coverUrl ? "/provider-center/profile" : fullProvider.type === "FABRIC_SUPPLIER" && fullProvider.fabrics.length === 0 ? "/provider-center/fabrics/new" : "/provider-center/showcase/new" }
+    : !fullProvider.logoUrl || !fullProvider.coverUrl
     ? { title: "完善品牌形象", description: "补充 Logo、封面和一句定位，让公开主页更可信。", href: "/provider-center/profile" }
     : fullProvider.type === "FABRIC_SUPPLIER" && publicFabrics === 0
       ? { title: "上传第一款面料", description: "添加一款带图片的面料，供设计师浏览和询盘。", href: "/provider-center/fabrics/new" }
@@ -134,10 +166,33 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
           <p className="mt-3 max-w-xl text-sm leading-6 text-ink/55">{workbenchCopy.description}</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Link href={workbenchCopy.primaryHref} className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">{workbenchCopy.primaryLabel}</Link>
-            <Link href={providerPublicUrl(fullProvider)} className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看主页</Link>
+            {!pending ? <Link href={providerPublicUrl(fullProvider)} className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">查看主页</Link> : null}
           </div>
         </div>
       </header>
+
+      {pending ? (
+        <section className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 md:p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink/35">Self-service opening</p>
+          <h2 className="mt-2 text-xl font-semibold text-ink">工作台已开放，公开主页由你决定何时上线</h2>
+          <p className="mt-2 text-sm leading-6 text-ink/58">
+            你可以先完善资料、准备产品和案例，平台不会逐项代管。达到最低公开标准后可自助开通；只有重复主体或风险异常才进入平台核验。
+          </p>
+          {hasHighDuplicateRisk ? (
+            <p className="mt-4 rounded-[6px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+              检测到可能重复的服务商主体，已自动进入例外核验。你无需反复提交，仍可继续维护工作台内容。
+            </p>
+          ) : selfServiceReadiness.ready ? (
+            <form action={activateProviderSelfService} className="mt-4">
+              <button className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">自助开通公开主页</button>
+            </form>
+          ) : (
+            <p className="mt-4 rounded-[6px] bg-paper px-4 py-3 text-sm text-ink/58">
+              待完成：{selfServiceReadiness.missing.join("、")}
+            </p>
+          )}
+        </section>
+      ) : null}
 
       {suspended ? (
         <div className="mb-6 rounded-[8px] border border-black/8 bg-white p-5 text-sm leading-6 text-ink/58">
@@ -148,6 +203,12 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
       {profileUpdated ? (
         <div className="mb-6 rounded-[14px] bg-white p-5 text-sm leading-6 text-ink/65">
           主页资料已保存。下一步可以上传第一款面料、发布第一个案例，或开启询盘处理。
+        </div>
+      ) : null}
+
+      {activated ? (
+        <div className="mb-6 rounded-[14px] bg-white p-5 text-sm leading-6 text-ink/65">
+          公开主页已开通。你的资料、产品和案例由你持续维护；平台仅处理投诉、违规和重复主体等异常。
         </div>
       ) : null}
 

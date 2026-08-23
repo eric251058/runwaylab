@@ -20,11 +20,10 @@ import { isAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { normalizeProviderEmail } from "@/lib/provider-duplicates";
 import { optionalText, requiredText, splitTags } from "@/lib/provider-market";
+import { providerDataFromApplication } from "@/lib/provider-self-service";
 import {
   ONBOARDING_PROVIDER_TYPES,
-  isOnboardingProviderType,
-  parseMoq,
-  parsePositiveDays
+  isOnboardingProviderType
 } from "@/lib/provider-onboarding";
 
 async function requireAdmin() {
@@ -182,8 +181,9 @@ export async function applyProvider(formData: FormData) {
     qualityControl: parsed.data.qualityControl || null
   };
 
-  await prisma.providerApplication.create({
-    data: {
+  await prisma.$transaction(async (tx) => {
+    const application = await tx.providerApplication.create({
+      data: {
       userId: user.id,
       providerType: parsed.data.providerType,
       companyName: parsed.data.companyName,
@@ -207,9 +207,12 @@ export async function applyProvider(formData: FormData) {
       priceRange: parsed.data.priceRange || null,
       monthlyCapacity: parsed.data.monthlyCapacity || null,
       qualityControl: parsed.data.qualityControl || null,
-      providerDetails,
+      providerDetails: { ...providerDetails, workflow: "SELF_SERVICE_DRAFT" },
       description: parsed.data.description
-    }
+      }
+    });
+
+    await tx.provider.create({ data: providerDataFromApplication(application) });
   });
 
   revalidatePath("/providers/apply");
@@ -333,45 +336,12 @@ export async function reviewProviderApplication(formData: FormData) {
 
     if (!exists) {
       await tx.provider.create({
-        data: {
-          name: application.companyName,
-          ownerId: application.userId,
-          type: application.providerType,
-          logoUrl: application.logoUrl,
-          city: application.city,
-          address: application.address,
-          description: application.description,
-          contactName: application.contactName,
-          contactPhone: application.phone,
-          contactEmail: applicationEmail,
-          wechat: application.wechat,
-          specialties: application.specialties,
-          categories: application.categories,
-          serviceRegions: application.serviceArea ? splitTags(application.serviceArea) : [],
-          serviceArea: application.serviceArea,
-          responseTime: application.responseTime,
-          patternMaking: application.patternMaking,
-          sampleSupported: application.sampleSupported,
-          singleSampleSupported: application.singleSampleSupported,
-          minimumOrder: application.minimumOrder,
-          moqMin: parseMoq(application.minimumOrder),
-          leadTime: application.leadTime,
-          priceRange: application.priceRange,
-          monthlyCapacity: application.monthlyCapacity,
-          qualityControl: application.qualityControl,
-          sampleLeadDays: application.providerType === ProviderType.SAMPLE_STUDIO ? parsePositiveDays(application.leadTime) : null,
-          productionLeadDays: application.providerType === ProviderType.FACTORY ? parsePositiveDays(application.leadTime) : null,
-          acceptsSampling: application.providerType === ProviderType.FABRIC_SUPPLIER ? Boolean(application.sampleSupported ?? true) : Boolean(application.singleSampleSupported ?? application.sampleSupported),
-          acceptsSmallBatch: Boolean(application.smallOrderSupported),
-          acceptsLargeOrder: application.providerType === ProviderType.FACTORY,
-          capacityText: [application.monthlyCapacity, application.priceRange].filter(Boolean).join(" / ") || null,
-          providerDetails: application.providerDetails === null ? undefined : (application.providerDetails as Prisma.InputJsonValue),
+        data: providerDataFromApplication(application, {
           status: ProviderStatus.ACTIVE,
           isVerified: true,
           opportunityVisible: true,
-          tags: [],
           publicContactEnabled: false
-        }
+        })
       });
     } else if (application.userId) {
       await tx.provider.update({
@@ -379,10 +349,17 @@ export async function reviewProviderApplication(formData: FormData) {
         data: {
           ownerId: application.userId,
           contactEmail: applicationEmail ?? undefined,
-          status: ProviderStatus.ACTIVE
+          status: ProviderStatus.ACTIVE,
+          isVerified: true,
+          opportunityVisible: true
         }
       });
     }
+  } else if (application.userId) {
+    await tx.provider.updateMany({
+      where: { ownerId: application.userId, status: ProviderStatus.PENDING },
+      data: { status: ProviderStatus.REJECTED, opportunityVisible: false }
+    });
   }
   });
 

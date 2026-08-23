@@ -38,12 +38,13 @@ const actionSource = readFileSync("src/lib/provider-market-admin.ts", "utf8");
 const routeSource = readFileSync("src/app/api/provider/onboarding/route.ts", "utf8");
 
 assert.match(formSource, /sessionStorage/, "provider application should preserve its draft only for the current browser session");
-assert.match(formSource, /提交入驻申请/, "primary action should submit an application for review");
-assert.doesNotMatch(formSource, /稍后完善/, "onboarding must not provide a bypass that creates an incomplete public provider");
+assert.match(formSource, /创建服务商工作台/, "primary action should create the private provider workspace");
+assert.doesNotMatch(formSource, /自动公开/, "onboarding must not make an incomplete provider public");
 assert.doesNotMatch(formSource, /20-500|至少 20|minLength=\{?20/, "quick form should not require 20 chars");
 assert.doesNotMatch(actionSource, /min\(20|简介至少 20/, "legacy provider action should not retain 20-char intro rule");
 assert.match(routeSource, /providerApplication\.create/, "quick onboarding should create a reviewable application");
-assert.match(routeSource, /status: ProviderApplicationStatus\.PENDING/, "quick onboarding should remain pending until review");
-assert.doesNotMatch(routeSource, /provider\.create/, "quick onboarding must not create a public provider before review");
+assert.match(routeSource, /status: ProviderApplicationStatus\.PENDING/, "quick onboarding should remain auditable until self-service opening");
+assert.match(routeSource, /provider\.create/, "quick onboarding should create a private provider workspace");
+assert.match(routeSource, /providerDataFromApplication/, "quick onboarding must use the safe pending-provider defaults");
 
 console.log("provider onboarding tests passed");

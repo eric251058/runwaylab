@@ -64,7 +64,7 @@ export default async function ProviderCenterShowcasePage() {
                     <form action={updateProviderShowcaseLifecycle}>
                       <input type="hidden" name="id" value={item.id} />
                       <input type="hidden" name="action" value="resubmit" />
-                      <LifecycleActionButton label="重新提交" title="重新提交案例" description={`对象：${item.title}`} consequence="当前 schema 不记录下架前发布状态；重新提交会回到平台审核流程。" confirmLabel="重新提交" />
+                      <LifecycleActionButton label="重新发布" title="重新发布案例" description={`对象：${item.title}`} consequence="案例会重新出现在公开主页；如收到投诉或发现违规，平台仍可下架处理。" confirmLabel="重新发布" />
                     </form>
                   ) : null}
                   {item.status !== ProviderShowcaseStatus.PUBLISHED && item.status !== ProviderShowcaseStatus.ARCHIVED ? (
@@ -80,7 +80,7 @@ export default async function ProviderCenterShowcasePage() {
           })}
         </section>
       ) : (
-        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm leading-6 text-ink/58">还没有案例。你可以先保存草稿，再提交平台审核。</div>
+        <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm leading-6 text-ink/58">还没有案例。你可以先保存草稿，完成自助开通后直接发布。</div>
       )}
     </div>
   );
