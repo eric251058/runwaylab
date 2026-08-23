@@ -1,3 +1,6 @@
+"use client";
+
+import { useRef, useState } from "react";
 import { ProviderStatus, ProviderType, type ProviderShowcaseItem } from "@prisma/client";
 import { ImageUploader } from "@/components/upload/ImageUploader";
 import { saveProviderShowcaseItem } from "@/lib/provider-center-actions";
@@ -46,9 +49,58 @@ function formCopy(type: ProviderType) {
 export function ProviderShowcaseForm({ item, providerType, providerStatus = ProviderStatus.ACTIVE }: ProviderShowcaseFormProps) {
   const copy = formCopy(providerType);
   const showcaseType = providerShowcaseTypeForProvider(providerType);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractMessage, setExtractMessage] = useState<string | null>(null);
+  const showAiAssist = providerStatus === ProviderStatus.ACTIVE
+    && (providerType === ProviderType.FACTORY || providerType === ProviderType.SAMPLE_STUDIO);
+
+  async function handleAiExtract() {
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
+    const imageUrl = String(formData.get("coverImageUrl") ?? "").trim();
+    if (!imageUrl) {
+      setExtractMessage("请先上传一张清晰的案例图片。");
+      return;
+    }
+    setIsExtracting(true);
+    setExtractMessage("正在读取图片并整理案例草稿…");
+    try {
+      const response = await fetch("/api/provider/showcase/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl })
+      });
+      const result = await response.json() as { error?: string; notice?: string; draft?: Record<string, unknown> };
+      if (!response.ok || !result.draft) throw new Error(result.error || "识别失败，请手动填写。");
+      let filled = 0;
+      for (const [name, rawValue] of Object.entries(result.draft)) {
+        if (name === "confidence" || name === "warnings") continue;
+        const value = Array.isArray(rawValue)
+          ? rawValue.join(", ")
+          : typeof rawValue === "string" ? rawValue.trim() : "";
+        if (!value) continue;
+        const control = formRef.current?.elements.namedItem(name);
+        if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement || control instanceof HTMLSelectElement)) continue;
+        if (control.value.trim()) continue;
+        control.value = value;
+        filled += 1;
+      }
+      const warnings = Array.isArray(result.draft.warnings)
+        ? result.draft.warnings.filter((warning): warning is string => typeof warning === "string")
+        : [];
+      const warningText = warnings.length ? " 注意：" + warnings.join("；") : "";
+      setExtractMessage((result.notice || "AI 草稿已生成") + " 已填充 " + filled + " 个空白字段。" + warningText);
+    } catch (error) {
+      setExtractMessage(error instanceof Error ? error.message : "识别失败，请手动填写。");
+    } finally {
+      setIsExtracting(false);
+    }
+  }
 
   return (
-    <form action={saveProviderShowcaseItem} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-4 md:grid-cols-2 md:p-5">
+    <form ref={formRef} action={saveProviderShowcaseItem} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-4 md:grid-cols-2 md:p-5">
       {item ? <input type="hidden" name="id" value={item.id} /> : null}
       <input type="hidden" name="type" value={showcaseType} />
       <div className="md:col-span-2">
@@ -63,8 +115,28 @@ export function ProviderShowcaseForm({ item, providerType, providerStatus = Prov
           description="图片会展示在案例卡片和公开服务商主页"
           aspectRatio="4/3"
           uploadType="work"
+          onUploadingChange={setIsUploading}
         />
       </div>
+      {showAiAssist ? (
+        <div className="md:col-span-2 rounded-[8px] border border-black/8 bg-[#f6f6f3] p-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-ink">从图片生成案例草稿</p>
+              <p className="mt-1 text-xs leading-5 text-ink/55">AI 只填空白字段，不覆盖你的内容；资料由你核对并决定是否发布。</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleAiExtract}
+              disabled={isUploading || isExtracting}
+              className="h-10 shrink-0 rounded-full border border-black/12 bg-white px-5 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {isExtracting ? "正在读取…" : "AI 读取图片"}
+            </button>
+          </div>
+          {extractMessage ? <p role="status" className="mt-3 text-xs leading-5 text-ink/65">{extractMessage}</p> : null}
+        </div>
+      ) : null}
       <input name="imageUrls" type="hidden" defaultValue={item?.imageUrls.join(", ") ?? ""} />
       <input name="title" required defaultValue={item?.title ?? ""} placeholder={copy.titlePlaceholder} className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" />
       <input name="category" defaultValue={item?.category ?? ""} placeholder={copy.categoryPlaceholder} className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" />
