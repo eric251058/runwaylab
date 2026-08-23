@@ -56,7 +56,7 @@ assert.match(actions, /已有待审核或生效中的套餐/);
 assert.match(actions, /首批试运营权益每个服务商只能申请一次/);
 assert.match(actions, /selfActivated/);
 assert.match(actions, /服务商自助开通首批试运营权益/);
-assert.match(actions, /membership\\?activated=1/);
+assert.match(actions, /membership\?activated=1/);
 assert.match(actions, /ProviderSubscriptionStatus\.EXPIRED/);
 assert.match(actions, /reviewNote\.length < 4/);
 assert.doesNotMatch(actions, /paymentStatus/);
