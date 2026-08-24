@@ -14,10 +14,25 @@ type OpenGraphImageProps = {
   params: Promise<{ id: string }>;
 };
 
+async function renderableWorkImageUrl(imageUrl: string | null) {
+  if (!imageUrl) return null;
+  try {
+    const response = await fetch(imageUrl, {
+      method: "HEAD",
+      cache: "no-store",
+      signal: AbortSignal.timeout(3000)
+    });
+    const responseType = response.headers.get("content-type")?.toLowerCase() ?? "";
+    return response.ok && responseType.startsWith("image/") ? imageUrl : null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function WorkOpenGraphImage({ params }: OpenGraphImageProps) {
   const { id } = await params;
   const work = await getPublicWorkShareInfo(id).catch(() => null);
-  const imageUrl = safeWorkImageUrl(work?.imageUrl);
+  const imageUrl = await renderableWorkImageUrl(safeWorkImageUrl(work?.imageUrl));
 
   return new ImageResponse(
     (
@@ -33,7 +48,13 @@ export default async function WorkOpenGraphImage({ params }: OpenGraphImageProps
       >
         <div style={{ width: "710px", height: "630px", display: "flex", background: "#ded9ce", overflow: "hidden" }}>
           {work && imageUrl ? (
-            <img src={imageUrl} alt={work.title} style={{ width: "710px", height: "630px", objectFit: "cover" }} />
+            <img
+              src={imageUrl}
+              alt={work.title}
+              width={710}
+              height={630}
+              style={{ width: "710px", height: "630px", objectFit: "cover" }}
+            />
           ) : (
             <div style={{ display: "flex", width: "710px", height: "630px", alignItems: "center", justifyContent: "center", fontSize: 56, fontWeight: 700 }}>
               {SITE_NAME}
@@ -41,11 +62,11 @@ export default async function WorkOpenGraphImage({ params }: OpenGraphImageProps
           )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: "490px", padding: "54px 56px" }}>
-          <div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 0 }}>{SITE_NAME}</div>
             <div style={{ marginTop: 14, fontSize: 24, color: "#6b6458" }}>让好设计走向现实</div>
           </div>
-          <div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ fontSize: 54, lineHeight: 1.08, fontWeight: 800 }}>
               {work ? truncateShareText(work.title, 34) : "作品暂不可分享"}
             </div>
