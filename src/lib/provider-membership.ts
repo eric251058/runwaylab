@@ -20,7 +20,7 @@ export const PROVIDER_MEMBERSHIP_PLANS: ProviderMembershipPlan[] = [
     priceCny: 0,
     priceLabel: "首批 90 天免费",
     description: "适合首批真实服务商完成主页、产品与询盘流程验证。",
-    benefits: ["自助开通公开服务商主页", "最多 10 个产品或案例", "AI 图片资料提取每月 10 次", "站内合作询盘"],
+    benefits: ["自助开通公开服务商主页", "最多 10 个产品或案例", "产品资料整理与发布工具", "站内合作询盘"],
     limits: ["不承诺订单数量", "试运营结束前另行确认是否续费"]
   },
   {
@@ -30,7 +30,7 @@ export const PROVIDER_MEMBERSHIP_PLANS: ProviderMembershipPlan[] = [
     priceCny: 299,
     priceLabel: "¥299 / 月",
     description: "适合需要持续展示产品、接收需求并验证获客效果的服务商。",
-    benefits: ["最多 50 个产品或案例", "AI 图片资料提取每月 100 次", "合作机会优先匹配", "询盘工作台与数据摘要"],
+    benefits: ["最多 50 个产品或案例", "批量产品资料整理与发布工具", "合作机会优先匹配", "询盘工作台与数据摘要"],
     limits: ["平台不代替服务商报价", "成交与履约由合作双方确认"]
   },
   {

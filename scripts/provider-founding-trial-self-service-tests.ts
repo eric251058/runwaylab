@@ -29,7 +29,7 @@ assert.match(page, /付费套餐在未接在线支付前仍由平台核对后生
 assert.match(page, /90 天首批试运营权益已开通/);
 
 const membership = fs.readFileSync("src/lib/provider-membership.ts", "utf8");
-assert.match(membership, /AI 图片资料提取每月 10 次/);
+assert.match(membership, /产品资料整理与发布工具/);
 
 assert.equal(ProviderSubscriptionStatus.ACTIVE, "ACTIVE");
 console.log("provider founding trial self-service tests: PASS");
