@@ -76,6 +76,8 @@ export async function POST(request: Request, context: RouteContext) {
   const deliveryDueAt = proposal.leadTimeDays
     ? new Date(now.getTime() + proposal.leadTimeDays * 24 * 60 * 60 * 1000)
     : null;
+  const buyerId = project.ownerUserId ?? project.designerId ?? project.projectIntake?.ownerId;
+  if (parsed.data.action === "ACCEPTED" && (!buyerId || !project.providerId)) return NextResponse.json({ message: "项目参与方信息不完整，暂时无法建立合作订单。" }, { status: 409 });
 
   const decisionApplied = await prisma.$transaction(async (tx) => {
     if (parsed.data.action === "ACCEPTED") {
@@ -107,6 +109,32 @@ export async function POST(request: Request, context: RouteContext) {
         },
         data: { status: "REJECTED" }
       });
+    await tx.projectOrder.create({
+      data: {
+        projectId: project.id,
+        workId: project.workId,
+        buyerId,
+        providerId: project.providerId,
+        title: proposal.title,
+        quantity: proposal.minimumQuantity && proposal.minimumQuantity > 0 ? proposal.minimumQuantity : 1,
+        quantityNote: proposal.moq,
+        amountNote: proposal.estimatedPrice,
+        deliveryNote: proposal.estimatedTime,
+        status: "CONFIRMED",
+        paymentStatus: "UNPAID",
+        fulfillmentStatus: "NOT_STARTED",
+        note: proposal.summary,
+        idempotencyKey: "private-project:" + project.id + ":proposal:" + proposal.id,
+        termsVersion: "private-collaboration-v1",
+        termsTextSnapshot: [proposal.summary, proposal.description, "报价：" + proposal.estimatedPrice, "周期：" + proposal.estimatedTime, "起订：" + proposal.moq].filter(Boolean).join("\n"),
+        termsAcceptedAt: now,
+        confirmedAt: now,
+        confirmedById: user.id,
+        confirmationChannel: "OTHER",
+        confirmationEvidenceRef: "proposal:" + proposal.id,
+        confirmationSummary: "双方在私密合作空间确认服务商方案。"
+      }
+    });
       await tx.projectMilestone.createMany({
         data: [
           {
@@ -184,10 +212,11 @@ export async function POST(request: Request, context: RouteContext) {
   });
 
   revalidatePath("/me/projects/collaboration/" + project.id);
+  revalidatePath("/me/project-orders");
   revalidatePath("/me/projects");
   return NextResponse.json({
     message: parsed.data.action === "ACCEPTED"
-      ? "方案已确认，执行里程碑已建立。"
+      ? "方案已确认，合作订单与执行里程碑已建立。"
       : parsed.data.action === "REVISION_REQUESTED"
         ? "调整要求已发送。"
         : "方案已拒绝。"
