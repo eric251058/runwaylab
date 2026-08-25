@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { Clock } from "lucide-react";
 import { PrivateProjectActionCard, type PrivateProjectActionCardAction } from "@/components/projects/PrivateProjectActionCard";
 import { ProjectCommercialTerms } from "@/components/projects/ProjectCommercialTerms";
+import { ProjectTransactionRecord } from "@/components/projects/ProjectTransactionRecord";
 import { ProjectNegotiationComposer } from "@/components/projects/ProjectNegotiationComposer";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
@@ -132,6 +133,26 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
           completedAt: milestone.completedAt?.toISOString() ?? null,
           note: milestone.note
         }))}
+      />
+      <ProjectTransactionRecord
+        projectId={project.id}
+        canBuyerAct={
+          project.ownerUserId === user.id
+          || project.designerId === user.id
+          || project.projectIntake?.ownerId === user.id
+        }
+        canProviderAct={project.provider?.ownerId === user.id}
+        order={project.orders[0] ? {
+          ...project.orders[0],
+          confirmedAt: project.orders[0].confirmedAt?.toISOString() ?? null,
+          createdAt: project.orders[0].createdAt.toISOString(),
+          updatedAt: project.orders[0].updatedAt.toISOString(),
+          paymentAttempts: project.orders[0].paymentAttempts.map((attempt) => ({
+            ...attempt,
+            capturedAt: attempt.capturedAt?.toISOString() ?? null,
+            createdAt: attempt.createdAt.toISOString()
+          }))
+        } : null}
       />
 
         <section className="rounded-[8px] border border-black/8 bg-white p-5">

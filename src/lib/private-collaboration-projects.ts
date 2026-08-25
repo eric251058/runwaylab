@@ -128,6 +128,42 @@ export const privateCollaborationProjectSelect = {
     ],
     take: 30
   },
+  orders: {
+    where: { preorderCampaignId: null },
+    select: {
+      id: true,
+      title: true,
+      quantity: true,
+      quantityNote: true,
+      amountNote: true,
+      deliveryNote: true,
+      totalAmount: true,
+      currency: true,
+      status: true,
+      paymentStatus: true,
+      fulfillmentStatus: true,
+      trackingCompany: true,
+      trackingNumber: true,
+      confirmedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      paymentAttempts: {
+        select: {
+          id: true,
+          providerAttemptId: true,
+          amount: true,
+          currency: true,
+          status: true,
+          capturedAt: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: "desc" as const },
+        take: 10
+      }
+    },
+    orderBy: { createdAt: "desc" as const },
+    take: 5
+  },
   negotiationMessages: {
     select: {
       id: true,
