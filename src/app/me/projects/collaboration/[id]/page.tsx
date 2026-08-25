@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Clock } from "lucide-react";
 import { PrivateProjectActionCard, type PrivateProjectActionCardAction } from "@/components/projects/PrivateProjectActionCard";
+import { ProjectNegotiationComposer } from "@/components/projects/ProjectNegotiationComposer";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   privateProjectCurrentAction,
@@ -96,6 +97,8 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
 
       <header className="mt-4 rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_16px_48px_rgba(16,16,16,0.08)] md:p-7">
         <h1 className="text-3xl font-semibold leading-tight text-ink md:text-5xl">{project.title}</h1>
+        {project.provider ? <p className="mt-3 text-sm font-semibold text-ink/52">合作服务商：{project.provider.name}</p> : null}
+        {project.summary ? <p className="mt-3 text-sm leading-6 text-ink/62">{project.summary}</p> : null}
         <div className="mt-6">
           <StageProgress stage={experience.stage} />
         </div>
@@ -103,6 +106,28 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
 
       <div className="mt-5 grid gap-5">
         <PrivateProjectActionCard projectId={project.id} action={currentAction ? serializeAction(currentAction) : null} />
+
+        <section className="rounded-[8px] border border-black/8 bg-white p-5">
+          <h2 className="text-xl font-semibold text-ink">合作洽谈</h2>
+          <p className="mt-2 text-sm leading-6 text-ink/52">这里仅对作品方、已邀请服务商和管理员可见。关键报价与交付约定请留在这里，避免口头信息丢失。</p>
+          <div className="mt-4 space-y-3">
+            {project.negotiationMessages.length ? project.negotiationMessages.map((message) => {
+              const own = message.senderId === user.id;
+              return (
+                <article key={message.id} className={"rounded-[8px] p-4 " + (own ? "ml-6 bg-ink text-white" : "mr-6 bg-paper text-ink")}>
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <p className={"text-sm font-semibold " + (own ? "text-white" : "text-ink")}>{own ? "我" : message.sender.nickname}</p>
+                    <p className={"text-xs " + (own ? "text-white/55" : "text-ink/40")}>{formatDate(message.createdAt)}</p>
+                  </div>
+                  <p className={"mt-2 whitespace-pre-wrap break-words text-sm leading-6 " + (own ? "text-white/88" : "text-ink/66")}>{message.body}</p>
+                </article>
+              );
+            }) : (
+              <div className="rounded-[8px] bg-paper p-4 text-sm leading-6 text-ink/52">尚无洽谈消息。第一条消息应明确合作范围，而不是只交换联系方式。</div>
+            )}
+          </div>
+          <ProjectNegotiationComposer projectId={project.id} />
+        </section>
 
         <section className="rounded-[8px] border border-black/8 bg-white p-5">
           <h2 className="text-xl font-semibold text-ink">历史记录</h2>

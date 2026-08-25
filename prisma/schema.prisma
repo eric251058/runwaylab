@@ -765,6 +765,7 @@ model User {
   projectDesignAuthorizationsAsDesigner ProjectDesignAuthorization[] @relation("ProjectDesignAuthorizationDesigner")
   projectDesignAuthorizationsAsOwner    ProjectDesignAuthorization[] @relation("ProjectDesignAuthorizationOwner")
   createdProjectMilestones              ProjectMilestone[]           @relation("ProjectMilestoneCreatedBy")
+  sentProjectNegotiationMessages        ProjectNegotiationMessage[]  @relation("ProjectNegotiationMessageSender")
   createdCollaborationProjectActions    CollaborationProjectAction[] @relation("CollaborationProjectActionCreatedBy")
   completedCollaborationProjectActions  CollaborationProjectAction[] @relation("CollaborationProjectActionCompletedBy")
   cancelledCollaborationProjectActions  CollaborationProjectAction[] @relation("CollaborationProjectActionCancelledBy")
@@ -784,8 +785,8 @@ model User {
   ownedProviders                        Provider[]                   @relation("ProviderOwner")
   providerApplications                  ProviderApplication[]        @relation("ProviderApplicationUser")
   reviewedProviderShowcaseItems         ProviderShowcaseItem[]       @relation("ProviderShowcaseReviewedBy")
-  requestedProviderSubscriptions       ProviderSubscription[]       @relation("ProviderSubscriptionRequestedBy")
-  reviewedProviderSubscriptions        ProviderSubscription[]       @relation("ProviderSubscriptionReviewedBy")
+  requestedProviderSubscriptions        ProviderSubscription[]       @relation("ProviderSubscriptionRequestedBy")
+  reviewedProviderSubscriptions         ProviderSubscription[]       @relation("ProviderSubscriptionReviewedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1348,19 +1349,21 @@ model WorkOpportunityProfile {
 }
 
 model ProviderOpportunityInterest {
-  id               String                            @id @default(cuid())
-  providerId       String
-  workId           String
-  interestType     ProviderOpportunityInterestType
-  note             String?
-  expectedPriceMin Decimal?                          @db.Decimal(10, 2)
-  expectedPriceMax Decimal?                          @db.Decimal(10, 2)
-  minimumQuantity  Int?
-  leadDays         Int?
-  status           ProviderOpportunityInterestStatus @default(SUBMITTED)
+  id                     String                            @id @default(cuid())
+  providerId             String
+  workId                 String
+  collaborationProjectId String?                           @unique
+  interestType           ProviderOpportunityInterestType
+  note                   String?
+  expectedPriceMin       Decimal?                          @db.Decimal(10, 2)
+  expectedPriceMax       Decimal?                          @db.Decimal(10, 2)
+  minimumQuantity        Int?
+  leadDays               Int?
+  status                 ProviderOpportunityInterestStatus @default(SUBMITTED)
 
-  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  work     Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  provider             Provider              @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  work                 Work                  @relation(fields: [workId], references: [id], onDelete: Cascade)
+  collaborationProject CollaborationProject? @relation(fields: [collaborationProjectId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2016,12 +2019,12 @@ model PresaleCampaign {
   preorderDecisionReason      String?
   preorderPublicNotice        String?
 
-  work                  Work                    @relation(fields: [workId], references: [id], onDelete: Cascade)
-  createdBy             User?                   @relation("PresaleCampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  work                  Work                         @relation(fields: [workId], references: [id], onDelete: Cascade)
+  createdBy             User?                        @relation("PresaleCampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   intents               PresaleCampaignIntent[]
   collaborationProjects CollaborationProject[]
-  preorderProducts      ProjectProduct[]        @relation("PresaleCampaignProducts")
-  preorderOrders        ProjectOrder[]          @relation("PresaleCampaignOrders")
+  preorderProducts      ProjectProduct[]             @relation("PresaleCampaignProducts")
+  preorderOrders        ProjectOrder[]               @relation("PresaleCampaignOrders")
   designAuthorizations  ProjectDesignAuthorization[] @relation("PresaleCampaignDesignAuthorizations")
 
   createdAt DateTime @default(now())
@@ -2129,28 +2132,30 @@ model CollaborationProject {
   workspaceId                 String?
   workspace                   Workspace?                       @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 
-  work                  Work?                        @relation(fields: [workId], references: [id], onDelete: Cascade)
-  designer              User?                        @relation("CollaborationProjectDesigner", fields: [designerId], references: [id], onDelete: SetNull)
-  ownerUser             User?                        @relation("CollaborationProjectOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  ownerProvider         Provider?                    @relation("CollaborationProjectOwnerProvider", fields: [ownerProviderId], references: [id], onDelete: SetNull)
-  school                School?                      @relation(fields: [schoolId], references: [id], onDelete: SetNull)
-  teacher               Teacher?                     @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  provider              Provider?                    @relation(fields: [providerId], references: [id], onDelete: SetNull)
-  fabric                Fabric?                      @relation(fields: [fabricId], references: [id], onDelete: SetNull)
-  presaleCampaign       PresaleCampaign?             @relation(fields: [presaleCampaignId], references: [id], onDelete: SetNull)
-  createdBy             User?                        @relation("CollaborationProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  designAuthorizations  ProjectDesignAuthorization[]
-  milestones            ProjectMilestone[]
-  issues                ProjectIssue[]
-  products              ProjectProduct[]
-  providerWorkProposals ProviderWorkProposal[]
-  orders                ProjectOrder[]
-  reviews               Review[]
-  caseStudies           CaseStudy[]
-  projectIntake         ProjectIntake?               @relation("ProjectIntakeLinkedCollaborationProject")
-  actions               CollaborationProjectAction[]
-  events                CollaborationProjectEvent[]
-  applications          ProjectApplication[]
+  work                        Work?                        @relation(fields: [workId], references: [id], onDelete: Cascade)
+  designer                    User?                        @relation("CollaborationProjectDesigner", fields: [designerId], references: [id], onDelete: SetNull)
+  ownerUser                   User?                        @relation("CollaborationProjectOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  ownerProvider               Provider?                    @relation("CollaborationProjectOwnerProvider", fields: [ownerProviderId], references: [id], onDelete: SetNull)
+  school                      School?                      @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  teacher                     Teacher?                     @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  provider                    Provider?                    @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  fabric                      Fabric?                      @relation(fields: [fabricId], references: [id], onDelete: SetNull)
+  presaleCampaign             PresaleCampaign?             @relation(fields: [presaleCampaignId], references: [id], onDelete: SetNull)
+  createdBy                   User?                        @relation("CollaborationProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  designAuthorizations        ProjectDesignAuthorization[]
+  milestones                  ProjectMilestone[]
+  issues                      ProjectIssue[]
+  products                    ProjectProduct[]
+  providerWorkProposals       ProviderWorkProposal[]
+  orders                      ProjectOrder[]
+  reviews                     Review[]
+  caseStudies                 CaseStudy[]
+  projectIntake               ProjectIntake?               @relation("ProjectIntakeLinkedCollaborationProject")
+  actions                     CollaborationProjectAction[]
+  events                      CollaborationProjectEvent[]
+  providerOpportunityInterest ProviderOpportunityInterest?
+  negotiationMessages         ProjectNegotiationMessage[]
+  applications                ProjectApplication[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2390,11 +2395,11 @@ model ProjectDesignAuthorization {
   offerHash          String?
   offerSnapshot      Json?
 
-  project  CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  preorderCampaign PresaleCampaign? @relation("PresaleCampaignDesignAuthorizations", fields: [preorderCampaignId], references: [id], onDelete: SetNull)
-  work     Work                 @relation(fields: [workId], references: [id], onDelete: Cascade)
-  designer User                 @relation("ProjectDesignAuthorizationDesigner", fields: [designerUserId], references: [id], onDelete: Cascade)
-  owner    User                 @relation("ProjectDesignAuthorizationOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  project          CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  preorderCampaign PresaleCampaign?     @relation("PresaleCampaignDesignAuthorizations", fields: [preorderCampaignId], references: [id], onDelete: SetNull)
+  work             Work                 @relation(fields: [workId], references: [id], onDelete: Cascade)
+  designer         User                 @relation("ProjectDesignAuthorizationDesigner", fields: [designerUserId], references: [id], onDelete: Cascade)
+  owner            User                 @relation("ProjectDesignAuthorizationOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2431,6 +2436,21 @@ model ProjectMilestone {
   @@index([status])
   @@index([visibility])
   @@index([createdByUserId])
+}
+
+model ProjectNegotiationMessage {
+  id        String @id @default(cuid())
+  projectId String
+  senderId  String
+  body      String
+
+  project CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sender  User                 @relation("ProjectNegotiationMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([senderId])
 }
 
 model ProjectIssue {
@@ -2511,7 +2531,7 @@ model ProjectSku {
 }
 
 model ProjectOrder {
-  id                          String                        @id @default(cuid())
+  id                          String                           @id @default(cuid())
   projectId                   String
   preorderCampaignId          String?
   workId                      String?
@@ -2520,16 +2540,16 @@ model ProjectOrder {
   buyerId                     String?
   providerId                  String?
   title                       String
-  quantity                    Int                           @default(1)
+  quantity                    Int                              @default(1)
   unitPrice                   Int?
   totalAmount                 Int?
-  currency                    String                        @default("CNY")
+  currency                    String                           @default("CNY")
   quantityNote                String?
   amountNote                  String?
   deliveryNote                String?
-  status                      ProjectOrderStatus            @default(INTENT)
-  paymentStatus               ProjectOrderPaymentStatus     @default(UNPAID)
-  fulfillmentStatus           ProjectOrderFulfillmentStatus @default(NOT_STARTED)
+  status                      ProjectOrderStatus               @default(INTENT)
+  paymentStatus               ProjectOrderPaymentStatus        @default(UNPAID)
+  fulfillmentStatus           ProjectOrderFulfillmentStatus    @default(NOT_STARTED)
   shippingAddressSnapshot     Json?
   buyerNote                   String?
   trackingCompany             String?
@@ -2537,12 +2557,12 @@ model ProjectOrder {
   estimatedShipDate           DateTime?
   exceptionNote               String?
   note                        String?
-  idempotencyKey              String?                       @unique
+  idempotencyKey              String?                          @unique
   productSnapshot             Json?
   skuSnapshot                 Json?
   preorderDeadlineSnapshot    DateTime?
   capacitySnapshot            Int?
-  termsVersion                String                        @default("limited-preorder-v1")
+  termsVersion                String                           @default("limited-preorder-v1")
   termsTextSnapshot           String?
   paymentInstructionsSnapshot String?
   termsAcceptedAt             DateTime?

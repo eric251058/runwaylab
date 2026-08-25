@@ -88,6 +88,7 @@ export default async function MeProjectDetailPage({ params }: PageProps) {
     where: { workId: work.id },
     select: {
       id: true,
+      collaborationProjectId: true,
       interestType: true,
       note: true,
       expectedPriceMin: true,
@@ -252,6 +253,7 @@ export default async function MeProjectDetailPage({ params }: PageProps) {
                           workId={work.id}
                           interestId={item.id}
                           currentStatus={item.status}
+                          collaborationProjectId={item.collaborationProjectId}
                         />
                       ) : null}
                     </article>
