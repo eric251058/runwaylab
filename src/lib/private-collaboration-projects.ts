@@ -28,7 +28,16 @@ export const privateCollaborationProjectSelect = {
   summary: true,
   description: true,
   ownerUserId: true,
+  designerId: true,
   workId: true,
+  providerId: true,
+  provider: {
+    select: {
+      id: true,
+      name: true,
+      ownerId: true
+    }
+  },
   createdAt: true,
   updatedAt: true,
   projectIntake: {
@@ -77,6 +86,19 @@ export const privateCollaborationProjectSelect = {
     select: privateProjectEventSelect,
     orderBy: { createdAt: "desc" as const },
     take: 80
+  },
+  negotiationMessages: {
+    select: {
+      id: true,
+      body: true,
+      senderId: true,
+      createdAt: true,
+      sender: {
+        select: { nickname: true }
+      }
+    },
+    orderBy: { createdAt: "asc" as const },
+    take: 200
   }
 };
 
@@ -86,18 +108,29 @@ function isActiveAdmin(user: Viewer | null | undefined) {
   return Boolean(user && user.role === UserRole.ADMIN && user.status === UserStatus.ACTIVE);
 }
 
-function canViewPrivateProject(user: Viewer | null | undefined, project: { ownerUserId: string | null; projectIntake?: { ownerId: string } | null }) {
+function canViewPrivateProject(user: Viewer | null | undefined, project: {
+  ownerUserId: string | null;
+  designerId: string | null;
+  provider?: { ownerId: string | null } | null;
+  projectIntake?: { ownerId: string } | null;
+}) {
   if (!user || user.status !== UserStatus.ACTIVE) return false;
   if (isActiveAdmin(user)) return true;
-  return project.ownerUserId === user.id || project.projectIntake?.ownerId === user.id;
+  return project.ownerUserId === user.id
+    || project.designerId === user.id
+    || project.provider?.ownerId === user.id
+    || project.projectIntake?.ownerId === user.id;
 }
 
 export async function getPrivateCollaborationProjectsForUser(userId: string) {
   const projects = await prisma.collaborationProject.findMany({
     where: {
-      ownerUserId: userId,
       visibility: CollaborationProjectVisibility.PRIVATE,
-      projectIntake: { isNot: null }
+      OR: [
+        { ownerUserId: userId },
+        { designerId: userId },
+        { provider: { ownerId: userId } }
+      ]
     },
     select: privateCollaborationProjectSelect,
     orderBy: { updatedAt: "desc" },
