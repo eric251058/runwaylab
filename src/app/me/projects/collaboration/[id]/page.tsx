@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Clock } from "lucide-react";
 import { PrivateProjectActionCard, type PrivateProjectActionCardAction } from "@/components/projects/PrivateProjectActionCard";
+import { ProjectCommercialTerms } from "@/components/projects/ProjectCommercialTerms";
 import { ProjectNegotiationComposer } from "@/components/projects/ProjectNegotiationComposer";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
@@ -106,6 +107,32 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
 
       <div className="mt-5 grid gap-5">
         <PrivateProjectActionCard projectId={project.id} action={currentAction ? serializeAction(currentAction) : null} />
+
+      <ProjectCommercialTerms
+        projectId={project.id}
+        providerName={project.provider?.name ?? null}
+        canSubmit={project.provider?.ownerId === user.id}
+        canDecide={
+          user.role === "ADMIN"
+          || project.ownerUserId === user.id
+          || project.designerId === user.id
+          || project.projectIntake?.ownerId === user.id
+        }
+        proposals={project.providerWorkProposals.map((proposal) => ({
+          ...proposal,
+          createdAt: proposal.createdAt.toISOString(),
+          updatedAt: proposal.updatedAt.toISOString()
+        }))}
+        milestones={project.milestones.map((milestone) => ({
+          id: milestone.id,
+          title: milestone.title,
+          stage: milestone.stage,
+          status: milestone.status,
+          dueAt: milestone.dueAt?.toISOString() ?? null,
+          completedAt: milestone.completedAt?.toISOString() ?? null,
+          note: milestone.note
+        }))}
+      />
 
         <section className="rounded-[8px] border border-black/8 bg-white p-5">
           <h2 className="text-xl font-semibold text-ink">合作洽谈</h2>
