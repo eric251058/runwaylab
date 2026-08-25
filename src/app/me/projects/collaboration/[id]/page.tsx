@@ -136,6 +136,7 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
       />
       <ProjectTransactionRecord
         projectId={project.id}
+        viewerId={user.id}
         canBuyerAct={
           project.ownerUserId === user.id
           || project.designerId === user.id
@@ -151,6 +152,10 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
             ...attempt,
             capturedAt: attempt.capturedAt?.toISOString() ?? null,
             createdAt: attempt.createdAt.toISOString()
+          })),
+          reviews: project.orders[0].reviews.map((review) => ({
+            ...review,
+            createdAt: review.createdAt.toISOString()
           }))
         } : null}
       />

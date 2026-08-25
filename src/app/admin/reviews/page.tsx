@@ -37,17 +37,17 @@ export default async function AdminReviewsPage() {
         {reviews.length ? reviews.map((review) => (
           <form key={review.id} action={saveReview} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-4 md:grid-cols-4">
             <input type="hidden" name="id" value={review.id} />
-            <select name="targetType" defaultValue={review.targetType} className={input}>{Object.values(ReviewTargetType).map((type) => <option key={type} value={type}>{REVIEW_TARGET_LABELS[type]}</option>)}</select>
+            <select name="targetType" defaultValue={review.targetType} disabled={Boolean(review.orderId)} className={input}>{Object.values(ReviewTargetType).map((type) => <option key={type} value={type}>{REVIEW_TARGET_LABELS[type]}</option>)}</select>
             <select name="status" defaultValue={review.status} className={input}>{[ReviewStatus.PENDING, ReviewStatus.PUBLISHED, ReviewStatus.HIDDEN].map((status) => <option key={status} value={status}>{REVIEW_STATUS_LABELS[status]}</option>)}</select>
-            <input name="rating" type="number" min={1} max={5} defaultValue={review.rating} className={input} />
-            <input name="reviewerId" defaultValue={review.reviewerId} className={input} />
-            <input name="targetUserId" defaultValue={review.targetUserId ?? ""} placeholder="目标用户 ID" className={input} />
-            <input name="providerId" defaultValue={review.providerId ?? ""} placeholder="服务商 ID" className={input} />
-            <input name="workId" defaultValue={review.workId ?? ""} placeholder="作品 ID" className={input} />
-            <input name="projectId" defaultValue={review.projectId ?? ""} placeholder="项目 ID" className={input} />
-            <textarea name="content" defaultValue={review.content ?? ""} className="min-h-16 rounded-[6px] border border-black/10 px-3 py-3 text-sm md:col-span-3" />
-            <button className="h-10 rounded-full border border-black/10 px-4 text-sm font-semibold">保存</button>
-            <p className="text-xs text-ink/45 md:col-span-4">评价人：{review.reviewer.nickname} / 目标：{review.provider?.name ?? review.work?.title ?? review.project?.title ?? review.targetUser?.nickname ?? "待关联"}</p>
+            <input name="rating" type="number" min={1} max={5} defaultValue={review.rating} disabled={Boolean(review.orderId)} className={input} />
+            <input name="reviewerId" defaultValue={review.reviewerId} disabled={Boolean(review.orderId)} className={input} />
+            <input name="targetUserId" defaultValue={review.targetUserId ?? ""} disabled={Boolean(review.orderId)} placeholder="目标用户 ID" className={input} />
+            <input name="providerId" defaultValue={review.providerId ?? ""} disabled={Boolean(review.orderId)} placeholder="服务商 ID" className={input} />
+            <input name="workId" defaultValue={review.workId ?? ""} disabled={Boolean(review.orderId)} placeholder="作品 ID" className={input} />
+            <input name="projectId" defaultValue={review.projectId ?? ""} disabled={Boolean(review.orderId)} placeholder="项目 ID" className={input} />
+            <textarea name="content" defaultValue={review.content ?? ""} disabled={Boolean(review.orderId)} className="min-h-16 rounded-[6px] border border-black/10 px-3 py-3 text-sm md:col-span-3" />
+            <button className="h-10 rounded-full border border-black/10 px-4 text-sm font-semibold">{review.orderId ? "更新可见状态" : "保存"}</button>
+            <p className="text-xs text-ink/45 md:col-span-4">{review.orderId ? "已验证成交评价 · 仅可调整公开状态 · " : ""}评价人：{review.reviewer.nickname} / 目标：{review.provider?.name ?? review.work?.title ?? review.project?.title ?? review.targetUser?.nickname ?? "待关联"}</p>
           </form>
         )) : <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm text-ink/55">暂无评价。</div>}
       </section>

@@ -12,6 +12,14 @@ type PaymentAttempt = {
   capturedAt: string | null;
   createdAt: string;
 };
+type VerifiedReview = {
+  id: string;
+  reviewerId: string;
+  rating: number;
+  content: string | null;
+  status: string;
+  createdAt: string;
+};
 
 export type PrivateProjectOrder = {
   id: string;
@@ -31,10 +39,12 @@ export type PrivateProjectOrder = {
   createdAt: string;
   updatedAt: string;
   paymentAttempts: PaymentAttempt[];
+  reviews: VerifiedReview[];
 };
 
 type Props = {
   projectId: string;
+  viewerId: string;
   order: PrivateProjectOrder | null;
   canBuyerAct: boolean;
   canProviderAct: boolean;
@@ -66,7 +76,7 @@ function money(amount: number, currency = "CNY") {
   }).format(amount / 100);
 }
 
-export function ProjectTransactionRecord({ projectId, order, canBuyerAct, canProviderAct }: Props) {
+export function ProjectTransactionRecord({ projectId, viewerId, order, canBuyerAct, canProviderAct }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
@@ -77,6 +87,8 @@ export function ProjectTransactionRecord({ projectId, order, canBuyerAct, canPro
   const [deliveryMethod, setDeliveryMethod] = useState("");
   const [deliveryReference, setDeliveryReference] = useState("");
   const [deliveryNote, setDeliveryNote] = useState("");
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewContent, setReviewContent] = useState("");
 
   async function act(payload: Record<string, unknown>, confirmation?: string) {
     if (!order || (confirmation && !window.confirm(confirmation))) return;
@@ -95,6 +107,26 @@ export function ProjectTransactionRecord({ projectId, order, canBuyerAct, canPro
       if (response.ok) router.refresh();
     });
   }
+  async function submitReview() {
+    if (!order || !window.confirm("评价会公开显示在服务商主页，并标记为已验证成交。确认提交？")) return;
+    setMessage("");
+    startTransition(async () => {
+      const response = await fetch(
+        "/api/me/projects/collaboration/" + projectId + "/order/" + order.id + "/review",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rating: reviewRating, content: reviewContent })
+        }
+      );
+      const result = await response.json().catch(() => ({ message: "评价提交失败，请稍后重试。" }));
+      setMessage(result.message ?? (response.ok ? "评价已发布。" : "评价提交失败。"));
+      if (response.ok) {
+        setReviewContent("");
+        router.refresh();
+      }
+    });
+  }
 
   if (!order) {
     return (
@@ -111,6 +143,7 @@ export function ProjectTransactionRecord({ projectId, order, canBuyerAct, canPro
   const pendingAttempt = order.paymentAttempts.find((attempt) => attempt.status === "PROCESSING");
   const capturedAttempt = order.paymentAttempts.find((attempt) => attempt.status === "CAPTURED");
   const isCompleted = order.status === "COMPLETED";
+  const existingReview = order.reviews.find((review) => review.reviewerId === viewerId);
 
   return (
     <section className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_14px_40px_rgba(16,16,16,0.06)]">
@@ -207,6 +240,35 @@ export function ProjectTransactionRecord({ projectId, order, canBuyerAct, canPro
           </button>
         </div>
       ) : null}
+      {isCompleted ? (
+        <div className="mt-5 border-t border-black/8 pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-semibold text-ink">成交评价</h3>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">已验证成交</span>
+          </div>
+          {existingReview ? (
+            <div className="mt-3 rounded-[8px] bg-paper p-4">
+              <p className="text-amber-600">{"★".repeat(existingReview.rating)}{"☆".repeat(5 - existingReview.rating)}</p>
+              <p className="mt-2 text-sm leading-6 text-ink/65">{existingReview.content}</p>
+              {existingReview.status !== "PUBLISHED" ? <p className="mt-2 text-xs text-ink/40">评价已提交，当前不在公开主页展示。</p> : null}
+            </div>
+          ) : canBuyerAct ? (
+            <div className="mt-3">
+              <p className="text-xs leading-5 text-ink/45">评价会公开显示在服务商主页。请只描述本次真实合作，不要填写联系方式或敏感信息。</p>
+              <select value={reviewRating} onChange={(event) => setReviewRating(Number(event.target.value))} className="mt-3 rounded-[8px] border border-black/10 px-3 py-2.5 text-sm">
+                {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} 星</option>)}
+              </select>
+              <textarea value={reviewContent} onChange={(event) => setReviewContent(event.target.value)} maxLength={600} placeholder="例如：响应速度、交付质量、是否按约定完成（至少 8 个字）" className="mt-3 min-h-24 w-full rounded-[8px] border border-black/10 px-3 py-2.5 text-sm outline-none focus:border-black/30" />
+              <button disabled={pending || reviewContent.trim().length < 8} onClick={submitReview} className="mt-3 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40">
+                发布成交评价
+              </button>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-ink/45">项目方尚未提交成交评价。</p>
+          )}
+        </div>
+      ) : null}
+
 
       {message ? <p className="mt-4 rounded-[8px] bg-paper px-4 py-3 text-sm text-ink/65">{message}</p> : null}
     </section>

@@ -2576,6 +2576,7 @@ model ProjectOrder {
   confirmationSummary         String?
   paymentAttempts             CommercePaymentAttempt[]
   refunds                     CommerceRefund[]
+  reviews                     Review[]
 
   project          CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   preorderCampaign PresaleCampaign?     @relation("PresaleCampaignOrders", fields: [preorderCampaignId], references: [id], onDelete: SetNull)
@@ -2612,6 +2613,7 @@ model Review {
   providerId   String?
   workId       String?
   projectId    String?
+  orderId      String?
   rating       Int              @default(5)
   content      String?
   status       ReviewStatus     @default(PENDING)
@@ -2621,10 +2623,12 @@ model Review {
   provider   Provider?             @relation(fields: [providerId], references: [id], onDelete: SetNull)
   work       Work?                 @relation(fields: [workId], references: [id], onDelete: SetNull)
   project    CollaborationProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  order      ProjectOrder?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([orderId, reviewerId])
   @@index([reviewerId])
   @@index([targetType])
   @@index([targetUserId])
