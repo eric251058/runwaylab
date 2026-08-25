@@ -87,6 +87,47 @@ export const privateCollaborationProjectSelect = {
     orderBy: { createdAt: "desc" as const },
     take: 80
   },
+  providerWorkProposals: {
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      summary: true,
+      description: true,
+      estimatedPrice: true,
+      estimatedTime: true,
+      moq: true,
+      priceMin: true,
+      priceMax: true,
+      leadTimeDays: true,
+      minimumQuantity: true,
+      validUntil: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true
+    },
+    orderBy: { updatedAt: "desc" as const },
+    take: 20
+  },
+  milestones: {
+    select: {
+      id: true,
+      title: true,
+      stage: true,
+      status: true,
+      dueAt: true,
+      completedAt: true,
+      note: true,
+      visibility: true,
+      createdAt: true,
+      updatedAt: true
+    },
+    orderBy: [
+      { dueAt: "asc" as const },
+      { createdAt: "asc" as const }
+    ],
+    take: 30
+  },
   negotiationMessages: {
     select: {
       id: true,
