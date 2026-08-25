@@ -582,6 +582,10 @@ export async function saveProjectOrder(formData: FormData) {
 export async function saveReview(formData: FormData) {
   const admin = await requireAdminUser();
   const id = optionalText(formData.get("id"));
+  const status = enumValue(formData.get("status"), [ReviewStatus.PENDING, ReviewStatus.PUBLISHED, ReviewStatus.HIDDEN], ReviewStatus.PENDING);
+  const existing = id
+    ? await prisma.review.findUnique({ where: { id }, select: { orderId: true } })
+    : null;
   const data = {
     reviewerId: optionalText(formData.get("reviewerId")) ?? admin.id,
     targetType: enumValue(formData.get("targetType"), Object.values(ReviewTargetType), ReviewTargetType.PROJECT),
@@ -591,10 +595,13 @@ export async function saveReview(formData: FormData) {
     projectId: optionalText(formData.get("projectId")),
     rating: Math.min(5, Math.max(1, Number.parseInt(optionalText(formData.get("rating")) ?? "5", 10) || 5)),
     content: optionalText(formData.get("content")),
-    status: enumValue(formData.get("status"), [ReviewStatus.PENDING, ReviewStatus.PUBLISHED, ReviewStatus.HIDDEN], ReviewStatus.PENDING)
+    status
   };
 
-  if (id) await prisma.review.update({ where: { id }, data });
+  if (id && existing?.orderId) {
+    // Verified transaction reviews are user-authored. Admins may moderate visibility, not rewrite reputation.
+    await prisma.review.update({ where: { id }, data: { status } });
+  } else if (id) await prisma.review.update({ where: { id }, data });
   else await prisma.review.create({ data });
 
   revalidatePath("/admin/reviews");

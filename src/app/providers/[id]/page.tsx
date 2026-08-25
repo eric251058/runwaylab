@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FabricStatus, ProviderShowcaseStatus, ProviderType } from "@prisma/client";
+import { FabricStatus, ProjectOrderStatus, ProviderShowcaseStatus, ProviderType, ReviewStatus, ReviewTargetType } from "@prisma/client";
 import { SafeImage } from "@/components/media/SafeImage";
 import { ProviderInquiryForm } from "@/components/providers/ProviderInquiryForm";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -67,11 +67,49 @@ export default async function ProviderDetailPage({ params, searchParams }: Provi
         orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
         take: 12
       },
-      _count: { select: { fabrics: true, showcaseItems: true, inquiries: true } }
+      reviews: {
+        where: {
+          status: ReviewStatus.PUBLISHED,
+          targetType: ReviewTargetType.PROVIDER,
+          orderId: { not: null },
+          order: { is: { status: ProjectOrderStatus.COMPLETED, preorderCampaignId: null } }
+        },
+        select: {
+          id: true,
+          rating: true,
+          content: true,
+          createdAt: true,
+          reviewer: { select: { nickname: true } },
+          project: { select: { title: true } }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 12
+      },
+      _count: {
+        select: {
+          fabrics: true,
+          showcaseItems: true,
+          inquiries: true,
+          projectOrders: { where: { preorderCampaignId: null, status: ProjectOrderStatus.COMPLETED } }
+        }
+      }
     }
   });
 
   if (!provider) notFound();
+  const verifiedReputation = await prisma.review.aggregate({
+    where: {
+      providerId: provider.id,
+      status: ReviewStatus.PUBLISHED,
+      targetType: ReviewTargetType.PROVIDER,
+      orderId: { not: null },
+      order: { is: { status: ProjectOrderStatus.COMPLETED, preorderCampaignId: null } }
+    },
+    _avg: { rating: true },
+    _count: true
+  });
+  const averageRating = verifiedReputation._avg.rating;
+
 
   const isAdmin = isAdminUser(user);
   const isOwner = isProviderOwner(provider, user);
@@ -85,6 +123,8 @@ export default async function ProviderDetailPage({ params, searchParams }: Provi
   const tags = getProviderTags(provider, 8);
   const fitTags = getProviderFitTags(provider);
   const heroFacts = [
+    provider._count.projectOrders ? heroFact("", provider._count.projectOrders + " 次已完成合作") : null,
+    averageRating ? heroFact("", averageRating.toFixed(1) + " / 5 · " + verifiedReputation._count + " 条成交评价") : null,
     heroFact("MOQ", provider.moqMin ?? provider.minimumOrderQuantity),
     heroFact("打样", provider.sampleLeadDays ? `${provider.sampleLeadDays} 天` : null),
     heroFact("生产", provider.productionLeadDays ? `${provider.productionLeadDays} 天` : null),
@@ -177,6 +217,35 @@ export default async function ProviderDetailPage({ params, searchParams }: Provi
         {infoItem("响应时间", provider.responseTime)}
         {infoItem("质量控制", provider.qualityControl)}
       </section>
+
+      {provider.reviews.length ? (
+        <section id="verified-reviews" className="mt-8 rounded-[8px] border border-black/8 bg-white p-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Verified Transactions</p>
+              <h2 className="mt-2 text-2xl font-semibold text-ink">已验证成交评价</h2>
+              <p className="mt-2 text-sm leading-6 text-ink/52">只有平台内完成验收的合作订单才能留下此类评价。</p>
+            </div>
+            {averageRating ? <p className="text-lg font-semibold text-ink">{averageRating.toFixed(1)} / 5 · {verifiedReputation._count} 条</p> : null}
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {provider.reviews.map((review) => (
+              <article key={review.id} className="rounded-[8px] bg-paper p-4">
+                <p className="text-amber-600">{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</p>
+                <p className="mt-2 text-sm leading-6 text-ink/65">{review.content}</p>
+                <p className="mt-3 text-xs text-ink/40">
+                  {review.reviewer.nickname} · {review.project?.title ?? "合作项目"} · {review.createdAt.toLocaleDateString("zh-CN")}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : provider._count.projectOrders ? (
+        <section className="mt-8 rounded-[8px] border border-black/8 bg-white p-5">
+          <h2 className="text-2xl font-semibold text-ink">成交信誉</h2>
+          <p className="mt-2 text-sm text-ink/52">已有 {provider._count.projectOrders} 次完成合作，暂时没有公开成交评价。</p>
+        </section>
+      ) : null}
 
       {fitTags.length ? (
         <section className="mt-8 rounded-[8px] border border-black/8 bg-white p-5">

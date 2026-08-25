@@ -147,6 +147,18 @@ export const privateCollaborationProjectSelect = {
       confirmedAt: true,
       createdAt: true,
       updatedAt: true,
+      reviews: {
+        select: {
+          id: true,
+          reviewerId: true,
+          rating: true,
+          content: true,
+          status: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: "desc" as const },
+        take: 5
+      },
       paymentAttempts: {
         select: {
           id: true,
