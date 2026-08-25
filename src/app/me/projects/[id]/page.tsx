@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { ProviderOpportunityInterestStatus } from "@prisma/client";
 import { ArrowRight, Bell, CheckCircle2, Clock, ListChecks } from "lucide-react";
 import { SafeImage } from "@/components/media/SafeImage";
+import { ProviderInterestDecisionActions } from "@/components/projects/ProviderInterestDecisionActions";
 import { visualFor } from "@/components/works/work-visuals";
 import { getCurrentUser } from "@/lib/auth/session";
+import { prisma } from "@/lib/prisma";
 import {
   APPLICATION_STATUS_LABELS,
   PROJECT_WORKBENCH_STAGES,
@@ -54,6 +57,23 @@ function statusPill(label: string) {
   return <span className="rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink/55">{label}</span>;
 }
 
+const providerInterestStatusLabels: Record<ProviderOpportunityInterestStatus, string> = {
+  SUBMITTED: "待查看",
+  REVIEWED: "已查看",
+  SHORTLISTED: "进入洽谈",
+  DECLINED: "暂不合作",
+  CLOSED: "已关闭"
+};
+
+const providerInterestTypeLabels: Record<string, string> = {
+  INTERESTED: "有合作意向",
+  NEED_MORE_INFO: "需要补充资料",
+  CAN_SAMPLE: "可以打样",
+  CAN_SMALL_BATCH: "可承接小单",
+  CAN_SCALE: "可承接大货",
+  NOT_SUITABLE: "暂不适合"
+};
+
 export default async function MeProjectDetailPage({ params }: PageProps) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/me/projects");
@@ -64,6 +84,22 @@ export default async function MeProjectDetailPage({ params }: PageProps) {
 
   const activeStageIndex = PROJECT_WORKBENCH_STAGES.indexOf(project.stage);
   const work = project.work;
+  const providerInterests = await prisma.providerOpportunityInterest.findMany({
+    where: { workId: work.id },
+    select: {
+      id: true,
+      interestType: true,
+      note: true,
+      expectedPriceMin: true,
+      expectedPriceMax: true,
+      minimumQuantity: true,
+      leadDays: true,
+      status: true,
+      updatedAt: true,
+      provider: { select: { id: true, name: true, slug: true, type: true } }
+    },
+    orderBy: { updatedAt: "desc" }
+  });
   const outgoingInquiries = work.cooperationRequests.filter((item) => Boolean(item.providerId));
   const cooperationRequests = work.cooperationRequests.filter((item) => !item.providerId);
 
@@ -186,6 +222,43 @@ export default async function MeProjectDetailPage({ params }: PageProps) {
                 ))}
               </div>
             ) : <Empty>暂无供应商方案。</Empty>}
+          </Section>
+
+          <Section id="provider-interests" title="服务商合作响应">
+            {providerInterests.length ? (
+              <div className="space-y-3">
+                {providerInterests.map((item) => {
+                  const priceMin = item.expectedPriceMin?.toString();
+                  const priceMax = item.expectedPriceMax?.toString();
+                  const price = priceMin || priceMax
+                    ? `参考报价 ¥${priceMin ?? "—"}–¥${priceMax ?? "—"}`
+                    : "参考报价待沟通";
+
+                  return (
+                    <article key={item.id} className="rounded-[8px] bg-paper p-4">
+                      <div className="flex flex-wrap gap-2">
+                        {statusPill(providerInterestTypeLabels[item.interestType] ?? item.interestType)}
+                        {statusPill(providerInterestStatusLabels[item.status])}
+                      </div>
+                      <h3 className="mt-3 font-semibold text-ink">{item.provider.name}</h3>
+                      <p className="mt-1 text-sm text-ink/52">
+                        {price}
+                        {item.minimumQuantity ? ` · 起订 ${item.minimumQuantity}` : ""}
+                        {item.leadDays ? ` · 交期 ${item.leadDays} 天` : ""}
+                      </p>
+                      {item.note ? <p className="mt-2 text-sm leading-6 text-ink/62">{shortText(item.note, 220)}</p> : null}
+                      {item.status !== ProviderOpportunityInterestStatus.CLOSED ? (
+                        <ProviderInterestDecisionActions
+                          workId={work.id}
+                          interestId={item.id}
+                          currentStatus={item.status}
+                        />
+                      ) : null}
+                    </article>
+                  );
+                })}
+              </div>
+            ) : <Empty>还没有服务商提交合作响应。</Empty>}
           </Section>
 
           <Section id="cooperation-requests" title="合作请求">
