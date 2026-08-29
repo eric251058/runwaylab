@@ -38,6 +38,8 @@ type LimitedPreorderPanelProps = {
 type PreorderResponse = {
   error?: string;
   repeated?: boolean;
+  requiresPayment?: boolean;
+  checkoutUrl?: string;
   order?: {
     id: string;
     reservationExpiresAt?: string | null;
@@ -81,6 +83,14 @@ export function LimitedPreorderPanel({ projectId, products, isLoggedIn, buyerCon
         const data = (await response.json().catch(() => null)) as PreorderResponse | null;
         if (!response.ok) {
           setMessage(data?.error ?? "提交失败，请稍后再试。");
+          setSubmittedOrderId(data?.order?.id ?? null);
+          return;
+        }
+
+        if (data?.requiresPayment && data.checkoutUrl) {
+          setSubmittedOrderId(data.order?.id ?? null);
+          setMessage("订单已创建，正在进入支付宝官方收银台。支付结果以服务器回调为准，请勿重复付款。");
+          window.location.assign(data.checkoutUrl);
           return;
         }
 
@@ -118,9 +128,9 @@ export function LimitedPreorderPanel({ projectId, products, isLoggedIn, buyerCon
       ) : null}
       {campaign.qualificationMode === "PAID_ORDER" ? (
         <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-950">
-          <p className="font-semibold">当前为人工付款确认试点，不会在提交时自动扣款。</p>
-          <p className="mt-1">提交成功后会显示本笔订单精确的名额锁定到期时间，最长为 30 分钟且不会晚于本期截止时间。请只按 RunwayLab 官方订单页或平台人工确认指引操作；未被订单状态确认为已付款，不计入付款成团口径。</p>
-          <p className="mt-2 whitespace-pre-line rounded-[6px] bg-white/70 p-3"><span className="font-semibold">本期人工付款指引：</span>{campaign.paymentInstructions ?? "本期尚未提供可执行的人工付款指引，请勿向任何个人或未验证账户转账，并联系 RunwayLab 确认。"}</p>
+          <p className="font-semibold">本期使用 RunwayLab 官方订单页与支付宝官方收银台。</p>
+          <p className="mt-1">提交后名额最长锁定 20 分钟且不会晚于本期截止时间。只有支付宝验签回调确认成功后才计为已付款；页面跳转、截图或聊天记录都不能替代支付回执。</p>
+          <p className="mt-2 whitespace-pre-line rounded-[6px] bg-white/70 p-3"><span className="font-semibold">在线付款说明：</span>{campaign.paymentInstructions ?? "请仅从 RunwayLab 官方订单页进入支付宝收银台，不向个人账户、群聊或收款码转账。"}</p>
         </div>
       ) : null}
       {product ? (
@@ -159,9 +169,9 @@ export function LimitedPreorderPanel({ projectId, products, isLoggedIn, buyerCon
           </select>
           <input name="quantity" type="number" min={1} max={buyerQuantityLimit} required defaultValue="1" aria-label={`数量，每个账号本期最多 ${buyerQuantityLimit} 件`} className="h-11 rounded-[6px] border border-black/10 bg-paper px-3 text-sm" />
           <input name="buyerNote" placeholder="备注，可选" className="h-11 rounded-[6px] border border-black/10 bg-paper px-3 text-sm" />
-          <label className="flex items-start gap-2 text-xs leading-5 text-ink/58 md:col-span-2"><input name="acceptPreorderTerms" type="checkbox" required className="mt-1" />我已完整阅读并同意以上 {campaign.termsVersion} 条款正文，理解预售不等于现货；本期不收款、不收定金，我提交的尺码、颜色和数量会作为真实订单意向记录。</label>
+          <label className="flex items-start gap-2 text-xs leading-5 text-ink/58 md:col-span-2"><input name="acceptPreorderTerms" type="checkbox" required className="mt-1" />我已完整阅读并同意以上 {campaign.termsVersion} 条款正文，理解预售不等于现货；{campaign.qualificationMode === "PAID_ORDER" ? "提交后将进入支付宝官方收银台，未达成团条件时按条款原路退款。" : "本期不收款、不收定金，我提交的尺码、颜色和数量会作为真实订单意向记录。"}</label>
           <button disabled={isPending} className="h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-60 md:col-span-2">
-            {isPending ? "提交中..." : "提交预订意向"}
+            {isPending ? "提交中..." : campaign.qualificationMode === "PAID_ORDER" ? "确认订单并前往支付宝" : "提交预订意向"}
           </button>
         </form>
       ) : isLoggedIn ? (

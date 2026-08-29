@@ -8,6 +8,8 @@ import {
   ProjectOrderPaymentStatus,
   ProjectOrderStatus
 } from "@prisma/client";
+import { getFeatureFlags } from "@/lib/features";
+import { createPaymentProvider } from "@/lib/payments/provider";
 import { prisma } from "@/lib/prisma";
 import {
   hashLimitedPreorderOfferSnapshot,
@@ -15,6 +17,7 @@ import {
   createLimitedPreorderOfferEnvelope
 } from "@/lib/projects/preorder-offer";
 import {
+  assertOnlinePaymentInstructions,
   assertNoLimitedPreorderPaymentSolicitation,
   hasCurrentLimitedPreorderAuthorization,
   LIMITED_PREORDER_NO_PAYMENT_NOTICE
@@ -36,6 +39,7 @@ import { isPublicQualityWork } from "@/lib/works/rules";
 
 const IDEMPOTENCY_SCOPE = "limited-preorder:create";
 export const CONFIRMED_ORDER_RESERVATION_TTL_MS = 24 * 60 * 60 * 1000;
+export const PAID_ORDER_RESERVATION_TTL_MS = 20 * 60 * 1000;
 export class PreorderError extends Error {
   constructor(message: string, readonly code: string, readonly status = 400) {
     super(message);
@@ -65,9 +69,9 @@ function requestHash(input: CreatePreorderInput) {
   })).digest("hex");
 }
 
-function assertSupportedPreorderMode(mode: LimitedPreorderQualificationMode) {
-  if (mode === LimitedPreorderQualificationMode.PAID_ORDER) {
-    throw new PreorderError("按付款成团尚未具备真实退款记录闭环，本期不能接受新的付款预订。", "PAYMENT_MODE_NOT_AVAILABLE", 409);
+function assertSupportedPreorderMode(mode: LimitedPreorderQualificationMode, onlinePaymentReady: boolean) {
+  if (mode === LimitedPreorderQualificationMode.PAID_ORDER && !onlinePaymentReady) {
+    throw new PreorderError("在线支付尚未完成商户配置，本期不能接受付款订单。", "PAYMENT_MODE_NOT_AVAILABLE", 409);
   }
 }
 
@@ -76,6 +80,8 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
   if (!Number.isInteger(input.quantity) || input.quantity < 1 || input.quantity > PILOT_BUYER_CAMPAIGN_QUANTITY_LIMIT) {
     throw new PreorderError(`首期每个已验证账号每期最多提交 ${PILOT_BUYER_CAMPAIGN_QUANTITY_LIMIT} 件订单意向。`, "INVALID_QUANTITY");
   }
+  const paymentProvider = createPaymentProvider(await getFeatureFlags());
+  const onlinePaymentReady = paymentProvider.configured;
   const hash = requestHash(input);
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -88,7 +94,7 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
           throw new PreorderError("该提交标识已用于其他预订，请刷新后重试。", "IDEMPOTENCY_CONFLICT", 409);
         }
         const existingOrder = await tx.projectOrder.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
-        if (existingOrder) return { order: existingOrder, repeated: true };
+        if (existingOrder) return { order: existingOrder, repeated: true, requiresPayment: Boolean(existingOrder.paymentInstructionsSnapshot) };
         if (!existingKey) {
           await tx.commerceIdempotencyRecord.create({
             data: {
@@ -147,7 +153,7 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
         ) {
           throw new PreorderError("该项目暂不可预订。", "PREORDER_NOT_OPEN");
         }
-        assertSupportedPreorderMode(campaign.preorderQualificationMode);
+        assertSupportedPreorderMode(campaign.preorderQualificationMode, onlinePaymentReady);
         const now = new Date();
         const authorization = project.designAuthorizations[0] ?? null;
         const authorizationSnapshot = readLimitedPreorderOfferSnapshot(authorization?.offerSnapshot);
@@ -298,18 +304,28 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
         if (!campaign.preorderTermsText || campaign.preorderTermsText.trim().length < 40) {
           throw new PreorderError("本期预售条款尚未完整锁定，暂不可预订。", "TERMS_NOT_CONFIGURED");
         }
-        if (!campaign.preorderTermsText.includes(LIMITED_PREORDER_NO_PAYMENT_NOTICE)) {
-          throw new PreorderError("本期条款缺少不可删除的不收款说明，暂不可预订。", "TERMS_NOT_CONFIGURED");
-        }
-        try {
-          assertNoLimitedPreorderPaymentSolicitation(campaign.preorderTermsText, "本期预售条款");
-        } catch {
-          throw new PreorderError("本期条款包含不允许的付款指引，已停止接受新意向。", "PAYMENT_INSTRUCTIONS_NOT_ALLOWED", 409);
+        if (campaign.preorderQualificationMode === LimitedPreorderQualificationMode.CONFIRMED_ORDER) {
+          if (!campaign.preorderTermsText.includes(LIMITED_PREORDER_NO_PAYMENT_NOTICE)) {
+            throw new PreorderError("本期条款缺少不可删除的不收款说明，暂不可预订。", "TERMS_NOT_CONFIGURED");
+          }
+          try {
+            assertNoLimitedPreorderPaymentSolicitation(campaign.preorderTermsText, "本期预售条款");
+          } catch {
+            throw new PreorderError("本期条款包含不允许的付款指引，已停止接受新意向。", "PAYMENT_INSTRUCTIONS_NOT_ALLOWED", 409);
+          }
+        } else {
+          try {
+            assertOnlinePaymentInstructions(campaign.preorderPaymentInstructions);
+          } catch {
+            throw new PreorderError("本期在线付款说明不完整或含有站外转账指引。", "PAYMENT_INSTRUCTIONS_NOT_ALLOWED", 409);
+          }
         }
         const totalAmount = calculateOrderTotal(unitPrice, input.quantity);
         const reservationExpiresAt = new Date(Math.min(
           campaign.preorderDeadline.getTime(),
-          now.getTime() + CONFIRMED_ORDER_RESERVATION_TTL_MS
+          now.getTime() + (campaign.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER
+            ? PAID_ORDER_RESERVATION_TTL_MS
+            : CONFIRMED_ORDER_RESERVATION_TTL_MS)
         ));
         const order = await tx.projectOrder.create({
           data: {
@@ -327,7 +343,9 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
             status: ProjectOrderStatus.RESERVATION,
             paymentStatus: ProjectOrderPaymentStatus.UNPAID,
             buyerNote: input.buyerNote,
-            note: "仅记录真实订单意向，未开启在线收款。",
+            note: campaign.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER
+              ? "订单已创建，需在名额锁定期内通过 RunwayLab 官方订单页完成在线支付。"
+              : "仅记录真实订单意向，未开启在线收款。",
             idempotencyKey: input.idempotencyKey,
             productSnapshot: {
               title: product.title,
@@ -387,7 +405,11 @@ export async function createLimitedPreorder(input: CreatePreorderInput) {
           where: { scope_key: { scope: IDEMPOTENCY_SCOPE, key: input.idempotencyKey } },
           data: { status: CommerceIdempotencyStatus.COMPLETED, responseCode: 201, responseBody: { orderId: order.id }, completedAt: new Date() }
         });
-        return { order, repeated: false };
+        return {
+          order,
+          repeated: false,
+          requiresPayment: campaign.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER
+        };
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2034"].includes(error.code) && attempt < 2) continue;

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LimitedPreorderQualificationMode, ProjectOrderConfirmationChannel, ProjectOrderFulfillmentStatus, ProjectOrderPaymentStatus, ProjectOrderStatus } from "@prisma/client";
 import { PROJECT_ORDER_STATUS_LABELS } from "@/lib/commercial-collaboration";
+import { AdminRefundForm } from "@/components/payments/AdminRefundForm";
 import { isFeatureEnabled } from "@/lib/features";
 import { confirmLimitedPreorderOrder, updateProjectOrder } from "@/lib/projects/actions";
 import { formatMoneyCents, PROJECT_ORDER_FULFILLMENT_STATUS_LABELS, PROJECT_ORDER_PAYMENT_STATUS_LABELS } from "@/lib/projects/rules";
@@ -20,7 +21,36 @@ export default async function AdminOrdersPage() {
       project: { select: { id: true, slug: true, title: true } },
       product: { select: { title: true } },
       sku: { select: { size: true, color: true } },
-      preorderCampaign: { select: { title: true, preorderStatus: true, preorderQualificationMode: true, preorderDeadline: true } }
+      preorderCampaign: { select: { title: true, preorderStatus: true, preorderQualificationMode: true, preorderDeadline: true } },
+      paymentAttempts: {
+        where: { provider: "alipay" },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          status: true,
+          amount: true,
+          providerAttemptId: true,
+          failureCode: true,
+          failureMessage: true,
+          createdAt: true,
+          capturedAt: true
+        }
+      },
+      refunds: {
+        where: { provider: "alipay" },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          status: true,
+          amount: true,
+          reason: true,
+          providerRefundId: true,
+          failureCode: true,
+          failureMessage: true,
+          createdAt: true,
+          completedAt: true
+        }
+      }
     },
     orderBy: { createdAt: "desc" },
     take: 200
@@ -28,17 +58,29 @@ export default async function AdminOrdersPage() {
 
   const input = "h-10 rounded-[6px] border border-black/10 px-3 text-sm";
   const now = new Date();
+  const paymentReviewOrderCount = orders.filter((order) => (
+    order.paymentAttempts.some((attempt) => (
+      attempt.status === "FAILED"
+      || (attempt.status === "PROCESSING" && attempt.createdAt.getTime() < now.getTime() - 30 * 60 * 1000)
+    ))
+    || order.refunds.some((refund) => refund.status === "PROCESSING" || refund.status === "FAILED")
+  )).length;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
       <header className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/35">Admin</p>
         <h1 className="mt-3 text-4xl font-semibold text-ink md:text-6xl">预订与订单管理</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58">订单意向、付款与履约状态分开记录。真实支付、退款和物流未接入时，不得把人工状态当作支付渠道回执或退款成功证明。</p>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/58">订单、付款、退款与履约状态分开记录。线上付款和原路退款只以支付渠道服务器回执为准；人工记录不能冒充渠道回执。</p>
       </header>
 
       {!enabled ? (
         <div className="mb-4 rounded-[8px] border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">Limited Preorder V2.3 新订单入口已关闭；已有订单仍可处理，避免功能开关阻断取消、退款或履约义务。</div>
+      ) : null}
+      {paymentReviewOrderCount > 0 ? (
+        <div className="mb-5 rounded-[8px] border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+          有 {paymentReviewOrderCount} 笔订单包含失败支付、超过 30 分钟的处理中支付或待复核退款。请结合支付宝商户账单核对，未知结果必须沿用原幂等编号处理。
+        </div>
       ) : null}
       {orders.length ? (
         <div className="space-y-3">
@@ -52,6 +94,11 @@ export default async function AdminOrdersPage() {
               && Boolean(order.reservationExpiresAt && order.reservationExpiresAt > now)
               && order.paymentStatus === ProjectOrderPaymentStatus.UNPAID
               && ([ProjectOrderStatus.RESERVATION, ProjectOrderStatus.PENDING_PAYMENT] as readonly ProjectOrderStatus[]).includes(order.status);
+            const capturedAttempt = order.paymentAttempts.find((attempt) => attempt.status === "CAPTURED");
+            const succeededRefundCents = order.refunds
+              .filter((refund) => refund.status === "SUCCEEDED")
+              .reduce((sum, refund) => sum + refund.amount, 0);
+            const refundableCents = Math.max(0, (capturedAttempt?.amount ?? 0) - succeededRefundCents);
             return (
             <article key={order.id} className="rounded-[8px] border border-black/8 bg-white p-4">
             <form action={updateProjectOrder} className="grid gap-3 lg:grid-cols-[1fr_170px_170px_170px_auto]">
@@ -107,6 +154,28 @@ export default async function AdminOrdersPage() {
             {order.confirmedAt ? (
               <div className="mt-4 rounded-[6px] bg-emerald-50 p-3 text-xs leading-5 text-emerald-900">
                 证据编号：{order.confirmationEvidenceRef} · 摘要：{order.confirmationSummary}
+              </div>
+            ) : null}
+            {order.paymentAttempts.length ? (
+              <div className="mt-3 rounded-[6px] border border-black/8 bg-paper p-3 text-xs leading-5 text-ink/55">
+                <p className="font-semibold text-ink">线上支付尝试</p>
+                {order.paymentAttempts.map((attempt) => (
+                  <p key={attempt.id} className="mt-1">
+                    {attempt.status} · ¥{(attempt.amount / 100).toFixed(2)} · {attempt.createdAt.toLocaleString("zh-CN")}
+                    {attempt.providerAttemptId ? ` · 渠道流水 ${attempt.providerAttemptId}` : ""}
+                    {attempt.failureCode ? ` · ${attempt.failureCode}` : ""}
+                    {attempt.failureMessage ? ` · ${attempt.failureMessage}` : ""}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+            {refundableCents > 0 ? <AdminRefundForm orderId={order.id} refundableCents={refundableCents} /> : null}
+            {order.refunds.length ? (
+              <div className="mt-3 rounded-[6px] border border-black/8 bg-paper p-3 text-xs leading-5 text-ink/55">
+                <p className="font-semibold text-ink">线上退款记录</p>
+                {order.refunds.map((refund) => (
+                  <p key={refund.id} className="mt-1">{refund.status} · ¥{(refund.amount / 100).toFixed(2)} · {refund.reason ?? "未填写原因"}{refund.failureMessage ? ` · ${refund.failureMessage}` : ""}</p>
+                ))}
               </div>
             ) : null}
             </article>

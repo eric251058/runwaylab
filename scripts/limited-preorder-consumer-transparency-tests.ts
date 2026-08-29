@@ -20,8 +20,9 @@ assert.match(panel, /campaign\.termsText/);
 assert.match(panel, /我已完整阅读并同意以上 \{campaign\.termsVersion\} 条款正文/);
 assert.match(projectPage, /termsText: presaleCampaign!\.preorderTermsText/);
 
-// Paid-order pilots disclose manual confirmation and surface the exact returned expiry.
-assert.match(panel, /当前为人工付款确认试点，不会在提交时自动扣款/);
+// Paid-order pilots disclose verified online checkout and surface the exact returned expiry.
+assert.match(panel, /支付宝官方收银台/);
+assert.match(panel, /只有支付宝验签回调确认成功后才计为已付款/);
 assert.match(panel, /campaign\.paymentInstructions/);
 assert.match(projectPage, /paymentInstructions: presaleCampaign!\.preorderPaymentInstructions/);
 assert.match(panel, /reservationExpiresAt/);

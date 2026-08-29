@@ -15,3 +15,7 @@ Do not rely on Next.js static asset handling for files created after the build. 
 Keep only one effective `server` block for the production host. Previous deployments have seen conflicting `server_name` warnings; duplicated blocks can make `/uploads/` appear fixed in one vhost while another vhost still routes requests incorrectly.
 
 This document does not change Nginx or PM2 configuration. Apply server changes manually during deployment review.
+
+## Payments
+
+Online payment is disabled by default and has a separate deployment, pilot, reconciliation, and emergency-stop procedure. Follow [PAYMENT_RUNBOOK.md](./PAYMENT_RUNBOOK.md) before enabling either production payment feature flag.

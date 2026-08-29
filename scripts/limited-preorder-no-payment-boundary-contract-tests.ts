@@ -26,9 +26,9 @@ const genericOrderUpdate = exportedAction(projectActions, "updateProjectOrder");
 assert.match(configure, /LimitedPreorderQualificationMode\.CONFIRMED_ORDER/);
 assert.match(configure, /preorderPaymentInstructions/);
 assert.match(configure, /(?:不收款|不得配置转账|不得填写付款|付款指引|支付指引)/);
-assert.match(configure, /preorderPaymentInstructions:\s*null/);
+assert.match(configure, /preorderPaymentInstructions:\s*preorderQualificationMode === LimitedPreorderQualificationMode\.PAID_ORDER \? preorderPaymentInstructions : null/);
 assert.match(configure, /LimitedPreorderQualificationMode\.PAID_ORDER/);
-assert.match(configure, /退款记录闭环/);
+assert.match(configure, /assertOnlinePaymentInstructions/);
 assert.match(lifecycle, /LIMITED_PREORDER_NO_PAYMENT_NOTICE/);
 assert.match(lifecycle, /不在线收款、不收定金，也不提供线下转账指引/);
 assert.match(lifecycle, /assertNoLimitedPreorderPaymentSolicitation/);
@@ -44,7 +44,8 @@ assert.match(
   /paymentInstructionsSnapshot:\s*campaign\.preorderQualificationMode === LimitedPreorderQualificationMode\.PAID_ORDER[\s\S]*\?\s*campaign\.preorderPaymentInstructions[\s\S]*:\s*null/
 );
 assert.match(preorderService, /CONFIRMED_ORDER_RESERVATION_TTL_MS = 24 \* 60 \* 60 \* 1000/);
-assert.match(preorderService, /new Date\(Math\.min\([\s\S]*campaign\.preorderDeadline\.getTime\(\)[\s\S]*now\.getTime\(\) \+ CONFIRMED_ORDER_RESERVATION_TTL_MS/);
+assert.match(preorderService, /PAID_ORDER_RESERVATION_TTL_MS = 20 \* 60 \* 1000/);
+assert.match(preorderService, /campaign\.preorderQualificationMode === LimitedPreorderQualificationMode\.PAID_ORDER[\s\S]*PAID_ORDER_RESERVATION_TTL_MS[\s\S]*CONFIRMED_ORDER_RESERVATION_TTL_MS/);
 
 // Payment guidance remains available only to a future PAID_ORDER surface; it is
 // not rendered merely because a stale snapshot happens to be non-empty.

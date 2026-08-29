@@ -5,6 +5,7 @@ import {
   ProjectProductStatus
 } from "@prisma/client";
 import {
+  assertOnlinePaymentInstructions,
   assertNoLimitedPreorderPaymentSolicitation,
   LIMITED_PREORDER_NO_PAYMENT_NOTICE
 } from "@/lib/projects/preorder-lifecycle";
@@ -169,11 +170,16 @@ export function createLimitedPreorderOfferEnvelope({
     ))
     .sort((left, right) => left.id.localeCompare(right.id));
 
-  if (campaign.preorderQualificationMode !== LimitedPreorderQualificationMode.CONFIRMED_ORDER) {
-    issues.push(issue("OFFER_MODE", "首期最终开售资料包只允许不收款的人工确认订单意向模式。"));
-  }
-  if (campaign.preorderPaymentInstructions?.trim()) {
+  const noPaymentMode = campaign.preorderQualificationMode === LimitedPreorderQualificationMode.CONFIRMED_ORDER;
+  if (noPaymentMode && campaign.preorderPaymentInstructions?.trim()) {
     issues.push(issue("OFFER_PAYMENT_INSTRUCTIONS", "不收款试点不得包含转账、定金或其他付款指引。"));
+  }
+  if (!noPaymentMode) {
+    try {
+      assertOnlinePaymentInstructions(campaign.preorderPaymentInstructions);
+    } catch {
+      issues.push(issue("OFFER_PAYMENT_INSTRUCTIONS", "在线付款模式必须提供官方订单页付款说明，且不得引导个人账户、收款码或线下转账。"));
+    }
   }
   for (const [label, value] of [
     ["项目标题", projectTitle],
@@ -214,10 +220,10 @@ export function createLimitedPreorderOfferEnvelope({
   if (!campaign.preorderTermsText || campaign.preorderTermsText.trim().length < 40) {
     issues.push(issue("OFFER_TERMS_TEXT", "最终开售资料包必须锁定至少 40 个字符的完整条款。"));
   }
-  if (!campaign.preorderTermsText?.includes(LIMITED_PREORDER_NO_PAYMENT_NOTICE)) {
+  if (noPaymentMode && !campaign.preorderTermsText?.includes(LIMITED_PREORDER_NO_PAYMENT_NOTICE)) {
     issues.push(issue("OFFER_NO_PAYMENT_NOTICE", "最终开售资料包必须包含不可删除的不收款与不提供线下转账指引说明。"));
   }
-  if (campaign.preorderTermsText) {
+  if (noPaymentMode && campaign.preorderTermsText) {
     try {
       assertNoLimitedPreorderPaymentSolicitation(campaign.preorderTermsText, "最终开售条款");
     } catch {
