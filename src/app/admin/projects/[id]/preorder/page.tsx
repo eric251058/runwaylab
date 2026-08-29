@@ -12,7 +12,8 @@ import {
 } from "@prisma/client";
 import { dateInputValue } from "@/lib/commercial-collaboration";
 import { saveProjectProduct, saveProjectSku } from "@/lib/commercial-collaboration-actions";
-import { isFeatureEnabled } from "@/lib/features";
+import { getFeatureFlags } from "@/lib/features";
+import { createPaymentProvider } from "@/lib/payments/provider";
 import { prisma } from "@/lib/prisma";
 import { assignCollaborationProjectOwner } from "@/lib/projects/owner-actions";
 import {
@@ -65,7 +66,7 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
     ? resolvedSearchParams.ownerQuery[0]
     : resolvedSearchParams.ownerQuery;
   const ownerQuery = rawOwnerQuery?.trim().slice(0, 80) ?? "";
-  const [project, preorderEnabled, ownerCandidates] = await Promise.all([
+  const [project, featureFlags, ownerCandidates] = await Promise.all([
     prisma.collaborationProject.findUnique({
       where: { id },
       include: {
@@ -100,7 +101,7 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
         _count: { select: { orders: true } }
       }
     }),
-    isFeatureEnabled("feature.limited_preorder_v23"),
+    getFeatureFlags(),
     prisma.user.findMany({
       where: {
         status: UserStatus.ACTIVE,
@@ -126,6 +127,8 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
       take: 50
     })
   ]);
+  const preorderEnabled = featureFlags["feature.limited_preorder_v23"];
+  const onlinePaymentReady = createPaymentProvider(featureFlags).configured;
   if (!project) notFound();
 
   const campaign = project.presaleCampaign;
@@ -447,7 +450,7 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
               <input name="preorderCapacity" type="number" min={1} required defaultValue={campaign.preorderCapacity ?? ""} placeholder="本期活动总限量" className={input} />
               <label className="grid gap-1 text-xs font-semibold text-ink/45">预售截止时间（UTC）<input name="preorderDeadline" type="datetime-local" required defaultValue={dateTimeInputValue(campaign.preorderDeadline)} className={input} /></label>
               <select name="preorderQualificationMode" defaultValue={campaign.preorderQualificationMode} className={input}>
-                {Object.values(LimitedPreorderQualificationMode).map((mode) => <option key={mode} value={mode} disabled={mode === LimitedPreorderQualificationMode.PAID_ORDER}>{LIMITED_PREORDER_QUALIFICATION_LABELS[mode]}{mode === LimitedPreorderQualificationMode.PAID_ORDER ? "（待退款闭环）" : ""}</option>)}
+                {Object.values(LimitedPreorderQualificationMode).map((mode) => <option key={mode} value={mode} disabled={mode === LimitedPreorderQualificationMode.PAID_ORDER && !onlinePaymentReady}>{LIMITED_PREORDER_QUALIFICATION_LABELS[mode]}{mode === LimitedPreorderQualificationMode.PAID_ORDER && !onlinePaymentReady ? "（商户配置未完成）" : ""}</option>)}
               </select>
               <input name="preorderTermsVersion" required defaultValue={campaign.preorderTermsVersion} placeholder="条款版本" className={input} />
               <input name="reason" required minLength={4} placeholder="配置原因，例如：需求验证已达标" className={input} />
@@ -461,7 +464,8 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
                 placeholder="完整预售条款正文"
                 className={textarea + " md:col-span-2"}
               />
-              <div className="rounded-[6px] border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-950 md:col-span-2">首期试点服务端强制不收款，不能填写转账、定金或任何付款指引。</div>
+              <textarea name="preorderPaymentInstructions" defaultValue={campaign.preorderPaymentInstructions ?? ""} maxLength={2000} placeholder="仅在线付款模式填写：说明从 RunwayLab 官方订单页进入支付宝、回调确认和失败原路退款；禁止个人账户、收款码或线下转账。" className={textarea + " md:col-span-2"} />
+              <div className={`rounded-[6px] border p-3 text-sm leading-6 md:col-span-2 ${onlinePaymentReady ? "border-blue-200 bg-blue-50 text-blue-950" : "border-emerald-200 bg-emerald-50 text-emerald-950"}`}>{onlinePaymentReady ? "支付宝商户和生产安全开关已配置，可选择在线付款模式；不收款模式仍保持原有强制边界。" : "当前仅可保存不收款模式。在线付款模式必须先完成支付宝商户、异步通知、原路退款和生产安全开关配置。"}</div>
               <button disabled={authorizationDecisionLocked} className="h-11 rounded-full border border-black/10 bg-white px-5 text-sm font-semibold disabled:opacity-35 md:col-span-2">{authorizationDecisionLocked ? "作者决定期间，配置已锁定" : "保存并审计预售配置"}</button>
             </form>
           ) : null}
@@ -482,7 +486,7 @@ export default async function AdminPreorderPreparationPage({ params, searchParam
               preorderEnabled ? "正式开放限量预售" : "V2.3 功能开关未开启",
               "开售原因",
               {
-                disabled: !preorderEnabled || !admission?.ok,
+                disabled: !preorderEnabled || !admission?.ok || (campaign.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER && !onlinePaymentReady),
                 extra: <label className="flex items-start gap-2 text-xs leading-5"><input name="confirmPreorderNotice" type="checkbox" required className="mt-1" />已确认消费者页面明确展示“预售不等于现货”及当前条款版本。</label>
               }
             ) : null}

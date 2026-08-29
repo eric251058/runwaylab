@@ -79,7 +79,7 @@ async function main() {
   await assertEqual("preorder route does not read client paymentStatus", preorderRoute.includes("body?.paymentStatus"), false);
   await assertEqual("preorder route requires idempotency key", preorderRoute.includes('request.headers.get("Idempotency-Key")'), true);
   await assertEqual("preorder route delegates transaction", preorderRoute.includes("createLimitedPreorder"), true);
-  await assertEqual("preorder route never calls payment before order", preorderRoute.includes("createPaymentProvider"), false);
+  await assertEqual("preorder route creates payment only after order", preorderRoute.indexOf("const result = await createLimitedPreorder") < preorderRoute.indexOf("const payment = await createOrderPayment"), true);
 
   const sms = createSmsProvider({});
   const smsResult = await sms.send({ to: "+8613800138000", template: "preorder", variables: { code: "1234" } });

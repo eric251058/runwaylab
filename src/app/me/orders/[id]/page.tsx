@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { LimitedPreorderQualificationMode, LimitedPreorderStatus } from "@prisma/client";
+import { OnlinePaymentButton } from "@/components/payments/OnlinePaymentButton";
 import { getCurrentUser } from "@/lib/auth/session";
 import { PROJECT_ORDER_STATUS_LABELS } from "@/lib/commercial-collaboration";
-import { isFeatureEnabled } from "@/lib/features";
+import { getFeatureFlags } from "@/lib/features";
+import { createPaymentProvider } from "@/lib/payments/provider";
 import { LIMITED_PREORDER_QUALIFICATION_LABELS, LIMITED_PREORDER_STATUS_LABELS } from "@/lib/projects/preorder-lifecycle";
 import { formatMoneyCents, PROJECT_ORDER_FULFILLMENT_STATUS_LABELS, PROJECT_ORDER_PAYMENT_STATUS_LABELS } from "@/lib/projects/rules";
 import { readProjectOrderProductSnapshot, readProjectOrderSkuSnapshot } from "@/lib/projects/order-snapshots";
@@ -57,7 +59,9 @@ export default async function MeOrderDetailPage({ params }: PageProps) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/me/orders");
 
-  const enabled = await isFeatureEnabled("feature.limited_preorder_v23");
+  const flags = await getFeatureFlags();
+  const enabled = flags["feature.limited_preorder_v23"];
+  const paymentProvider = createPaymentProvider(flags);
 
   const { id } = await params;
   const order = await prisma.projectOrder.findFirst({
@@ -84,6 +88,11 @@ export default async function MeOrderDetailPage({ params }: PageProps) {
   const productSnapshot = readProjectOrderProductSnapshot(order.productSnapshot);
   const skuSnapshot = readProjectOrderSkuSnapshot(order.skuSnapshot);
   const noPaymentOrder = order.preorderCampaign?.preorderQualificationMode === LimitedPreorderQualificationMode.CONFIRMED_ORDER;
+  const canPayOnline = paymentProvider.configured
+    && order.preorderCampaign?.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER
+    && ["UNPAID", "PENDING", "FAILED"].includes(order.paymentStatus)
+    && ["RESERVATION", "PENDING_PAYMENT", "CONFIRMED"].includes(order.status)
+    && Boolean(order.totalAmount && order.totalAmount > 0 && order.termsAcceptedAt);
   const reservationExpiry = order.reservationExpiresAt
     ? `${order.reservationExpiresAt.getTime() > Date.now() ? "名额锁定至" : "名额锁定已于"} ${formatDateTime(order.reservationExpiresAt)}${order.reservationExpiresAt.getTime() > Date.now() ? "" : " 到期"}`
     : null;
@@ -130,12 +139,13 @@ export default async function MeOrderDetailPage({ params }: PageProps) {
         </div>
 
         {reservationExpiry ? <p className="mt-4 rounded-[6px] border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">{reservationExpiry}</p> : null}
+        {canPayOnline ? <OnlinePaymentButton orderId={order.id} /> : null}
         {order.confirmedAt ? (
           <div className="mt-4 rounded-[6px] border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-950">
             <p className="font-semibold">平台已人工核验这笔真实订单意向</p>
             <p className="mt-1">核验时间：{formatDateTime(order.confirmedAt)} · 渠道：{order.confirmationChannel ?? "已记录"}</p>
             {order.confirmationSummary ? <p className="mt-1">核验摘要：{order.confirmationSummary}</p> : null}
-            <p className="mt-1 text-xs">本批不收款；“已核验”仅表示计入成团口径，不代表已付款或已有现货。</p>
+            <p className="mt-1 text-xs">{noPaymentOrder ? "本批不收款；“已核验”仅表示计入成团口径，不代表已付款或已有现货。" : "平台核验与支付状态分别记录；只有支付宝服务器验签回调才能把订单更新为已付款。"}</p>
           </div>
         ) : null}
         {order.cancellationReason ? <p className="mt-4 rounded-[6px] border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-950">取消或失败原因：{order.cancellationReason}</p> : null}
@@ -148,13 +158,13 @@ export default async function MeOrderDetailPage({ params }: PageProps) {
         ) : null}
         {order.preorderCampaign?.preorderQualificationMode === "PAID_ORDER" && order.paymentInstructionsSnapshot ? (
           <div className="mt-4 rounded-[6px] border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
-            <p className="font-semibold">下单时适用的人工付款指引</p>
+            <p className="font-semibold">下单时适用的在线付款说明</p>
             <p className="mt-2 whitespace-pre-line">{order.paymentInstructionsSnapshot}</p>
           </div>
         ) : null}
 
         <p className="mt-5 rounded-[6px] border border-black/8 bg-paper p-3 text-sm leading-6 text-ink/55">
-          {order.note ?? "RunwayLab 当前不处理真实支付、退款或物流，后续由平台人工确认。"}
+          {order.note ?? (noPaymentOrder ? "本笔仅记录订单意向，不发生在线收款。" : "支付与退款结果以支付渠道服务器回执为准；物流和履约状态另行记录。")}
         </p>
       </article>
     </div>

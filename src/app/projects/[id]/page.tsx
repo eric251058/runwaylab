@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LimitedPreorderStatus, PresaleCampaignIntentStatus, ReviewStatus } from "@prisma/client";
+import { LimitedPreorderQualificationMode, LimitedPreorderStatus, PresaleCampaignIntentStatus, ReviewStatus } from "@prisma/client";
 import { LimitedPreorderPanel } from "@/components/projects/LimitedPreorderPanel";
 import { ProjectIssueForm } from "@/components/projects/ProjectIssueForm";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -35,7 +35,11 @@ function formatPreorderDateTime(value?: Date | null) {
   }).format(value);
 }
 
-function limitedPreorderPublicNotice(status: LimitedPreorderStatus, submissionEnabled: boolean) {
+function limitedPreorderPublicNotice(
+  status: LimitedPreorderStatus,
+  submissionEnabled: boolean,
+  mode: LimitedPreorderQualificationMode
+) {
   switch (status) {
     case LimitedPreorderStatus.OPEN:
       return submissionEnabled
@@ -46,9 +50,13 @@ function limitedPreorderPublicNotice(status: LimitedPreorderStatus, submissionEn
     case LimitedPreorderStatus.GOAL_REACHED:
       return "本期已达到成团目标，正在等待平台确认进入生产；达标不等于已经发货。";
     case LimitedPreorderStatus.FAILED:
-      return "本期未达到成团目标，未付款订单意向将关闭；本期未在线收款，也不产生平台退款流程。";
+      return mode === LimitedPreorderQualificationMode.PAID_ORDER
+        ? "本期未达到成团目标，未付款订单将关闭；已付款订单进入原路退款，退款完成以支付宝回执和个人订单记录为准。"
+        : "本期未达到成团目标，未付款订单意向将关闭；本期未在线收款，也不产生平台退款流程。";
     case LimitedPreorderStatus.CANCELLED:
-      return "本期已取消，未付款订单意向将关闭；本期未在线收款，也不产生平台退款流程。";
+      return mode === LimitedPreorderQualificationMode.PAID_ORDER
+        ? "本期已取消，未付款订单将关闭；已付款订单进入原路退款，退款完成以支付宝回执和个人订单记录为准。"
+        : "本期已取消，未付款订单意向将关闭；本期未在线收款，也不产生平台退款流程。";
     case LimitedPreorderStatus.PRODUCTION:
       return "本期已进入生产。预计发货仍是计划时间，具体生产、质检和发货进度以个人订单记录为准。";
     case LimitedPreorderStatus.CLOSED:
@@ -302,7 +310,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
           <p className="mt-4 rounded-[6px] border border-black/8 bg-paper p-3 text-sm leading-6 text-ink/58">
             {presaleCampaign.preorderStatus === LimitedPreorderStatus.OPEN && preorderDeadlinePassed
               ? "本期预售已截止，正在等待平台按真实订单意向结算；当前不再接受新提交。"
-              : limitedPreorderPublicNotice(presaleCampaign.preorderStatus, canSubmitLimitedPreorder)}
+              : limitedPreorderPublicNotice(presaleCampaign.preorderStatus, canSubmitLimitedPreorder, presaleCampaign.preorderQualificationMode)}
           </p>
           {presaleCampaign.preorderPublicNotice ? <p className="mt-3 text-sm leading-6 text-ink/58"><span className="font-semibold text-ink">平台状态说明：</span>{presaleCampaign.preorderPublicNotice}</p> : null}
           {presaleCampaign.preorderStatus === LimitedPreorderStatus.OPEN && preorderEnabled && workPublicReady && !preorderProducts.length ? <p className="mt-3 text-sm font-semibold text-red-700">当前没有可下单商品，请联系 RunwayLab 平台核对活动配置。</p> : null}

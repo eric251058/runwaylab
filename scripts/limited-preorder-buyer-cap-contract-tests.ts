@@ -43,7 +43,7 @@ assert.match(buyerAggregate, /activeReservationWhere/);
 
 // Idempotent replay returns the existing order before the buyer-cap aggregate,
 // so the original reservation cannot cause its own retry to be rejected.
-const existingOrderReturn = service.indexOf("if (existingOrder) return { order: existingOrder, repeated: true }");
+const existingOrderReturn = service.indexOf("if (existingOrder) return { order: existingOrder, repeated: true,");
 assert(existingOrderReturn >= 0, "idempotent order replay return must exist");
 assert(existingOrderReturn < buyerAggregateStart, "idempotent replay must run before buyer cap evaluation");
 

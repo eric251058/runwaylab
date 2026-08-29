@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { isFeatureEnabled } from "@/lib/features";
+import { getFeatureFlags, isFeatureEnabled } from "@/lib/features";
+import { createOrderPayment, PaymentServiceError } from "@/lib/payments/order-payment-service";
+import { createPaymentProvider } from "@/lib/payments/provider";
 import { createLimitedPreorder, PreorderError } from "@/lib/projects/preorder-service";
 import { PILOT_BUYER_CAMPAIGN_QUANTITY_LIMIT } from "@/lib/projects/preorder-buyer-cap";
 import { checkRateLimit } from "@/lib/security/rate-limit";
@@ -50,7 +52,33 @@ export async function POST(request: Request, context: RouteContext) {
       idempotencyKey,
       termsAccepted: body?.acceptPreorderTerms === true
     });
-    return NextResponse.json({ order: result.order, repeated: result.repeated }, { status: result.repeated ? 200 : 201 });
+    if (result.requiresPayment) {
+      const provider = createPaymentProvider(await getFeatureFlags());
+      const publicBaseUrl = process.env.PAYMENT_PUBLIC_BASE_URL
+        ?? (process.env.NODE_ENV === "production" ? "" : new URL(request.url).origin);
+      try {
+        const payment = await createOrderPayment({
+          orderId: result.order.id,
+          buyerId: user.id,
+          idempotencyKey: `checkout:${idempotencyKey}`,
+          provider,
+          publicBaseUrl
+        });
+        return NextResponse.json(
+          { order: result.order, repeated: result.repeated, requiresPayment: true, checkoutUrl: payment.checkoutUrl },
+          { status: result.repeated ? 200 : 201 }
+        );
+      } catch (error) {
+        if (error instanceof PaymentServiceError) {
+          return NextResponse.json(
+            { order: result.order, repeated: result.repeated, requiresPayment: true, error: error.message, code: error.code },
+            { status: 409 }
+          );
+        }
+        throw error;
+      }
+    }
+    return NextResponse.json({ order: result.order, repeated: result.repeated, requiresPayment: false }, { status: result.repeated ? 200 : 201 });
   } catch (error) {
     if (error instanceof PreorderError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });

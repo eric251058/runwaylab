@@ -33,6 +33,15 @@ export const LIMITED_PREORDER_QUALIFICATION_LABELS: Record<LimitedPreorderQualif
 export const LIMITED_PREORDER_NO_PAYMENT_NOTICE =
   "本期仅记录经平台人工核验的真实订单意向，不在线收款、不收定金，也不提供线下转账指引。";
 
+const OFF_PLATFORM_PAYMENT_PATTERN = /(个人(?:账户|收款码|微信|支付宝)|银行卡号|银行转账|微信转账|群(?:聊)?收款|扫码转账|线下打款)/i;
+
+export function assertOnlinePaymentInstructions(value: string | null | undefined) {
+  const normalized = value?.trim() ?? "";
+  if (normalized.length < 20) throw new Error("ONLINE_PAYMENT_INSTRUCTIONS_REQUIRED");
+  if (OFF_PLATFORM_PAYMENT_PATTERN.test(normalized)) throw new Error("OFF_PLATFORM_PAYMENT_INSTRUCTIONS_FORBIDDEN");
+  return normalized;
+}
+
 const NEGATED_PAYMENT_LANGUAGE = /(?:不|未|无需|无须|不会|不得|禁止|请勿|不可|不必)[^。；，,！？!\n]{0,12}(?:收款|付款|支付|转账|汇款|打款|缴费|付费|订金|定金)/gi;
 const PAYMENT_SOLICITATION_PATTERNS = [
   /(?:收款|付款|支付|转账|汇款|打款|缴费|付费|订金|定金)/i,
@@ -206,11 +215,12 @@ export function evaluateLimitedPreorderAdmission(input: LimitedPreorderAdmission
   ) {
     issues.push(issue("NO_PAYMENT_NOTICE", "首期条款必须包含不可删除的“不在线收款、不收定金、不提供线下转账指引”说明。"));
   }
-  if (
-    input.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER
-    && (!input.preorderPaymentInstructions || input.preorderPaymentInstructions.trim().length < 20)
-  ) {
-    issues.push(issue("PAYMENT_INSTRUCTIONS", "按付款成团时必须提供至少 20 个字符的明确付款和人工确认指引。"));
+  if (input.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER) {
+    try {
+      assertOnlinePaymentInstructions(input.preorderPaymentInstructions);
+    } catch {
+      issues.push(issue("PAYMENT_INSTRUCTIONS", "在线付款模式必须提供官方订单页付款说明，且不得引导个人账户、收款码或线下转账。"));
+    }
   }
   if (
     input.preorderQualificationMode === LimitedPreorderQualificationMode.CONFIRMED_ORDER

@@ -259,7 +259,9 @@ assert(issueCodes(incompleteSku).has("OFFER_SKU_OPTION"));
 
 const paidMode = validInput();
 paidMode.campaign.preorderQualificationMode = LimitedPreorderQualificationMode.PAID_ORDER;
-assert(issueCodes(paidMode).has("OFFER_MODE"));
+paidMode.campaign.preorderPaymentInstructions = "请仅从 RunwayLab 官方订单页进入支付宝官方收银台，支付结果以服务器回调为准。";
+assert(!issueCodes(paidMode).has("OFFER_MODE"));
+assert(!issueCodes(paidMode).has("OFFER_PAYMENT_INSTRUCTIONS"));
 
 const paymentInstructions = validInput();
 paymentInstructions.campaign.preorderPaymentInstructions = "请向个人账户转账并把截图发送给项目负责人";

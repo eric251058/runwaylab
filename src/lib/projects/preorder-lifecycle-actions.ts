@@ -18,10 +18,12 @@ import {
 import { getCurrentUser } from "@/lib/auth/session";
 import { enumValue, optionalText, requiredText } from "@/lib/commercial-collaboration";
 import { getFeatureFlags, isFeatureEnabled } from "@/lib/features";
+import { createPaymentProvider } from "@/lib/payments/provider";
 import { isAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import {
   assertLifecycleReason,
+  assertOnlinePaymentInstructions,
   assertPublicPreorderNotice,
   canTransitionLimitedPreorder,
   evaluateLimitedPreorderAdmission,
@@ -365,24 +367,28 @@ export async function configureLimitedPreorderCampaign(formData: FormData) {
   if (preorderTargetQuantity > preorderCapacity) throw new Error("成团目标不能大于活动限量");
   const preorderDeadline = optionalUtcDateTime(formData.get("preorderDeadline"));
   if (!preorderDeadline || preorderDeadline <= new Date()) throw new Error("预售截止时间必须晚于当前时间");
-  const preorderTermsVersion = requiredText(formData.get("preorderTermsVersion"), "条款版本").slice(0, 80);
-  const preorderTermsText = normalizeLimitedPreorderNoPaymentTerms(
-    requiredText(formData.get("preorderTermsText"), "预售条款正文").slice(0, 5000)
-  );
-  if (preorderTermsText.length < 40) throw new Error("预售条款正文至少需要 40 个字符");
   const preorderQualificationMode = enumValue(
     formData.get("preorderQualificationMode"),
     Object.values(LimitedPreorderQualificationMode),
     LimitedPreorderQualificationMode.CONFIRMED_ORDER
   );
+  const preorderTermsVersion = requiredText(formData.get("preorderTermsVersion"), "条款版本").slice(0, 80);
+  const rawTermsText = requiredText(formData.get("preorderTermsText"), "预售条款正文").slice(0, 5000);
+  const preorderTermsText = preorderQualificationMode === LimitedPreorderQualificationMode.CONFIRMED_ORDER
+    ? normalizeLimitedPreorderNoPaymentTerms(rawTermsText)
+    : rawTermsText;
+  if (preorderTermsText.length < 40) throw new Error("预售条款正文至少需要 40 个字符");
+  if (preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER && preorderTermsText.includes("不在线收款")) {
+    throw new Error("在线付款模式的条款与不收款说明冲突，请重新确认条款正文");
+  }
   const preorderPaymentInstructions = optionalText(formData.get("preorderPaymentInstructions"))?.slice(0, 2000) ?? null;
-  if (preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER && (!preorderPaymentInstructions || preorderPaymentInstructions.length < 20)) {
-    throw new Error("按付款成团时必须填写至少 20 个字符的付款和人工确认指引");
-  }
   if (preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER) {
-    throw new Error("本批次仅开放人工确认的真实订单意向；按付款成团必须等待真实退款记录闭环完成后再启用");
-  }
-  if (preorderPaymentInstructions) {
+    try {
+      assertOnlinePaymentInstructions(preorderPaymentInstructions);
+    } catch {
+      throw new Error("在线付款模式必须填写至少 20 个字符的官方订单页付款说明，且不得包含个人账户、收款码或线下转账");
+    }
+  } else if (preorderPaymentInstructions) {
     throw new Error("首期人工确认订单意向不收款，不得配置转账、定金或其他付款指引");
   }
 
@@ -401,7 +407,16 @@ export async function configureLimitedPreorderCampaign(formData: FormData) {
     }
     const changed = await tx.presaleCampaign.updateMany({
       where: { id: campaignId, preorderStatus: LimitedPreorderStatus.NOT_STARTED },
-      data: { preorderTargetQuantity, preorderCapacity, preorderDeadline, preorderTermsVersion, preorderTermsText, preorderPaymentInstructions: null, preorderQualificationMode, preorderPublicNotice: publicNotice }
+      data: {
+        preorderTargetQuantity,
+        preorderCapacity,
+        preorderDeadline,
+        preorderTermsVersion,
+        preorderTermsText,
+        preorderPaymentInstructions: preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER ? preorderPaymentInstructions : null,
+        preorderQualificationMode,
+        preorderPublicNotice: publicNotice
+      }
     });
     if (changed.count !== 1) throw new Error("预售配置已变化，请刷新后重试");
     await recordLifecycleAdminLog(tx, {
@@ -410,7 +425,16 @@ export async function configureLimitedPreorderCampaign(formData: FormData) {
       campaignId,
       projectId,
       reason,
-      detail: { preorderTargetQuantity, preorderCapacity, preorderDeadline: preorderDeadline.toISOString(), preorderTermsVersion, preorderTermsText, preorderPaymentInstructions: null, preorderQualificationMode, publicNotice }
+      detail: {
+        preorderTargetQuantity,
+        preorderCapacity,
+        preorderDeadline: preorderDeadline.toISOString(),
+        preorderTermsVersion,
+        preorderTermsText,
+        preorderPaymentInstructions: preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER ? preorderPaymentInstructions : null,
+        preorderQualificationMode,
+        publicNotice
+      }
     });
   });
 
@@ -525,8 +549,11 @@ export async function openLimitedPreorderCampaign(formData: FormData) {
     const now = new Date();
     const context = await loadLifecycleContext(tx, campaignId, projectId);
     if (context.campaign.preorderStatus === LimitedPreorderStatus.OPEN) return;
-    if (context.campaign.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER) {
-      throw new Error(`按付款成团尚未开放：当前批次没有可核验的退款记录闭环（人工支付试点 ${flags["feature.manual_payment_pilot"] ? "已开启" : "未开启"}；真实支付 ${flags["feature.live_payment"] ? "已配置但未接入本流程" : "未开启"}）`);
+    if (
+      context.campaign.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER
+      && !createPaymentProvider(flags).configured
+    ) {
+      throw new Error("按付款成团尚未开放：请先完成支付宝商户、异步通知、退款能力及生产支付双开关配置。");
     }
     const admission = admissionForContext(context, { now });
     if (!admission.ok) throw new Error(`暂不可开放限量预售：${admission.issues.map((item) => item.message).join("；")}`);
@@ -599,6 +626,7 @@ export async function pauseLimitedPreorderCampaign(formData: FormData) {
 export async function resumeLimitedPreorderCampaign(formData: FormData) {
   const admin = await requireAdminUser();
   if (!(await isFeatureEnabled("feature.limited_preorder_v23"))) throw new Error("Limited Preorder V2.3 功能开关未开启");
+  const paymentFlags = await getFeatureFlags();
   const campaignId = requiredText(formData.get("campaignId"), "预售活动");
   const projectId = requiredText(formData.get("projectId"), "协作项目");
   const reason = assertLifecycleReason(optionalText(formData.get("reason")));
@@ -608,8 +636,11 @@ export async function resumeLimitedPreorderCampaign(formData: FormData) {
     const now = new Date();
     const context = await loadLifecycleContext(tx, campaignId, projectId);
     if (context.campaign.preorderStatus === LimitedPreorderStatus.OPEN) return;
-    if (context.campaign.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER) {
-      throw new Error("按付款成团尚未具备真实退款记录闭环，不能恢复接单");
+    if (
+      context.campaign.preorderQualificationMode === LimitedPreorderQualificationMode.PAID_ORDER
+      && !createPaymentProvider(paymentFlags).configured
+    ) {
+      throw new Error("在线支付商户配置或生产安全开关不完整，不能恢复付款接单");
     }
     const admission = admissionForContext(context, { now, resume: true });
     if (!admission.ok) throw new Error(`暂不可恢复限量预售：${admission.issues.map((item) => item.message).join("；")}`);
