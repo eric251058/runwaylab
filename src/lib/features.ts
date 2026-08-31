@@ -7,7 +7,9 @@ export const FEATURE_KEYS = [
   "feature.limited_preorder_v23",
   "feature.live_sms",
   "feature.live_payment",
-  "feature.manual_payment_pilot"
+  "feature.manual_payment_pilot",
+  "feature.demand_commerce",
+  "feature.provider_settlement"
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
@@ -20,6 +22,8 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   "feature.live_sms": "真实短信",
   "feature.live_payment": "真实支付",
   "feature.manual_payment_pilot": "人工支付试点"
+  ,"feature.demand_commerce": "需求共创交易",
+  "feature.provider_settlement": "服务商分账"
 };
 
 function envName(key: FeatureKey) {

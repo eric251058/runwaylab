@@ -6,6 +6,7 @@ import { PrivateProjectActionCard, type PrivateProjectActionCardAction } from "@
 import { ProjectCommercialTerms } from "@/components/projects/ProjectCommercialTerms";
 import { ProjectTransactionRecord } from "@/components/projects/ProjectTransactionRecord";
 import { ProjectNegotiationComposer } from "@/components/projects/ProjectNegotiationComposer";
+import { ProjectCommerceStages } from "@/components/projects/ProjectCommerceStages";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   privateProjectCurrentAction,
@@ -108,6 +109,12 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
 
       <div className="mt-5 grid gap-5">
         <PrivateProjectActionCard projectId={project.id} action={currentAction ? serializeAction(currentAction) : null} />
+
+        {project.commerceStages.length ? <ProjectCommerceStages
+          projectId={project.id}
+          stages={project.commerceStages}
+          canManage={user.role === "ADMIN" || project.ownerUserId === user.id || project.projectIntake?.ownerId === user.id}
+        /> : null}
 
       <ProjectCommercialTerms
         projectId={project.id}

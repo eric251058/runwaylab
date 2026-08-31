@@ -109,6 +109,29 @@ export const privateCollaborationProjectSelect = {
     orderBy: { updatedAt: "desc" as const },
     take: 20
   },
+  commerceStages: {
+    select: {
+      id: true,
+      stage: true,
+      status: true,
+      title: true,
+      selectedProposalId: true,
+      proposals: {
+        select: {
+          id: true,
+          summary: true,
+          price: true,
+          currency: true,
+          leadTimeDays: true,
+          status: true,
+          applicant: { select: { nickname: true } },
+          provider: { select: { name: true } }
+        },
+        orderBy: { createdAt: "desc" as const }
+      }
+    },
+    orderBy: { createdAt: "asc" as const }
+  },
   milestones: {
     select: {
       id: true,
