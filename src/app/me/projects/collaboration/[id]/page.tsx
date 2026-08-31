@@ -7,6 +7,7 @@ import { ProjectCommercialTerms } from "@/components/projects/ProjectCommercialT
 import { ProjectTransactionRecord } from "@/components/projects/ProjectTransactionRecord";
 import { ProjectNegotiationComposer } from "@/components/projects/ProjectNegotiationComposer";
 import { ProjectCommerceStages } from "@/components/projects/ProjectCommerceStages";
+import { ProjectMarketValidation } from "@/components/projects/ProjectMarketValidation";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   privateProjectCurrentAction,
@@ -91,6 +92,13 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
   const currentAction = privateProjectCurrentAction(project);
   const experience = getProjectExperienceStage(project);
   const timeline = privateProjectTimeline(project);
+  const canManage = user.role === "ADMIN" || project.ownerUserId === user.id || project.projectIntake?.ownerId === user.id;
+  const canOpenMarketValidation = project.ownerUserId === user.id || project.projectIntake?.ownerId === user.id;
+  const marketValidationEligible = canOpenMarketValidation
+    && project.demandMode === "PUBLIC_COCREATION"
+    && project.visibility === "PUBLIC"
+    && project.designAuthorizations[0]?.status === "ACCEPTED"
+    && project.commerceStages.some((stage) => stage.stage === "SAMPLE" && stage.status === "COMPLETED");
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 md:px-8 md:py-12">
@@ -113,7 +121,17 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
         {project.commerceStages.length ? <ProjectCommerceStages
           projectId={project.id}
           stages={project.commerceStages}
-          canManage={user.role === "ADMIN" || project.ownerUserId === user.id || project.projectIntake?.ownerId === user.id}
+          canManage={canManage}
+        /> : null}
+
+        {canOpenMarketValidation ? <ProjectMarketValidation
+          projectId={project.id}
+          eligible={marketValidationEligible}
+          campaign={project.presaleCampaign ? {
+            ...project.presaleCampaign,
+            startDate: project.presaleCampaign.startDate?.toISOString() ?? null,
+            endDate: project.presaleCampaign.endDate?.toISOString() ?? null
+          } : null}
         /> : null}
 
       <ProjectCommercialTerms
