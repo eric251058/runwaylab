@@ -30,6 +30,27 @@ export const privateCollaborationProjectSelect = {
   ownerUserId: true,
   designerId: true,
   workId: true,
+  demandMode: true,
+  presaleCampaignId: true,
+  presaleCampaign: {
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      targetCount: true,
+      currentCount: true,
+      estimatedPrice: true,
+      sizeOptions: true,
+      colorOptions: true,
+      startDate: true,
+      endDate: true
+    }
+  },
+  designAuthorizations: {
+    select: { status: true },
+    orderBy: { createdAt: "desc" as const },
+    take: 1
+  },
   providerId: true,
   provider: {
     select: {
