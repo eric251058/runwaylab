@@ -33,6 +33,7 @@ const startFlow = source("src/components/start/StartProjectFlow.tsx");
 const sourceOptions = startFlow.slice(startFlow.indexOf("const sourceOptions"), startFlow.indexOf("const categoryOptions"));
 assert.match(sourceOptions, /选择已有作品/);
 assert.match(sourceOptions, /创建产品想法/);
+assert.match(sourceOptions, /我想要一件衣服/);
 assert.doesNotMatch(sourceOptions, /AUDIENCE|STORE|BRAND/);
 assert.doesNotMatch(startFlow, /公开 uploads/);
 

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { LimitedPreorderQualificationMode, LimitedPreorderStatus, PresaleCampaignIntentStatus, ReviewStatus } from "@prisma/client";
 import { LimitedPreorderPanel } from "@/components/projects/LimitedPreorderPanel";
 import { ProjectIssueForm } from "@/components/projects/ProjectIssueForm";
+import { StageProposalForm } from "@/components/projects/StageProposalForm";
 import { getCurrentUser } from "@/lib/auth/session";
 import { submitProjectApplication } from "@/lib/project-application-actions";
 import { PROJECT_APPLICATION_ROLE_LABELS, PROJECT_APPLICATION_ROLES, projectOpportunityNeeds } from "@/lib/project-applications";
@@ -111,6 +112,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
       milestones: { orderBy: { createdAt: "asc" } },
       orders: { where: { preorderCampaignId: null }, orderBy: { createdAt: "desc" }, take: 8 },
       reviews: { where: { status: ReviewStatus.PUBLISHED }, include: { reviewer: true }, orderBy: { createdAt: "desc" }, take: 8 }
+      ,commerceStages: { include: { proposals: { select: { id: true, status: true } } }, orderBy: { createdAt: "asc" } }
     }
   });
 
@@ -190,6 +192,11 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
       </header>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_0.75fr]">
+        {project.commerceStages.length ? <section className="rounded-[8px] border border-black/8 bg-white p-5 lg:col-span-2">
+          <h2 className="text-2xl font-semibold text-ink">需求共创进度</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-4">{project.commerceStages.map((stage, index) => <div key={stage.id} className="rounded-[8px] bg-paper p-4"><p className="text-xs font-semibold text-ink/40">阶段 {index + 1}</p><p className="mt-1 font-semibold">{stage.title}</p><p className="mt-2 text-xs text-ink/48">{stage.status === "BLOCKED" ? "等待上一阶段" : stage.status === "OPEN" ? "开放征集" : stage.status === "COMPLETED" ? "已完成" : "推进中"} · {stage.proposals.length} 个方案</p></div>)}</div>
+          {project.commerceStages.find((stage) => stage.status === "OPEN" || stage.status === "SELECTION_PENDING") ? <StageProposalForm projectId={project.id} stageId={project.commerceStages.find((stage) => stage.status === "OPEN" || stage.status === "SELECTION_PENDING")!.id} loggedIn={Boolean(currentUser)} /> : null}
+        </section> : null}
         <section className="rounded-[8px] border border-black/8 bg-white p-5">
           <h2 className="text-2xl font-semibold text-ink">参与资源</h2>
           <div className="mt-4 grid gap-3 text-sm text-ink/58 md:grid-cols-2">

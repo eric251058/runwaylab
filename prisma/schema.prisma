@@ -378,6 +378,37 @@ enum CollaborationProjectStatus {
   CANCELLED
 }
 
+enum ProjectDemandMode {
+  PERSONAL_CUSTOM
+  PUBLIC_COCREATION
+}
+
+enum ProjectCommerceStage {
+  DESIGN
+  FABRIC
+  SAMPLE
+  PRODUCTION
+}
+
+enum ProjectStageStatus {
+  BLOCKED
+  OPEN
+  SELECTION_PENDING
+  SELECTED
+  IN_PROGRESS
+  ACCEPTANCE
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectStageProposalStatus {
+  SUBMITTED
+  SHORTLISTED
+  SELECTED
+  REJECTED
+  WITHDRAWN
+}
+
 enum ProjectApplicationRole {
   PROJECT_LEAD
   FABRIC_PARTNER
@@ -787,6 +818,7 @@ model User {
   reviewedProviderShowcaseItems         ProviderShowcaseItem[]       @relation("ProviderShowcaseReviewedBy")
   requestedProviderSubscriptions        ProviderSubscription[]       @relation("ProviderSubscriptionRequestedBy")
   reviewedProviderSubscriptions         ProviderSubscription[]       @relation("ProviderSubscriptionReviewedBy")
+  projectStageProposals                 ProjectStageProposal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1254,6 +1286,7 @@ model Provider {
   collaborationProjects      CollaborationProject[]
   ownedCollaborationProjects CollaborationProject[]        @relation("CollaborationProjectOwnerProvider")
   projectOrders              ProjectOrder[]
+  projectStageProposals      ProjectStageProposal[]
   reviews                    Review[]
   caseStudies                CaseStudy[]
   showcaseItems              ProviderShowcaseItem[]
@@ -2128,6 +2161,10 @@ model CollaborationProject {
   designerPreference          DesignerProjectPreference        @default(COLLECT_DEMAND)
   targetLaunchDate            DateTime?
   internalNote                String?
+  demandMode                  ProjectDemandMode            @default(PERSONAL_CUSTOM)
+  category                    String?
+  useScenario                 String?
+  currentCommerceStage        ProjectCommerceStage         @default(DESIGN)
   createdById                 String?
   workspaceId                 String?
   workspace                   Workspace?                       @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
@@ -2156,6 +2193,8 @@ model CollaborationProject {
   providerOpportunityInterest ProviderOpportunityInterest?
   negotiationMessages         ProjectNegotiationMessage[]
   applications                ProjectApplication[]
+  commerceStages              ProjectStage[]
+  stageProposals              ProjectStageProposal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2175,6 +2214,69 @@ model CollaborationProject {
   @@index([reviewStatus])
   @@index([designerAuthorizationStatus])
   @@index([priority])
+}
+
+model ProjectStage {
+  id                 String               @id @default(cuid())
+  projectId          String
+  stage              ProjectCommerceStage
+  status             ProjectStageStatus   @default(BLOCKED)
+  title              String
+  brief              Json?
+  opensAt            DateTime?
+  selectedAt         DateTime?
+  startedAt          DateTime?
+  acceptanceAt       DateTime?
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  selectedProposalId String?              @unique
+
+  project          CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  proposals        ProjectStageProposal[] @relation("StageProposals")
+  selectedProposal ProjectStageProposal?  @relation("SelectedStageProposal", fields: [selectedProposalId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, stage])
+  @@index([projectId, status])
+  @@index([stage, status])
+}
+
+model ProjectStageProposal {
+  id             String                     @id @default(cuid())
+  projectId      String
+  stageId        String
+  applicantId    String
+  providerId     String?
+  summary        String
+  directionUrl   String?
+  price          Int?
+  currency       String                     @default("CNY")
+  leadTimeDays   Int?
+  deliverables   Json?
+  commercialNote String?
+  status         ProjectStageProposalStatus @default(SUBMITTED)
+  shortlistedAt  DateTime?
+  selectedAt     DateTime?
+  rejectedAt     DateTime?
+  withdrawnAt    DateTime?
+
+  project          CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stage            ProjectStage         @relation("StageProposals", fields: [stageId], references: [id], onDelete: Cascade)
+  applicant        User                 @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  provider         Provider?            @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  selectedForStage ProjectStage?        @relation("SelectedStageProposal")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([stageId, applicantId])
+  @@index([projectId, status])
+  @@index([stageId, status])
+  @@index([applicantId, status])
+  @@index([providerId, status])
 }
 
 model ProjectApplication {
@@ -2326,6 +2428,12 @@ model ProjectIntake {
   useScenario                  String?
   expectedPriceBand            String?
   launchTiming                 String?
+  demandMode                   ProjectDemandMode @default(PERSONAL_CUSTOM)
+  budgetMin                    Int?
+  budgetMax                    Int?
+  desiredDeliveryAt            DateTime?
+  requirements                 Json?
+  referenceImages              Json?
   reviewMessage                String?
   status                       ProjectIntakeStatus @default(DRAFT)
   completion                   Int                 @default(0)

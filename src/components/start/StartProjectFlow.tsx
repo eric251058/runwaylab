@@ -3,9 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type StartSourceType = "DESIGN" | "IDEA" | "AUDIENCE" | "STORE" | "BRAND";
-type StartCategory = "DRESS" | "SHIRT" | "OUTERWEAR" | "SET" | "SKIRT" | "PANTS" | "LIGHT_FORMAL" | "KNIT" | "OTHER";
+type StartSourceType = "DESIGN" | "IDEA" | "NEED" | "AUDIENCE" | "STORE" | "BRAND";
+type StartCategory = "DRESS" | "TOP" | "SHIRT" | "TSHIRT" | "HOODIE" | "SKIRT" | "PANTS" | "SET" | "OUTERWEAR" | "SUIT" | "KNIT" | "DENIM" | "SPORTSWEAR" | "SWIMWEAR" | "LINGERIE" | "CHILDRENSWEAR" | "LIGHT_FORMAL" | "FORMALWEAR" | "ACCESSORY" | "OTHER";
 type StartPrimaryNeed = "DESIGN_DIRECTION" | "FABRIC" | "SAMPLE" | "PRODUCTION" | "MARKET_VALIDATION" | "UNSURE";
+type DemandMode = "PERSONAL_CUSTOM" | "PUBLIC_COCREATION";
+type UseScenario = "DAILY_COMMUTE" | "WEEKEND" | "DATE_PARTY" | "FORMAL" | "TRAVEL" | "STAGE_PHOTO" | "STORE_SALES" | "OTHER" | "UNSURE";
+type PriceBand = "UNDER_299" | "FROM_300_TO_599" | "FROM_600_TO_999" | "FROM_1000_TO_1999" | "FROM_2000" | "UNSURE";
+type LaunchTiming = "WITHIN_30_DAYS" | "ONE_TO_THREE_MONTHS" | "THREE_TO_SIX_MONTHS" | "EXPLORING";
 
 type Draft = {
   version: 1;
@@ -18,6 +22,10 @@ type Draft = {
   categoryOther: string;
   primaryNeed: StartPrimaryNeed | "";
   ideaText: string;
+  demandMode: DemandMode;
+  useScenario: UseScenario | "";
+  expectedPriceBand: PriceBand | "";
+  launchTiming: LaunchTiming | "";
 };
 
 type StartProjectFlowProps = {
@@ -37,10 +45,12 @@ const draftTtlMs = 1000 * 60 * 60 * 24 * 7;
 const sourceOptions: Array<{ value: StartSourceType; label: string; description: string }> = [
   { value: "DESIGN", label: "选择已有作品", description: "从设计稿、效果图或已发布作品继续推进。" },
   { value: "IDEA", label: "创建产品想法", description: "还没有完整设计也没关系，先记录产品方向。" }
+  ,{ value: "NEED", label: "我想要一件衣服", description: "从真实穿着场景出发，由设计、面料和打样服务商依次响应。" }
 ];
 
 const categoryOptions: Array<{ value: StartCategory; label: string }> = [
   { value: "DRESS", label: "连衣裙" },
+  { value: "TOP", label: "上衣" },
   { value: "SHIRT", label: "衬衫" },
   { value: "OUTERWEAR", label: "外套" },
   { value: "SET", label: "套装" },
@@ -48,8 +58,30 @@ const categoryOptions: Array<{ value: StartCategory; label: string }> = [
   { value: "PANTS", label: "裤装" },
   { value: "LIGHT_FORMAL", label: "轻礼服" },
   { value: "KNIT", label: "针织" },
+  { value: "DENIM", label: "牛仔" },
+  { value: "SPORTSWEAR", label: "运动服" },
+  { value: "SWIMWEAR", label: "泳装" },
+  { value: "SUIT", label: "西装" },
+  { value: "CHILDRENSWEAR", label: "童装" },
+  { value: "ACCESSORY", label: "配饰" },
   { value: "OTHER", label: "其他" }
 ];
+
+const scenarioOptions = [
+  ["DAILY_COMMUTE", "日常通勤"], ["WEEKEND", "周末休闲"], ["DATE_PARTY", "聚会约会"],
+  ["FORMAL", "正式场合"], ["TRAVEL", "旅行度假"], ["STAGE_PHOTO", "舞台或拍摄"],
+  ["STORE_SALES", "店铺销售"], ["OTHER", "其他"], ["UNSURE", "还不确定"]
+] as const;
+
+const priceOptions = [
+  ["UNDER_299", "299元以内"], ["FROM_300_TO_599", "300-599元"], ["FROM_600_TO_999", "600-999元"],
+  ["FROM_1000_TO_1999", "1000-1999元"], ["FROM_2000", "2000元以上"], ["UNSURE", "还不确定"]
+] as const;
+
+const timingOptions = [
+  ["WITHIN_30_DAYS", "30天内"], ["ONE_TO_THREE_MONTHS", "1-3个月"],
+  ["THREE_TO_SIX_MONTHS", "3-6个月"], ["EXPLORING", "还在探索"]
+] as const;
 
 const needOptions: Array<{ value: StartPrimaryNeed; label: string; description: string }> = [
   { value: "DESIGN_DIRECTION", label: "找设计方向", description: "先确认产品定位和风格。" },
@@ -78,7 +110,11 @@ function emptyDraft(initialSource: StartSourceType | null): Draft {
     category: "",
     categoryOther: "",
     primaryNeed: "",
-    ideaText: ""
+    ideaText: "",
+    demandMode: "PERSONAL_CUSTOM",
+    useScenario: "",
+    expectedPriceBand: "",
+    launchTiming: ""
   };
 }
 
@@ -95,13 +131,13 @@ function readDraft(initialSource: StartSourceType | null): Draft {
       return fallback;
     }
 
-    const storedSource = parsed.sourceType === "DESIGN" || parsed.sourceType === "IDEA" ? parsed.sourceType : "";
+    const storedSource = parsed.sourceType === "DESIGN" || parsed.sourceType === "IDEA" || parsed.sourceType === "NEED" ? parsed.sourceType : "";
     return {
       ...fallback,
       ...parsed,
       clientDraftId: parsed.clientDraftId || fallback.clientDraftId,
       sourceType: initialSource ?? storedSource,
-      step: storedSource || initialSource ? Math.min(Math.max(Number(parsed.step ?? 0), 0), 3) : 0
+      step: storedSource || initialSource ? Math.min(Math.max(Number(parsed.step ?? 0), 0), 5) : 0
     };
   } catch {
     window.sessionStorage.removeItem(draftKey);
@@ -113,7 +149,9 @@ function stepTitle(step: number) {
   if (step === 0) return "你想从哪里开始？";
   if (step === 1) return "你想做什么产品？";
   if (step === 2) return "你现在最需要哪一步？";
-  return "写一句话，给项目一个起点";
+  if (step === 3) return "这个需求怎样推进？";
+  if (step === 4) return "补充场景、预算和时间";
+  return "描述你真正想要的衣服";
 }
 
 function optionClass(active: boolean) {
@@ -143,6 +181,8 @@ export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: 
     if (draft.step === 0) return draft.sourceType === "DESIGN" ? availableWorks.some((work) => work.id === draft.linkedWorkId) : Boolean(draft.sourceType);
     if (draft.step === 1) return Boolean(draft.category);
     if (draft.step === 2) return Boolean(draft.primaryNeed);
+    if (draft.step === 3) return Boolean(draft.demandMode);
+    if (draft.step === 4) return Boolean(draft.useScenario && draft.expectedPriceBand && draft.launchTiming);
     return true;
   }, [availableWorks, draft.category, draft.linkedWorkId, draft.primaryNeed, draft.sourceType, draft.step]);
 
@@ -153,7 +193,7 @@ export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: 
 
   function nextStep() {
     if (!canContinue) return;
-    updateDraft({ step: Math.min(draft.step + 1, 3) });
+    updateDraft({ step: Math.min(draft.step + 1, 5) });
   }
 
   async function createProject() {
@@ -178,6 +218,10 @@ export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: 
         categoryOther: draft.category === "OTHER" ? draft.categoryOther : null,
         primaryNeed: draft.primaryNeed,
         ideaText: draft.ideaText
+        ,demandMode: draft.demandMode,
+        useScenario: draft.useScenario || null,
+        expectedPriceBand: draft.expectedPriceBand || null,
+        launchTiming: draft.launchTiming || null
       })
     });
 
@@ -202,8 +246,8 @@ export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: 
     <section className="mx-auto flex min-h-[calc(100dvh-9rem)] max-w-[680px] flex-col justify-center px-4 py-6 md:px-0 md:py-12">
       <div className="rounded-[8px] border border-black/8 bg-white p-5 shadow-[0_18px_54px_rgba(16,16,16,0.07)] md:p-7">
         <div className="mb-6 flex items-center justify-between gap-4">
-          <span className="text-sm font-semibold text-ink/45">{draft.step + 1} / 4</span>
-          <span className="text-xs font-semibold text-ink/35">约 60 秒</span>
+          <span className="text-sm font-semibold text-ink/45">{draft.step + 1} / 6</span>
+          <span className="text-xs font-semibold text-ink/35">约 2 分钟</span>
         </div>
 
         <h1 className="text-3xl font-semibold leading-tight text-ink md:text-4xl">{stepTitle(draft.step)}</h1>
@@ -276,11 +320,30 @@ export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: 
         ) : null}
 
         {draft.step === 3 ? (
+          <div className="mt-6 grid gap-3">
+            <button type="button" onClick={() => updateDraft({ demandMode: "PERSONAL_CUSTOM" })} className={optionClass(draft.demandMode === "PERSONAL_CUSTOM")}>
+              <span className="block text-base font-semibold">个人定制</span><span className="mt-1 block text-sm opacity-70">为自己完成一件衣服，承担设计和打样成本。</span>
+            </button>
+            <button type="button" onClick={() => updateDraft({ demandMode: "PUBLIC_COCREATION" })} className={optionClass(draft.demandMode === "PUBLIC_COCREATION")}>
+              <span className="block text-base font-semibold">公开共创</span><span className="mt-1 block text-sm opacity-70">允许社区表达购买意向，达到门槛后再进入小批量生产。</span>
+            </button>
+          </div>
+        ) : null}
+
+        {draft.step === 4 ? (
+          <div className="mt-6 grid gap-5">
+            <div><p className="mb-2 text-xs font-semibold text-ink/45">穿着场景</p><div className="grid grid-cols-2 gap-2">{scenarioOptions.map(([value,label]) => <button key={value} type="button" onClick={() => updateDraft({ useScenario: value })} className={optionClass(draft.useScenario === value)}>{label}</button>)}</div></div>
+            <div><p className="mb-2 text-xs font-semibold text-ink/45">成衣预算</p><div className="grid grid-cols-2 gap-2">{priceOptions.map(([value,label]) => <button key={value} type="button" onClick={() => updateDraft({ expectedPriceBand: value })} className={optionClass(draft.expectedPriceBand === value)}>{label}</button>)}</div></div>
+            <div><p className="mb-2 text-xs font-semibold text-ink/45">希望完成时间</p><div className="grid grid-cols-2 gap-2">{timingOptions.map(([value,label]) => <button key={value} type="button" onClick={() => updateDraft({ launchTiming: value })} className={optionClass(draft.launchTiming === value)}>{label}</button>)}</div></div>
+          </div>
+        ) : null}
+
+        {draft.step === 5 ? (
           <div className="mt-6 grid gap-4">
             <label className="block">
-              <span className="text-xs font-semibold text-ink/45">一句话描述，可跳过</span>
-              <textarea value={draft.ideaText} onChange={(event) => updateDraft({ ideaText: event.target.value.slice(0, 180) })} className="mt-2 min-h-32 w-full rounded-[8px] border border-black/10 bg-paper px-4 py-3 text-base leading-7 outline-none focus:border-ink focus:bg-white" placeholder="例如：想做一条适合通勤和周末穿的轻薄连衣裙。" />
-              <span className="mt-2 block text-xs text-ink/40">{draft.ideaText.length} / 180</span>
+              <span className="text-xs font-semibold text-ink/45">具体需求，可稍后补充图片</span>
+              <textarea value={draft.ideaText} onChange={(event) => updateDraft({ ideaText: event.target.value.slice(0, 500) })} className="mt-2 min-h-40 w-full rounded-[8px] border border-black/10 bg-paper px-4 py-3 text-base leading-7 outline-none focus:border-ink focus:bg-white" placeholder="例如：去海边度假穿的长裙，希望显瘦、飘逸、拍照好看，同时不透且不易皱。" />
+              <span className="mt-2 block text-xs text-ink/40">{draft.ideaText.length} / 500</span>
             </label>
             <div className="rounded-[8px] border border-black/8 bg-paper p-4 text-sm leading-6 text-ink/55">
               图片和更完整的资料可以在项目创建后继续补充。
@@ -296,8 +359,8 @@ export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: 
               返回
             </button>
           ) : null}
-          <button type="button" disabled={!canContinue || submitting} onClick={draft.step === 3 ? createProject : nextStep} className="min-h-12 rounded-full bg-ink px-6 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45 sm:col-start-2">
-            {submitting ? "创建中..." : draft.step === 3 ? "创建我的项目" : "继续"}
+          <button type="button" disabled={!canContinue || submitting} onClick={draft.step === 5 ? createProject : nextStep} className="min-h-12 rounded-full bg-ink px-6 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45 sm:col-start-2">
+            {submitting ? "创建中..." : draft.step === 5 ? "创建我的项目" : "继续"}
           </button>
         </div>
       </div>

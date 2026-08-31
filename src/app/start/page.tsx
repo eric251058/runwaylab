@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "启动服装项目",
-  description: "用约 60 秒记录你的服装产品起点。",
+  description: "用约 2 分钟记录作品、产品想法或真实穿衣需求。",
   robots: {
     index: false,
     follow: false

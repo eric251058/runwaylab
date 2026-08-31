@@ -8,6 +8,8 @@ import {
   Prisma,
   ProjectIntakeEventType,
   ProjectIntakeStatus,
+  ProjectCommerceStage,
+  ProjectStageStatus,
   ReviewStatus,
   UserRole,
   UserStatus,
@@ -40,6 +42,7 @@ import {
 export const START_SOURCE_LABELS: Record<StartSourceType, string> = {
   DESIGN: "我有设计作品",
   IDEA: "我有产品想法",
+  NEED: "我想要一件衣服",
   AUDIENCE: "我有粉丝或客户",
   STORE: "我有服装店",
   BRAND: "我已经有品牌"
@@ -47,13 +50,24 @@ export const START_SOURCE_LABELS: Record<StartSourceType, string> = {
 
 export const START_CATEGORY_LABELS: Record<StartCategory, string> = {
   DRESS: "连衣裙",
+  TOP: "上衣",
   SHIRT: "衬衫",
+  TSHIRT: "T恤",
+  HOODIE: "卫衣",
   OUTERWEAR: "外套",
   SET: "套装",
   SKIRT: "半身裙",
   PANTS: "裤装",
   LIGHT_FORMAL: "轻礼服",
   KNIT: "针织",
+  SUIT: "西装",
+  DENIM: "牛仔",
+  SPORTSWEAR: "运动服",
+  SWIMWEAR: "泳装",
+  LINGERIE: "内衣",
+  CHILDRENSWEAR: "童装",
+  FORMALWEAR: "礼服",
+  ACCESSORY: "配饰",
   OTHER: "其他"
 };
 
@@ -129,6 +143,12 @@ export const projectIntakeListSelect = {
   useScenario: true,
   expectedPriceBand: true,
   launchTiming: true,
+  demandMode: true,
+  budgetMin: true,
+  budgetMax: true,
+  desiredDeliveryAt: true,
+  requirements: true,
+  referenceImages: true,
   reviewMessage: true,
   status: true,
   completion: true,
@@ -564,7 +584,11 @@ function createDataForUser(userId: string, input: ReturnType<typeof projectIntak
     category: input.category,
     categoryOther: input.category === "OTHER" ? cleanText(input.categoryOther) : null,
     primaryNeed: input.primaryNeed,
-    ideaText: cleanText(input.ideaText)
+    ideaText: cleanText(input.ideaText),
+    demandMode: input.demandMode,
+    useScenario: input.useScenario ?? null,
+    expectedPriceBand: input.expectedPriceBand ?? null,
+    launchTiming: input.launchTiming ?? null
   };
   const completion = calculateProjectIntakeCompletion(data);
 
@@ -628,6 +652,10 @@ export async function createProjectIntakeForUser(userId: string, rawInput: unkno
             categoryOther: nextData.categoryOther,
             primaryNeed: nextData.primaryNeed,
             ideaText: nextData.ideaText,
+            demandMode: nextData.demandMode,
+            useScenario: nextData.useScenario,
+            expectedPriceBand: nextData.expectedPriceBand,
+            launchTiming: nextData.launchTiming,
             completion: nextCompletion,
             status: existing.status === ProjectIntakeStatus.NEEDS_INFO ? ProjectIntakeStatus.NEEDS_INFO : statusFromCompleteness(existing.status, nextCompletion)
           },
@@ -833,9 +861,24 @@ export async function submitProjectIntakeReview(id: string, user: Viewer) {
               createdById: user.id,
               description: conversionProjectDescription(current) || null,
               summary: conversionProjectSummary(current) || null,
-              status: CollaborationProjectStatus.DRAFT,
-              visibility: CollaborationProjectVisibility.PRIVATE,
-              internalNote: `Auto-created from ProjectIntake ${current.id}`
+              status: current.demandMode === "PUBLIC_COCREATION" ? CollaborationProjectStatus.SEEKING_PROPOSALS : CollaborationProjectStatus.DRAFT,
+              visibility: current.demandMode === "PUBLIC_COCREATION" ? CollaborationProjectVisibility.PUBLIC : CollaborationProjectVisibility.PRIVATE,
+              demandMode: current.demandMode,
+              category: current.category === "OTHER" ? current.categoryOther : current.category,
+              useScenario: current.useScenario,
+              currentCommerceStage: ProjectCommerceStage.DESIGN,
+              targetPriceMin: current.budgetMin,
+              targetPriceMax: current.budgetMax,
+              estimatedShipDate: current.desiredDeliveryAt,
+              internalNote: `Auto-created from ProjectIntake ${current.id}`,
+              commerceStages: {
+                create: [
+                  { stage: ProjectCommerceStage.DESIGN, status: ProjectStageStatus.OPEN, title: "设计方案", opensAt: now },
+                  { stage: ProjectCommerceStage.FABRIC, status: ProjectStageStatus.BLOCKED, title: "面料匹配" },
+                  { stage: ProjectCommerceStage.SAMPLE, status: ProjectStageStatus.BLOCKED, title: "制版打样" },
+                  { stage: ProjectCommerceStage.PRODUCTION, status: ProjectStageStatus.BLOCKED, title: "小批量生产" }
+                ]
+              }
             },
             select: {
               id: true,
@@ -1141,9 +1184,24 @@ export async function convertProjectIntakeToProject(id: string, admin: Viewer, r
               createdById: admin.id,
               description: conversionProjectDescription(current) || null,
               summary: conversionProjectSummary(current) || null,
-              status: CollaborationProjectStatus.DRAFT,
-              visibility: CollaborationProjectVisibility.PRIVATE,
-              internalNote: `Converted from ProjectIntake ${current.id}`
+              status: current.demandMode === "PUBLIC_COCREATION" ? CollaborationProjectStatus.SEEKING_PROPOSALS : CollaborationProjectStatus.DRAFT,
+              visibility: current.demandMode === "PUBLIC_COCREATION" ? CollaborationProjectVisibility.PUBLIC : CollaborationProjectVisibility.PRIVATE,
+              demandMode: current.demandMode,
+              category: current.category === "OTHER" ? current.categoryOther : current.category,
+              useScenario: current.useScenario,
+              currentCommerceStage: ProjectCommerceStage.DESIGN,
+              targetPriceMin: current.budgetMin,
+              targetPriceMax: current.budgetMax,
+              estimatedShipDate: current.desiredDeliveryAt,
+              internalNote: `Converted from ProjectIntake ${current.id}`,
+              commerceStages: {
+                create: [
+                  { stage: ProjectCommerceStage.DESIGN, status: ProjectStageStatus.OPEN, title: "设计方案", opensAt: now },
+                  { stage: ProjectCommerceStage.FABRIC, status: ProjectStageStatus.BLOCKED, title: "面料匹配" },
+                  { stage: ProjectCommerceStage.SAMPLE, status: ProjectStageStatus.BLOCKED, title: "制版打样" },
+                  { stage: ProjectCommerceStage.PRODUCTION, status: ProjectStageStatus.BLOCKED, title: "小批量生产" }
+                ]
+              }
             },
             select: {
               id: true,

@@ -4,8 +4,13 @@ export const START_PROJECT_DRAFT_VERSION = 1;
 export const START_PROJECT_DRAFT_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 export const START_PROJECT_DRAFT_KEY = "runwaylab.startProject.v1";
 
-export const START_SOURCE_VALUES = ["DESIGN", "IDEA", "AUDIENCE", "STORE", "BRAND"] as const;
-export const START_CATEGORY_VALUES = ["DRESS", "SHIRT", "OUTERWEAR", "SET", "SKIRT", "PANTS", "LIGHT_FORMAL", "KNIT", "OTHER"] as const;
+export const START_SOURCE_VALUES = ["DESIGN", "IDEA", "NEED", "AUDIENCE", "STORE", "BRAND"] as const;
+export const START_CATEGORY_VALUES = [
+  "DRESS", "TOP", "SHIRT", "TSHIRT", "HOODIE", "SKIRT", "PANTS", "SET", "OUTERWEAR",
+  "SUIT", "KNIT", "DENIM", "SPORTSWEAR", "SWIMWEAR", "LINGERIE", "CHILDRENSWEAR",
+  "LIGHT_FORMAL", "FORMALWEAR", "ACCESSORY", "OTHER"
+] as const;
+export const DEMAND_MODE_VALUES = ["PERSONAL_CUSTOM", "PUBLIC_COCREATION"] as const;
 export const START_NEED_VALUES = ["DESIGN_DIRECTION", "FABRIC", "SAMPLE", "PRODUCTION", "MARKET_VALIDATION", "UNSURE"] as const;
 export const PROJECT_INTAKE_STATUS_VALUES = ["DRAFT", "READY_FOR_REVIEW", "SUBMITTED", "NEEDS_INFO", "ACCEPTED", "DECLINED"] as const;
 export const PROJECT_INTAKE_EVENT_VALUES = ["CREATED", "DETAILS_UPDATED", "SUBMITTED", "WITHDRAWN", "NEEDS_INFO", "RESUBMITTED", "ACCEPTED", "DECLINED", "CONVERTED"] as const;
@@ -18,6 +23,7 @@ export const PROJECT_INTAKE_REVIEW_DECISIONS = ["ACCEPTED", "NEEDS_INFO", "DECLI
 export type StartSourceType = (typeof START_SOURCE_VALUES)[number];
 export type StartCategory = (typeof START_CATEGORY_VALUES)[number];
 export type StartPrimaryNeed = (typeof START_NEED_VALUES)[number];
+export type DemandMode = (typeof DEMAND_MODE_VALUES)[number];
 export type UseScenario = (typeof USE_SCENARIO_VALUES)[number];
 export type ExpectedPriceBand = (typeof EXPECTED_PRICE_BAND_VALUES)[number];
 export type LaunchTiming = (typeof LAUNCH_TIMING_VALUES)[number];
@@ -103,7 +109,11 @@ export const projectIntakeCreateSchema = z
     category: z.enum(START_CATEGORY_VALUES),
     categoryOther: z.string().trim().max(40, "补充品类最多 40 个字符。").optional().nullable(),
     primaryNeed: z.enum(START_NEED_VALUES),
-    ideaText: z.string().trim().max(180, "一句话描述最多 180 个字符。").optional().nullable()
+    ideaText: z.string().trim().max(500, "需求描述最多 500 个字符。").optional().nullable(),
+    demandMode: z.enum(DEMAND_MODE_VALUES).default("PERSONAL_CUSTOM"),
+    useScenario: z.enum(USE_SCENARIO_VALUES).optional().nullable(),
+    expectedPriceBand: z.enum(EXPECTED_PRICE_BAND_VALUES).optional().nullable(),
+    launchTiming: z.enum(LAUNCH_TIMING_VALUES).optional().nullable()
   })
   .strict()
   .superRefine((value, context) => {
@@ -176,5 +186,6 @@ export const projectIntakeConversionSchema = z
 export function normalizeStartSourceParam(value?: string | null): StartSourceType | null {
   if (value === "design") return "DESIGN";
   if (value === "idea") return "IDEA";
+  if (value === "need") return "NEED";
   return null;
 }
