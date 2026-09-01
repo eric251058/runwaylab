@@ -31,6 +31,7 @@ function serializeIntake(intake: Awaited<ReturnType<typeof getProjectIntakeForVi
     title: projectIntakeTitle(intake),
     ownerId: intake.ownerId,
     sourceType: intake.sourceType,
+    demandMode: intake.demandMode,
     category: intake.category,
     categoryOther: intake.categoryOther,
     primaryNeed: intake.primaryNeed,
