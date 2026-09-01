@@ -409,6 +409,14 @@ enum ProjectStageProposalStatus {
   WITHDRAWN
 }
 
+enum ProjectCommitmentStatus {
+  NOT_REQUIRED
+  REQUIRED
+  EVIDENCE_PENDING
+  VERIFIED
+  REJECTED
+}
+
 enum ProjectApplicationRole {
   PROJECT_LEAD
   FABRIC_PARTNER
@@ -808,6 +816,7 @@ model User {
   reviewedProjectIntakes                ProjectIntake[]              @relation("ProjectIntakeReviewedBy")
   convertedProjectIntakes               ProjectIntake[]              @relation("ProjectIntakeConvertedBy")
   projectIntakeEvents                   ProjectIntakeEvent[]         @relation("ProjectIntakeEventActor")
+  verifiedStageCommitments              ProjectStage[]               @relation("ProjectStageCommitmentVerifier")
   givenReviews                          Review[]                     @relation("ReviewReviewer")
   receivedReviews                       Review[]                     @relation("ReviewTargetUser")
   createdIncubationBatches              IncubationBatch[]            @relation("IncubationBatchCreatedBy")
@@ -2161,10 +2170,10 @@ model CollaborationProject {
   designerPreference          DesignerProjectPreference        @default(COLLECT_DEMAND)
   targetLaunchDate            DateTime?
   internalNote                String?
-  demandMode                  ProjectDemandMode            @default(PERSONAL_CUSTOM)
+  demandMode                  ProjectDemandMode                @default(PERSONAL_CUSTOM)
   category                    String?
   useScenario                 String?
-  currentCommerceStage        ProjectCommerceStage         @default(DESIGN)
+  currentCommerceStage        ProjectCommerceStage             @default(DESIGN)
   createdById                 String?
   workspaceId                 String?
   workspace                   Workspace?                       @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
@@ -2217,24 +2226,32 @@ model CollaborationProject {
 }
 
 model ProjectStage {
-  id                 String               @id @default(cuid())
-  projectId          String
-  stage              ProjectCommerceStage
-  status             ProjectStageStatus   @default(BLOCKED)
-  title              String
-  brief              Json?
-  opensAt            DateTime?
-  selectedAt         DateTime?
-  startedAt          DateTime?
-  acceptanceAt       DateTime?
-  completedAt        DateTime?
-  cancelledAt        DateTime?
-  cancellationReason String?
-  selectedProposalId String?              @unique
+  id                     String                  @id @default(cuid())
+  projectId              String
+  stage                  ProjectCommerceStage
+  status                 ProjectStageStatus      @default(BLOCKED)
+  title                  String
+  brief                  Json?
+  opensAt                DateTime?
+  selectedAt             DateTime?
+  startedAt              DateTime?
+  acceptanceAt           DateTime?
+  completedAt            DateTime?
+  cancelledAt            DateTime?
+  cancellationReason     String?
+  selectedProposalId     String?                 @unique
+  commitmentStatus       ProjectCommitmentStatus @default(NOT_REQUIRED)
+  commitmentAmount       Int?
+  commitmentReference    String?
+  commitmentNote         String?
+  commitmentSubmittedAt  DateTime?
+  commitmentVerifiedAt   DateTime?
+  commitmentVerifiedById String?
 
-  project          CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  proposals        ProjectStageProposal[] @relation("StageProposals")
-  selectedProposal ProjectStageProposal?  @relation("SelectedStageProposal", fields: [selectedProposalId], references: [id], onDelete: SetNull)
+  project              CollaborationProject   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  proposals            ProjectStageProposal[] @relation("StageProposals")
+  selectedProposal     ProjectStageProposal?  @relation("SelectedStageProposal", fields: [selectedProposalId], references: [id], onDelete: SetNull)
+  commitmentVerifiedBy User?                  @relation("ProjectStageCommitmentVerifier", fields: [commitmentVerifiedById], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2242,26 +2259,30 @@ model ProjectStage {
   @@unique([projectId, stage])
   @@index([projectId, status])
   @@index([stage, status])
+  @@index([commitmentStatus, updatedAt])
+  @@index([commitmentVerifiedById])
 }
 
 model ProjectStageProposal {
-  id             String                     @id @default(cuid())
-  projectId      String
-  stageId        String
-  applicantId    String
-  providerId     String?
-  summary        String
-  directionUrl   String?
-  price          Int?
-  currency       String                     @default("CNY")
-  leadTimeDays   Int?
-  deliverables   Json?
-  commercialNote String?
-  status         ProjectStageProposalStatus @default(SUBMITTED)
-  shortlistedAt  DateTime?
-  selectedAt     DateTime?
-  rejectedAt     DateTime?
-  withdrawnAt    DateTime?
+  id                 String                     @id @default(cuid())
+  projectId          String
+  stageId            String
+  applicantId        String
+  providerId         String?
+  summary            String
+  directionUrl       String?
+  price              Int?
+  currency           String                     @default("CNY")
+  leadTimeDays       Int?
+  deliverables       Json?
+  commercialNote     String?
+  revisionRounds     Int                        @default(1)
+  acceptanceCriteria Json?
+  status             ProjectStageProposalStatus @default(SUBMITTED)
+  shortlistedAt      DateTime?
+  selectedAt         DateTime?
+  rejectedAt         DateTime?
+  withdrawnAt        DateTime?
 
   project          CollaborationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   stage            ProjectStage         @relation("StageProposals", fields: [stageId], references: [id], onDelete: Cascade)
@@ -2428,7 +2449,7 @@ model ProjectIntake {
   useScenario                  String?
   expectedPriceBand            String?
   launchTiming                 String?
-  demandMode                   ProjectDemandMode @default(PERSONAL_CUSTOM)
+  demandMode                   ProjectDemandMode   @default(PERSONAL_CUSTOM)
   budgetMin                    Int?
   budgetMax                    Int?
   desiredDeliveryAt            DateTime?

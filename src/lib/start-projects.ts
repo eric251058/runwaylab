@@ -247,7 +247,7 @@ export type AdminProjectIntakeListItem = Prisma.ProjectIntakeGetPayload<{ select
 type Viewer = Pick<User, "id" | "role" | "status">;
 type IntakeForCompletion = Pick<
   ProjectIntakeListItem,
-  "sourceType" | "category" | "primaryNeed" | "ideaText" | "targetAudience" | "useScenario" | "expectedPriceBand" | "launchTiming"
+  "sourceType" | "category" | "primaryNeed" | "ideaText" | "targetAudience" | "useScenario" | "expectedPriceBand" | "launchTiming" | "requirements"
 >;
 
 function isActiveAdmin(user: Pick<User, "role" | "status"> | null | undefined) {
@@ -262,6 +262,34 @@ function cleanText(value?: string | null) {
 function trimText(value?: string | null) {
   const text = value?.trim();
   return text ? text : null;
+}
+
+type BudgetBreakdown = { designMin: number; designMax: number; fabricMin: number; fabricMax: number; sampleMin: number; sampleMax: number };
+
+export function projectBudgetBreakdown(requirements: unknown): BudgetBreakdown | null {
+  if (!requirements || typeof requirements !== "object" || Array.isArray(requirements)) return null;
+  const value = (requirements as Record<string, unknown>).budgetBreakdown;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const keys: (keyof BudgetBreakdown)[] = ["designMin", "designMax", "fabricMin", "fabricMax", "sampleMin", "sampleMax"];
+  if (!keys.every((key) => Number.isInteger(record[key]) && Number(record[key]) >= 0)) return null;
+  return Object.fromEntries(keys.map((key) => [key, Number(record[key])])) as BudgetBreakdown;
+}
+
+function projectBudgetTotals(requirements: unknown) {
+  const budget = projectBudgetBreakdown(requirements);
+  if (!budget) return null;
+  return {
+    min: budget.designMin + budget.fabricMin + budget.sampleMin,
+    max: budget.designMax + budget.fabricMax + budget.sampleMax,
+    summary: `设计 ¥${(budget.designMin / 100).toFixed(0)}–${(budget.designMax / 100).toFixed(0)}；面料 ¥${(budget.fabricMin / 100).toFixed(0)}–${(budget.fabricMax / 100).toFixed(0)}；打样 ¥${(budget.sampleMin / 100).toFixed(0)}–${(budget.sampleMax / 100).toFixed(0)}`
+  };
+}
+
+function mergeBudgetBreakdown(requirements: unknown, budgetBreakdown: BudgetBreakdown | undefined) {
+  if (!budgetBreakdown) return requirements ?? undefined;
+  const base = requirements && typeof requirements === "object" && !Array.isArray(requirements) ? requirements as Record<string, unknown> : {};
+  return { ...base, budgetBreakdown };
 }
 
 function isStartSource(value: string): value is StartSourceType {
@@ -326,7 +354,8 @@ export function calculateProjectIntakeCompletion(intake: Partial<IntakeForComple
     Boolean(cleanText(intake.targetAudience)),
     isUseScenario(intake.useScenario),
     isExpectedPriceBand(intake.expectedPriceBand),
-    isLaunchTiming(intake.launchTiming)
+    isLaunchTiming(intake.launchTiming),
+    intake.sourceType !== "NEED" || Boolean(projectBudgetBreakdown(intake.requirements))
   ];
   const answered = checks.filter(Boolean).length;
   return Math.round((answered / checks.length) * 100);
@@ -342,6 +371,7 @@ export function projectIntakeMissingFields(intake: Partial<IntakeForCompletion>)
   if (!isUseScenario(intake.useScenario)) missing.push("穿着场景");
   if (!isExpectedPriceBand(intake.expectedPriceBand)) missing.push("价格范围");
   if (!isLaunchTiming(intake.launchTiming)) missing.push("启动时间");
+  if (intake.sourceType === "NEED" && !projectBudgetBreakdown(intake.requirements)) missing.push("设计、面料与打样预算");
   return missing;
 }
 
@@ -760,6 +790,7 @@ export async function updateProjectIntakeForViewer(id: string, user: Viewer, raw
     const nextExpectedPriceBand = input.expectedPriceBand === undefined ? current.expectedPriceBand : input.expectedPriceBand;
     const nextLaunchTiming = input.launchTiming === undefined ? current.launchTiming : input.launchTiming;
     const nextReviewMessage = input.reviewMessage === undefined ? current.reviewMessage : trimText(input.reviewMessage);
+    const nextRequirements = mergeBudgetBreakdown(current.requirements, input.budgetBreakdown);
     const nextCompletion = calculateProjectIntakeCompletion({
       sourceType: nextSourceType,
       category: nextCategory,
@@ -768,7 +799,8 @@ export async function updateProjectIntakeForViewer(id: string, user: Viewer, raw
       targetAudience: nextTargetAudience,
       useScenario: nextUseScenario,
       expectedPriceBand: nextExpectedPriceBand,
-      launchTiming: nextLaunchTiming
+      launchTiming: nextLaunchTiming,
+      requirements: nextRequirements
     });
     const nextStatus =
       current.status === ProjectIntakeStatus.NEEDS_INFO ? ProjectIntakeStatus.NEEDS_INFO : statusFromCompleteness(current.status, nextCompletion);
@@ -786,6 +818,7 @@ export async function updateProjectIntakeForViewer(id: string, user: Viewer, raw
         useScenario: nextUseScenario,
         expectedPriceBand: nextExpectedPriceBand,
         launchTiming: nextLaunchTiming,
+        requirements: nextRequirements,
         reviewMessage: nextReviewMessage,
         status: nextStatus,
         completion: nextCompletion
@@ -854,6 +887,7 @@ export async function submitProjectIntakeReview(id: string, user: Viewer) {
           }
 
           const now = new Date();
+          const budget = projectBudgetTotals(current.requirements);
           const project = await tx.collaborationProject.create({
             data: {
               title: projectIntakeTitle(current),
@@ -867,13 +901,15 @@ export async function submitProjectIntakeReview(id: string, user: Viewer) {
               category: current.category === "OTHER" ? current.categoryOther : current.category,
               useScenario: current.useScenario,
               currentCommerceStage: ProjectCommerceStage.DESIGN,
-              targetPriceMin: current.budgetMin,
-              targetPriceMax: current.budgetMax,
+              targetPriceMin: budget?.min ?? current.budgetMin,
+              targetPriceMax: budget?.max ?? current.budgetMax,
+              estimatedBudget: budget?.summary,
               estimatedShipDate: current.desiredDeliveryAt,
               internalNote: `Auto-created from ProjectIntake ${current.id}`,
               commerceStages: {
                 create: [
-                  { stage: ProjectCommerceStage.DESIGN, status: ProjectStageStatus.OPEN, title: "设计方案", opensAt: now },
+                  { stage: ProjectCommerceStage.DESIGN, status: ProjectStageStatus.OPEN, title: "设计方案", opensAt: now,
+                    ...(current.sourceType === "NEED" ? { commitmentStatus: "REQUIRED", commitmentAmount: 9_900 } : {}) },
                   { stage: ProjectCommerceStage.FABRIC, status: ProjectStageStatus.BLOCKED, title: "面料匹配" },
                   { stage: ProjectCommerceStage.SAMPLE, status: ProjectStageStatus.BLOCKED, title: "制版打样" },
                   { stage: ProjectCommerceStage.PRODUCTION, status: ProjectStageStatus.BLOCKED, title: "小批量生产" }
@@ -1177,6 +1213,7 @@ export async function convertProjectIntakeToProject(id: string, admin: Viewer, r
           }
 
           const now = new Date();
+          const budget = projectBudgetTotals(current.requirements);
           const project = await tx.collaborationProject.create({
             data: {
               title: projectIntakeTitle(current),
@@ -1190,13 +1227,15 @@ export async function convertProjectIntakeToProject(id: string, admin: Viewer, r
               category: current.category === "OTHER" ? current.categoryOther : current.category,
               useScenario: current.useScenario,
               currentCommerceStage: ProjectCommerceStage.DESIGN,
-              targetPriceMin: current.budgetMin,
-              targetPriceMax: current.budgetMax,
+              targetPriceMin: budget?.min ?? current.budgetMin,
+              targetPriceMax: budget?.max ?? current.budgetMax,
+              estimatedBudget: budget?.summary,
               estimatedShipDate: current.desiredDeliveryAt,
               internalNote: `Converted from ProjectIntake ${current.id}`,
               commerceStages: {
                 create: [
-                  { stage: ProjectCommerceStage.DESIGN, status: ProjectStageStatus.OPEN, title: "设计方案", opensAt: now },
+                  { stage: ProjectCommerceStage.DESIGN, status: ProjectStageStatus.OPEN, title: "设计方案", opensAt: now,
+                    ...(current.sourceType === "NEED" ? { commitmentStatus: "REQUIRED", commitmentAmount: 9_900 } : {}) },
                   { stage: ProjectCommerceStage.FABRIC, status: ProjectStageStatus.BLOCKED, title: "面料匹配" },
                   { stage: ProjectCommerceStage.SAMPLE, status: ProjectStageStatus.BLOCKED, title: "制版打样" },
                   { stage: ProjectCommerceStage.PRODUCTION, status: ProjectStageStatus.BLOCKED, title: "小批量生产" }

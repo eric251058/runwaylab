@@ -32,6 +32,7 @@ export type ProjectIntakeDetailsDto = {
   useScenario: string | null;
   expectedPriceBand: string | null;
   launchTiming: string | null;
+  budgetBreakdown: { designMin: number; designMax: number; fabricMin: number; fabricMax: number; sampleMin: number; sampleMax: number } | null;
   reviewMessage: string | null;
   reviewNote: string | null;
   status: IntakeStatus;
@@ -85,6 +86,7 @@ const eventLabels: Record<EventType, string> = {
 const sourceLabels: Record<string, string> = {
   DESIGN: "我有设计作品",
   IDEA: "我有产品想法",
+  NEED: "我想要一件衣服",
   AUDIENCE: "我有粉丝或客户",
   STORE: "我有服装店",
   BRAND: "我已经有品牌"
@@ -176,6 +178,14 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
   const [useScenario, setUseScenario] = useState(initialIntake.useScenario ?? "");
   const [expectedPriceBand, setExpectedPriceBand] = useState(initialIntake.expectedPriceBand ?? "");
   const [launchTiming, setLaunchTiming] = useState(initialIntake.launchTiming ?? "");
+  const [budget, setBudget] = useState(() => ({
+    designMin: initialIntake.budgetBreakdown ? String(initialIntake.budgetBreakdown.designMin / 100) : "",
+    designMax: initialIntake.budgetBreakdown ? String(initialIntake.budgetBreakdown.designMax / 100) : "",
+    fabricMin: initialIntake.budgetBreakdown ? String(initialIntake.budgetBreakdown.fabricMin / 100) : "",
+    fabricMax: initialIntake.budgetBreakdown ? String(initialIntake.budgetBreakdown.fabricMax / 100) : "",
+    sampleMin: initialIntake.budgetBreakdown ? String(initialIntake.budgetBreakdown.sampleMin / 100) : "",
+    sampleMax: initialIntake.budgetBreakdown ? String(initialIntake.budgetBreakdown.sampleMax / 100) : ""
+  }));
   const [reviewMessage, setReviewMessage] = useState(initialIntake.reviewMessage ?? "");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -183,7 +193,13 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
 
   const canSaveAudience = compact(ideaText).length > 0 && compact(targetAudience).length >= 2 && Boolean(useScenario);
-  const canSavePlan = Boolean(expectedPriceBand && launchTiming);
+  const budgetValues = Object.values(budget).map(Number);
+  const budgetValid = budgetValues.every((value) => Number.isFinite(value) && value >= 0)
+    && Number(budget.designMin) <= Number(budget.designMax)
+    && Number(budget.fabricMin) <= Number(budget.fabricMax)
+    && Number(budget.sampleMin) <= Number(budget.sampleMax)
+    && Number(budget.designMax) + Number(budget.fabricMax) + Number(budget.sampleMax) > 0;
+  const canSavePlan = Boolean(expectedPriceBand && launchTiming && (intake.sourceType !== "NEED" || budgetValid));
   const canSubmit = intake.completion === 100 && (intake.status === "READY_FOR_REVIEW" || intake.status === "NEEDS_INFO");
   const isLocked = intake.status === "SUBMITTED" || intake.status === "ACCEPTED" || intake.status === "DECLINED";
 
@@ -200,6 +216,11 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
     setUseScenario(next.useScenario ?? "");
     setExpectedPriceBand(next.expectedPriceBand ?? "");
     setLaunchTiming(next.launchTiming ?? "");
+    if (next.budgetBreakdown) setBudget({
+      designMin: String(next.budgetBreakdown.designMin / 100), designMax: String(next.budgetBreakdown.designMax / 100),
+      fabricMin: String(next.budgetBreakdown.fabricMin / 100), fabricMax: String(next.budgetBreakdown.fabricMax / 100),
+      sampleMin: String(next.budgetBreakdown.sampleMin / 100), sampleMax: String(next.budgetBreakdown.sampleMax / 100)
+    });
     setReviewMessage(next.reviewMessage ?? "");
   }
 
@@ -438,9 +459,20 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
                 ))}
               </div>
             </div>
+            {intake.sourceType === "NEED" ? <div>
+              <p className="text-sm font-semibold text-ink/58">真实可执行预算（元）</p>
+              <p className="mt-1 text-xs leading-5 text-ink/45">分别填写设计、面料与制版样衣预算。预算用于筛选合适合作方，不代表平台已经收款。</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                {(["design", "fabric", "sample"] as const).map((key) => <div key={key} className="rounded-[8px] bg-paper p-3">
+                  <p className="text-xs font-semibold text-ink/55">{key === "design" ? "设计预算" : key === "fabric" ? "面料预算" : "制版与样衣"}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2"><input inputMode="decimal" value={budget[`${key}Min`]} onChange={(event) => setBudget((current) => ({ ...current, [`${key}Min`]: event.target.value }))} placeholder="最低" className="h-10 min-w-0 rounded-[6px] border border-black/10 bg-white px-2 text-sm" /><input inputMode="decimal" value={budget[`${key}Max`]} onChange={(event) => setBudget((current) => ({ ...current, [`${key}Max`]: event.target.value }))} placeholder="最高" className="h-10 min-w-0 rounded-[6px] border border-black/10 bg-white px-2 text-sm" /></div>
+                </div>)}
+              </div>
+              {!budgetValid ? <p className="mt-2 text-xs text-amber-800">请完整填写预算；每项上限不得低于下限，总预算不能为 0。</p> : null}
+            </div> : null}
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <button type="button" disabled={!canSavePlan || submitting} onClick={() => saveDetails({ expectedPriceBand, launchTiming }, "review")} className="min-h-12 rounded-full bg-ink px-6 text-sm font-semibold text-white disabled:opacity-45">
+            <button type="button" disabled={!canSavePlan || submitting} onClick={() => saveDetails({ expectedPriceBand, launchTiming, ...(intake.sourceType === "NEED" ? { budgetBreakdown: Object.fromEntries(Object.entries(budget).map(([key, value]) => [key, Math.round(Number(value) * 100)])) } : {}) }, "review")} className="min-h-12 rounded-full bg-ink px-6 text-sm font-semibold text-white disabled:opacity-45">
               {submitting ? "保存中" : "保存并检查资料"}
             </button>
             <button type="button" onClick={() => setStep("audience")} className="min-h-12 rounded-full border border-black/10 px-6 text-sm font-semibold text-ink">
@@ -460,6 +492,7 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
             {summaryItem("使用场景", optionLabel(scenarioOptions, useScenario))}
             {summaryItem("价格范围", optionLabel(priceOptions, expectedPriceBand))}
             {summaryItem("启动时间", optionLabel(timingOptions, launchTiming))}
+            {intake.sourceType === "NEED" ? summaryItem("开发预算", budgetValid ? `设计 ¥${budget.designMin}–${budget.designMax}；面料 ¥${budget.fabricMin}–${budget.fabricMax}；制版与样衣 ¥${budget.sampleMin}–${budget.sampleMax}` : "未填写") : null}
           </div>
           <label className="mt-5 block">
             <span className="text-sm font-semibold text-ink/58">还有什么希望平台了解？</span>

@@ -137,6 +137,12 @@ export const privateCollaborationProjectSelect = {
       status: true,
       title: true,
       selectedProposalId: true,
+      commitmentStatus: true,
+      commitmentAmount: true,
+      commitmentReference: true,
+      commitmentNote: true,
+      commitmentSubmittedAt: true,
+      commitmentVerifiedAt: true,
       proposals: {
         select: {
           id: true,
@@ -144,6 +150,10 @@ export const privateCollaborationProjectSelect = {
           price: true,
           currency: true,
           leadTimeDays: true,
+          deliverables: true,
+          commercialNote: true,
+          revisionRounds: true,
+          acceptanceCriteria: true,
           status: true,
           applicant: { select: { nickname: true } },
           provider: { select: { name: true } }

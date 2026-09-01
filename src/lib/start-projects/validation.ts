@@ -101,6 +101,20 @@ const specificReviewNoteSchema = z
     }
   });
 
+export const budgetBreakdownSchema = z.object({
+  designMin: z.number().int().min(0).max(100_000_000),
+  designMax: z.number().int().min(0).max(100_000_000),
+  fabricMin: z.number().int().min(0).max(100_000_000),
+  fabricMax: z.number().int().min(0).max(100_000_000),
+  sampleMin: z.number().int().min(0).max(100_000_000),
+  sampleMax: z.number().int().min(0).max(100_000_000)
+}).strict().superRefine((value, context) => {
+  for (const [minKey, maxKey, label] of [["designMin", "designMax", "设计"], ["fabricMin", "fabricMax", "面料"], ["sampleMin", "sampleMax", "打样"]] as const) {
+    if (value[minKey] > value[maxKey]) context.addIssue({ code: z.ZodIssueCode.custom, path: [maxKey], message: `${label}预算上限不能低于下限。` });
+  }
+  if (value.designMax + value.fabricMax + value.sampleMax <= 0) context.addIssue({ code: z.ZodIssueCode.custom, message: "请填写真实可执行的项目预算。" });
+});
+
 export const projectIntakeCreateSchema = z
   .object({
     clientDraftId: safeDraftId,
@@ -144,6 +158,7 @@ export const projectIntakePatchSchema = z
     useScenario: z.enum(USE_SCENARIO_VALUES).optional().nullable(),
     expectedPriceBand: z.enum(EXPECTED_PRICE_BAND_VALUES).optional().nullable(),
     launchTiming: z.enum(LAUNCH_TIMING_VALUES).optional().nullable(),
+    budgetBreakdown: budgetBreakdownSchema.optional(),
     reviewMessage: reviewMessageSchema
   })
   .strict()

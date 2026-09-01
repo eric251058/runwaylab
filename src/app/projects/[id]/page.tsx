@@ -117,6 +117,10 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
   });
 
   if (!project) notFound();
+  const openCommerceStage = project.commerceStages.find((stage) => stage.status === "OPEN" || stage.status === "SELECTION_PENDING") as (typeof project.commerceStages[number] & { commitmentStatus: string }) | undefined;
+  const canSubmitStageProposal = Boolean(openCommerceStage
+    && (openCommerceStage.stage !== "DESIGN" || ["NOT_REQUIRED", "VERIFIED"].includes(openCommerceStage.commitmentStatus))
+    && openCommerceStage.proposals.filter((proposal) => ["SUBMITTED", "SHORTLISTED"].includes(proposal.status)).length < 5);
   const work = project.work;
   const designerName = project.designer?.nickname ?? work?.user.nickname ?? "待关联";
   const presaleCampaign = project.presaleCampaign;
@@ -195,7 +199,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
         {project.commerceStages.length ? <section className="rounded-[8px] border border-black/8 bg-white p-5 lg:col-span-2">
           <h2 className="text-2xl font-semibold text-ink">需求共创进度</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-4">{project.commerceStages.map((stage, index) => <div key={stage.id} className="rounded-[8px] bg-paper p-4"><p className="text-xs font-semibold text-ink/40">阶段 {index + 1}</p><p className="mt-1 font-semibold">{stage.title}</p><p className="mt-2 text-xs text-ink/48">{stage.status === "BLOCKED" ? "等待上一阶段" : stage.status === "OPEN" ? "开放征集" : stage.status === "COMPLETED" ? "已完成" : "推进中"} · {stage.proposals.length} 个方案</p></div>)}</div>
-          {project.commerceStages.find((stage) => stage.status === "OPEN" || stage.status === "SELECTION_PENDING") ? <StageProposalForm projectId={project.id} stageId={project.commerceStages.find((stage) => stage.status === "OPEN" || stage.status === "SELECTION_PENDING")!.id} loggedIn={Boolean(currentUser)} /> : null}
+          {canSubmitStageProposal && openCommerceStage ? <StageProposalForm projectId={project.id} stageId={openCommerceStage.id} loggedIn={Boolean(currentUser)} /> : openCommerceStage?.stage === "DESIGN" && !["NOT_REQUIRED", "VERIFIED"].includes(openCommerceStage.commitmentStatus) ? <p className="mt-4 rounded-[8px] bg-amber-50 p-4 text-sm leading-6 text-amber-950">需求方正在完成项目启动金认证。认证后才开放设计师响应，避免无预算的试探性需求。</p> : openCommerceStage ? <p className="mt-4 rounded-[8px] bg-paper p-4 text-sm text-ink/55">本阶段已收到 5 个有效候选方案，暂不再增加候选人。</p> : null}
         </section> : null}
         <section className="rounded-[8px] border border-black/8 bg-white p-5">
           <h2 className="text-2xl font-semibold text-ink">参与资源</h2>
