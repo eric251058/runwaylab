@@ -155,9 +155,28 @@ function stepTitle(step: number) {
 }
 
 function optionClass(active: boolean) {
-  return `min-h-14 rounded-[8px] border p-4 text-left transition ${
+  return `min-h-14 touch-manipulation select-none rounded-[8px] border p-4 text-left transition active:scale-[0.99] ${
     active ? "border-ink bg-ink text-white" : "border-black/8 bg-white text-ink hover:border-ink/30"
   }`;
+}
+
+function missingStepMessage(draft: Draft, availableWorks: StartProjectFlowProps["availableWorks"]) {
+  if (draft.step === 0) {
+    if (!draft.sourceType) return "请选择一个开始方式。";
+    if (draft.sourceType === "DESIGN" && !availableWorks.some((work) => work.id === draft.linkedWorkId)) return "请选择一个要继续推进的作品。";
+  }
+  if (draft.step === 1) {
+    if (!draft.category) return "请选择产品品类。";
+    if (draft.category === "OTHER" && !draft.categoryOther.trim()) return "请补充具体产品品类。";
+  }
+  if (draft.step === 2 && !draft.primaryNeed) return "请选择你现在最需要的一步。";
+  if (draft.step === 3 && !draft.demandMode) return "请选择个人定制或公开共创。";
+  if (draft.step === 4) {
+    if (!draft.useScenario) return "请选择穿着场景。";
+    if (!draft.expectedPriceBand) return "请选择成衣预算。";
+    if (!draft.launchTiming) return "请选择希望完成时间。";
+  }
+  return "";
 }
 
 export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: StartProjectFlowProps) {
@@ -179,12 +198,12 @@ export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: 
 
   const canContinue = useMemo(() => {
     if (draft.step === 0) return draft.sourceType === "DESIGN" ? availableWorks.some((work) => work.id === draft.linkedWorkId) : Boolean(draft.sourceType);
-    if (draft.step === 1) return Boolean(draft.category);
+    if (draft.step === 1) return Boolean(draft.category && (draft.category !== "OTHER" || draft.categoryOther.trim()));
     if (draft.step === 2) return Boolean(draft.primaryNeed);
     if (draft.step === 3) return Boolean(draft.demandMode);
     if (draft.step === 4) return Boolean(draft.useScenario && draft.expectedPriceBand && draft.launchTiming);
     return true;
-  }, [availableWorks, draft.category, draft.linkedWorkId, draft.primaryNeed, draft.sourceType, draft.step]);
+  }, [availableWorks, draft.category, draft.categoryOther, draft.demandMode, draft.expectedPriceBand, draft.launchTiming, draft.linkedWorkId, draft.primaryNeed, draft.sourceType, draft.step, draft.useScenario]);
 
   function updateDraft(next: Partial<Draft>) {
     setMessage("");
@@ -192,7 +211,10 @@ export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: 
   }
 
   function nextStep() {
-    if (!canContinue) return;
+    if (!canContinue) {
+      setMessage(missingStepMessage(draft, availableWorks));
+      return;
+    }
     updateDraft({ step: Math.min(draft.step + 1, 5) });
   }
 
@@ -268,7 +290,7 @@ export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: 
                     {availableWorks.map((work) => {
                       const active = draft.linkedWorkId === work.id;
                       return (
-                        <button key={work.id} type="button" onClick={() => updateDraft({ linkedWorkId: work.id })} className={`flex items-center gap-3 rounded-[7px] border p-3 text-left transition ${active ? "border-ink bg-white ring-1 ring-ink" : "border-black/8 bg-white hover:border-ink/25"}`}>
+                        <button key={work.id} type="button" onClick={() => updateDraft({ linkedWorkId: work.id })} className={`flex touch-manipulation select-none items-center gap-3 rounded-[7px] border p-3 text-left transition active:scale-[0.99] ${active ? "border-ink bg-white ring-1 ring-ink" : "border-black/8 bg-white hover:border-ink/25"}`}>
                           {work.images[0]?.imageUrl ? <img src={work.images[0].imageUrl} alt="" className="size-14 shrink-0 rounded-[5px] object-cover" /> : <span className="flex size-14 shrink-0 items-center justify-center rounded-[5px] bg-black/[.04] text-xs text-ink/35">暂无图</span>}
                           <span className="min-w-0">
                             <span className="block truncate text-sm font-semibold text-ink">{work.title}</span>
@@ -355,11 +377,11 @@ export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: 
 
         <div className="mt-7 grid gap-3 sm:grid-cols-[auto_1fr]">
           {draft.step > 0 ? (
-            <button type="button" onClick={() => updateDraft({ step: Math.max(draft.step - 1, 0) })} className="min-h-11 rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">
+            <button type="button" onClick={() => updateDraft({ step: Math.max(draft.step - 1, 0) })} className="min-h-11 touch-manipulation select-none rounded-full border border-black/10 px-5 text-sm font-semibold text-ink active:scale-[0.99]">
               返回
             </button>
           ) : null}
-          <button type="button" disabled={!canContinue || submitting} onClick={draft.step === 5 ? createProject : nextStep} className="min-h-12 rounded-full bg-ink px-6 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45 sm:col-start-2">
+          <button type="button" disabled={submitting} onClick={draft.step === 5 ? createProject : nextStep} className="min-h-12 touch-manipulation select-none rounded-full bg-ink px-6 text-sm font-semibold text-white active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45 sm:col-start-2">
             {submitting ? "保存中..." : draft.step === 5 ? "保存并继续完善" : "继续"}
           </button>
         </div>
