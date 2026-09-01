@@ -93,6 +93,7 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
   const experience = getProjectExperienceStage(project);
   const timeline = privateProjectTimeline(project);
   const canManage = user.role === "ADMIN" || project.ownerUserId === user.id || project.projectIntake?.ownerId === user.id;
+  const canManageCommerce = project.ownerUserId === user.id || project.projectIntake?.ownerId === user.id;
   const canOpenMarketValidation = project.ownerUserId === user.id || project.projectIntake?.ownerId === user.id;
   const marketValidationEligible = canOpenMarketValidation
     && project.demandMode === "PUBLIC_COCREATION"
@@ -121,7 +122,8 @@ export default async function PrivateCollaborationProjectPage({ params }: PagePr
         {project.commerceStages.length ? <ProjectCommerceStages
           projectId={project.id}
           stages={project.commerceStages}
-          canManage={canManage}
+          canManage={canManageCommerce}
+          isAdmin={user.role === "ADMIN"}
         /> : null}
 
         {canOpenMarketValidation ? <ProjectMarketValidation

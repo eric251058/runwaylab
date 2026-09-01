@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ProjectIntakeDetailsFlow, type ProjectIntakeDetailsDto } from "@/components/start/ProjectIntakeDetailsFlow";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getProjectIntakeForViewer, privateCollaborationProjectHref, projectIntakeNextAction, projectIntakeTitle } from "@/lib/start-projects";
+import { getProjectIntakeForViewer, privateCollaborationProjectHref, projectBudgetBreakdown, projectIntakeNextAction, projectIntakeTitle } from "@/lib/start-projects";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +40,7 @@ function serializeIntake(intake: Awaited<ReturnType<typeof getProjectIntakeForVi
     useScenario: intake.useScenario,
     expectedPriceBand: intake.expectedPriceBand,
     launchTiming: intake.launchTiming,
+    budgetBreakdown: projectBudgetBreakdown(intake.requirements),
     reviewMessage: intake.reviewMessage,
     reviewNote: intake.reviewNote,
     status: intake.status,

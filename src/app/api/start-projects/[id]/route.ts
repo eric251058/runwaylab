@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getProjectIntakeForViewer, projectIntakeNextAction, projectIntakeTitle, updateProjectIntakeForViewer } from "@/lib/start-projects";
+import { getProjectIntakeForViewer, projectBudgetBreakdown, projectIntakeNextAction, projectIntakeTitle, updateProjectIntakeForViewer } from "@/lib/start-projects";
 
 type StartProjectRouteContext = {
   params: Promise<{
@@ -24,6 +24,7 @@ export async function GET(_request: Request, context: StartProjectRouteContext) 
   return NextResponse.json({
     intake: {
       ...intake,
+      budgetBreakdown: projectBudgetBreakdown(intake.requirements),
       title: projectIntakeTitle(intake),
       nextAction: projectIntakeNextAction(intake)
     }
@@ -48,6 +49,7 @@ export async function PATCH(request: Request, context: StartProjectRouteContext)
   return NextResponse.json({
     intake: {
       ...result.intake,
+      budgetBreakdown: projectBudgetBreakdown(result.intake.requirements),
       title: projectIntakeTitle(result.intake),
       nextAction: projectIntakeNextAction(result.intake)
     }
