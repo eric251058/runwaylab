@@ -14,7 +14,7 @@ assert.match(service, /function initialActionForProjectIntake/, "first action sh
 assert.match(service, /title:\s*"完善产品需求"/, "idea projects should get a human first action title");
 assert.match(service, /title:\s*"确认开发目标"/, "design-source projects should get a deterministic first action title");
 assert.match(service, /createInitialPrivateProjectActionForIntake\(tx/, "launch should create the first action inside the submit transaction");
-assert.match(service, /visibility:\s*CollaborationProjectVisibility\.PRIVATE/, "auto-created projects must remain private");
+assert.match(service, /current\.demandMode === "PUBLIC_COCREATION" \? CollaborationProjectVisibility\.PUBLIC : CollaborationProjectVisibility\.PRIVATE/, "auto-created projects must publish only explicit public co-creation requests");
 assert.match(service, /linkedCollaborationProjectId:\s*project\.id/, "launch should link the intake to the created project");
 assert.match(service, /convertedAt:\s*now/, "launch should preserve conversion audit fields");
 assert.match(service, /if \(current\.linkedCollaborationProjectId\) \{[\s\S]*idempotent:\s*true/, "duplicate launch should return the existing project");
@@ -48,6 +48,9 @@ assert.doesNotMatch(actionCard, />USER<|>PLATFORM<|责任方|当前行动/, "act
 
 assert.match(startDetails, /确认启动项目？/, "start details should launch instead of asking for a review");
 assert.match(startDetails, /你不用等待人工评估/, "start details should explain the simplified launch");
+assert.match(startDetails, /确认公开发布项目？/, "public co-creation should use explicit publish confirmation");
+assert.match(startDetails, /立即进入项目市场/, "public co-creation should explain immediate marketplace visibility");
+assert.match(startDetails, /待启动金认证/, "public co-creation should explain the verification gate without hiding the project");
 assert.doesNotMatch(startDetails, /确认提交平台评估？|正式项目已建立/, "start details should remove old review/conversion copy");
 assert.match(`${meProjects}\n${projectDetail}\n${actionCard}`, /min-h-11|min-h-12/, "primary controls should keep mobile-friendly tap targets");
 assert.match(`${meProjects}\n${projectDetail}`, /px-4/, "pages should keep mobile padding");

@@ -23,6 +23,7 @@ export type ProjectIntakeDetailsDto = {
   title: string;
   ownerId: string;
   sourceType: string;
+  demandMode: "PERSONAL_CUSTOM" | "PUBLIC_COCREATION";
   category: string;
   categoryOther: string | null;
   primaryNeed: string;
@@ -501,11 +502,15 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
           </label>
           {confirmSubmit ? (
             <div className="mt-5 rounded-[8px] border border-black/10 bg-paper p-4">
-              <h3 className="font-semibold text-ink">确认启动项目？</h3>
-              <p className="mt-2 text-sm leading-6 text-ink/58">启动后会直接进入项目工作台，并生成第一步。你不用等待人工评估。</p>
+              <h3 className="font-semibold text-ink">{intake.demandMode === "PUBLIC_COCREATION" ? "确认公开发布项目？" : "确认启动项目？"}</h3>
+              <p className="mt-2 text-sm leading-6 text-ink/58">
+                {intake.demandMode === "PUBLIC_COCREATION"
+                  ? "确认后会立即进入项目市场，并标记为待启动金认证。认证前项目可以被浏览，但设计师暂时不能提交方案。无需等待人工审核。"
+                  : "启动后会直接进入项目工作台，并生成第一步。你不用等待人工评估。"}
+              </p>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <button type="button" disabled={submitting} onClick={submitReview} className="min-h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:opacity-45">
-                  {submitting ? "启动中" : "确认启动"}
+                  {submitting ? "发布中" : intake.demandMode === "PUBLIC_COCREATION" ? "确认公开发布" : "确认启动"}
                 </button>
                 <button type="button" onClick={() => setConfirmSubmit(false)} className="min-h-11 rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink">
                   继续检查资料
@@ -515,7 +520,7 @@ export function ProjectIntakeDetailsFlow({ initialIntake }: ProjectIntakeDetails
           ) : null}
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <button type="button" disabled={!canSubmit || submitting} onClick={() => setConfirmSubmit(true)} className="min-h-12 rounded-full bg-ink px-6 text-sm font-semibold text-white disabled:opacity-45">
-              {intake.status === "NEEDS_INFO" ? "重新启动项目" : "启动项目"}
+              {intake.status === "NEEDS_INFO" ? "重新启动项目" : intake.demandMode === "PUBLIC_COCREATION" ? "公开发布项目" : "启动项目"}
             </button>
             <button type="button" onClick={() => setStep("plan")} className="min-h-12 rounded-full border border-black/10 px-6 text-sm font-semibold text-ink">
               返回

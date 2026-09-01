@@ -346,7 +346,7 @@ export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: 
               <span className="mt-2 block text-xs text-ink/40">{draft.ideaText.length} / 500</span>
             </label>
             <div className="rounded-[8px] border border-black/8 bg-paper p-4 text-sm leading-6 text-ink/55">
-              图片和更完整的资料可以在项目创建后继续补充。
+              下一步会保存这份启动资料，并带你继续补充目标用户与开发预算。完成最终确认后，公开共创项目才会出现在项目市场。
             </div>
           </div>
         ) : null}
@@ -360,7 +360,7 @@ export function StartProjectFlow({ initialSource, isLoggedIn, availableWorks }: 
             </button>
           ) : null}
           <button type="button" disabled={!canContinue || submitting} onClick={draft.step === 5 ? createProject : nextStep} className="min-h-12 rounded-full bg-ink px-6 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45 sm:col-start-2">
-            {submitting ? "创建中..." : draft.step === 5 ? "创建我的项目" : "继续"}
+            {submitting ? "保存中..." : draft.step === 5 ? "保存并继续完善" : "继续"}
           </button>
         </div>
       </div>

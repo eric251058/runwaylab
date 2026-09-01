@@ -68,7 +68,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
         <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/58 md:mt-4">从主理人、面料、打样、生产到买手和市场伙伴，用户可以自由发起连接。平台提供可信信息与协作空间，不替双方决定合作。</p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link href="/me/project-applications" className="inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-semibold text-white">我的参与中心</Link>
-          <Link href="/start-project" className="inline-flex min-h-11 items-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">发起项目</Link>
+          <Link href="/start" className="inline-flex min-h-11 items-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">发起项目</Link>
         </div>
       </header>
 
