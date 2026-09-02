@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { CrowdSubmissionForm } from "@/components/incubation/CrowdSubmissionForm";
 import { visualFor } from "@/components/works/work-visuals";
@@ -90,6 +91,8 @@ export default async function PresalePage({ searchParams }: PresalePageProps) {
   const params = await searchParams;
   const [campaigns, legacyWorks] = await Promise.all([getActiveCampaigns(), getLegacyPresaleWorks()]);
   const selectedLegacyWork = params?.workId ? legacyWorks.find((work) => work.id === params.workId) : undefined;
+
+  if (!campaigns.length && !selectedLegacyWork) redirect("/works");
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-5 md:px-8 md:py-12">

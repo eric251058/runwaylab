@@ -27,7 +27,10 @@ const home = source("src/app/page.tsx");
 assert.doesNotMatch(home, /两种开始方式/);
 assert.doesNotMatch(home, /我有设计作品/);
 assert.match(home, /启动服装项目/);
-assert.match(home, /从想法到第一件产品/);
+assert.match(home, /精选作品/);
+assert.match(home, /\.slice\(0,\s*6\)/);
+assert.match(home, /commentPreviews=\{\{\}\}/);
+assert.doesNotMatch(home, /从想法到第一件产品|真实推进中的项目|面料与服务商/);
 
 const startFlow = source("src/components/start/StartProjectFlow.tsx");
 const sourceOptions = startFlow.slice(startFlow.indexOf("const sourceOptions"), startFlow.indexOf("const categoryOptions"));
@@ -42,8 +45,9 @@ for (const label of ["首页", "发现", "发布作品", "项目", "我的"]) as
 assert.doesNotMatch(mobileNav, /label: "面料"/);
 
 const desktopNav = source("src/components/layout/AuthNav.tsx");
-assert.match(desktopNav, /providerMode\s*\?[\s\S]*业务机会/);
-assert.doesNotMatch(desktopNav.slice(desktopNav.indexOf("function navItems"), desktopNav.indexOf("export function AuthNav")), /label: "平台"|label: "面料"/);
+const desktopNavItems = desktopNav.slice(desktopNav.indexOf("function navItems"), desktopNav.indexOf("export function AuthNav"));
+assert.match(desktopNav, /我的工作台/);
+assert.doesNotMatch(desktopNavItems, /业务机会|providers\/opportunities|label: "平台"|label: "面料"/);
 
 const platform = source("src/app/platform/page.tsx");
 assert.match(platform, /让好设计/);
@@ -52,7 +56,14 @@ assert.doesNotMatch(platform, /基础可用|继续补齐|后续版本|V2\.0B|PLA
 
 const challenges = source("src/app/challenges/page.tsx");
 assert.match(challenges, /firstMatchingIndex/);
-assert.match(challenges, /已结束/);
-assert.doesNotMatch(challenges, /\{challenge\.status\}/);
+const challengeFilterEnd = challenges.indexOf("\n  });", challenges.indexOf("const visibleChallenges"));
+const challengeRedirect = challenges.indexOf('if (!visibleChallenges.length) redirect("/works")');
+assert.ok(challengeFilterEnd > -1 && challengeRedirect > challengeFilterEnd, "empty challenge redirect must run after filtering");
+
+const presale = source("src/app/presale/page.tsx");
+assert.match(presale, /if \(!campaigns\.length && !selectedLegacyWork\) redirect\("\/works"\)/);
+
+const exhibitions = source("src/app/exhibitions/page.tsx");
+assert.match(exhibitions, /if \(!visibleExhibitions\.length\) redirect\("\/works"\)/);
 
 console.log("product maturity foundation tests: PASS");

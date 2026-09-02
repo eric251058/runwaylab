@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { challengeCoverUrl, displayDateRange } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
@@ -54,6 +55,8 @@ export default async function ChallengesPage() {
     const firstMatchingIndex = items.findIndex((item) => item.title.trim().replace(/\s+/g, "").toLowerCase() === normalizedTitle);
     return (hasPublicWork || isCurrentOrUpcoming) && firstMatchingIndex === index;
   });
+
+  if (!visibleChallenges.length) redirect("/works");
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">

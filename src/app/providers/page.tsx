@@ -224,29 +224,20 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
         </div>
       </header>
 
-      <section className="mb-6 rounded-[8px] border border-black/8 bg-white p-4">
-        <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-          <Link href={queryHref(current, "type", null)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${!type ? "bg-ink text-white" : "bg-paper text-ink/60"}`}>全部</Link>
-          {SUPPLY_PROVIDER_TYPES.map((item) => (
-            <Link key={item} href={queryHref(current, "type", item)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${type === item ? "bg-ink text-white" : "bg-paper text-ink/60"}`}>
-              {SUPPLY_PROVIDER_TYPE_LABELS[item]}
-            </Link>
-          ))}
-        </div>
-        <form className="grid gap-3 md:grid-cols-[1.2fr_0.8fr_0.8fr_auto]">
-          {type ? <input type="hidden" name="type" value={type} /> : null}
-          <input name="q" defaultValue={q ?? ""} placeholder="搜索名称、品类、材料或工艺" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
-          <input name="city" defaultValue={city ?? ""} placeholder="城市" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
-          <input name="category" defaultValue={category ?? ""} placeholder="擅长品类" className="h-11 rounded-[6px] border border-black/10 px-3 text-sm" />
-          <button className="h-11 rounded-full bg-ink px-5 text-sm font-semibold text-white">筛选</button>
-          <div className="flex flex-wrap gap-4 text-sm text-ink/58 md:col-span-4">
-            <label className="flex items-center gap-2"><input type="checkbox" name="acceptsSample" value="true" defaultChecked={acceptsSample} />接打样</label>
-            <label className="flex items-center gap-2"><input type="checkbox" name="acceptsSmallBatch" value="true" defaultChecked={acceptsSmallBatch} />接小单</label>
-            <label className="flex items-center gap-2"><input type="checkbox" name="acceptsBulk" value="true" defaultChecked={acceptsBulk} />接大货</label>
-            <label className="flex items-center gap-2"><input type="checkbox" name="verified" value="true" defaultChecked={verified} />已认证</label>
-          </div>
-        </form>
-      </section>
+      <nav className="mb-6 flex gap-2 overflow-x-auto pb-1" aria-label="服务商类型">
+        <Link href="/providers" className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${!type ? "bg-ink text-white" : "bg-white text-ink/60"}`}>
+          全部服务
+        </Link>
+        {[ProviderType.FABRIC_SUPPLIER, ProviderType.SAMPLE_STUDIO, ProviderType.FACTORY].map((item) => (
+          <Link
+            key={item}
+            href={queryHref(new URLSearchParams(), "type", item)}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${type === item ? "bg-ink text-white" : "bg-white text-ink/60"}`}
+          >
+            {item === ProviderType.FABRIC_SUPPLIER ? "面料" : item === ProviderType.SAMPLE_STUDIO ? "打样" : "生产"}
+          </Link>
+        ))}
+      </nav>
 
       <div className="mb-4 flex items-center justify-between text-sm text-ink/45">
         <span>共 {total} 个服务商</span>

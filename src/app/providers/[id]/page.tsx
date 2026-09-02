@@ -60,12 +60,12 @@ export default async function ProviderDetailPage({ params, searchParams }: Provi
       fabrics: {
         where: { status: FabricStatus.ACTIVE },
         orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
-        take: 12
+        take: 4
       },
       showcaseItems: {
         where: { status: ProviderShowcaseStatus.PUBLISHED },
         orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
-        take: 12
+        take: 4
       },
       reviews: {
         where: {
@@ -145,7 +145,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Provi
   const inquiryDescription = "通过站内询盘说明作品、面料或合作需求。联系方式默认不会公开，双方确认后再交换。";
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
+    <div className="mx-auto max-w-7xl px-4 pb-24 pt-8 md:px-8 md:py-12">
       {isVisitorPreview ? (
         <div className="mb-5 flex flex-col gap-3 rounded-[8px] border border-black/8 bg-white p-4 text-sm text-ink/65 md:flex-row md:items-center md:justify-between">
           <span className="font-semibold text-ink">正在预览访客视角</span>
@@ -266,7 +266,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Provi
           ) : null}
         </div>
         {isFabricProvider && provider.fabrics.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {provider.fabrics.map((fabric) => (
               <Link key={fabric.id} href={`/fabrics/${fabric.slug ?? fabric.id}`} className="rounded-[8px] border border-black/8 bg-white p-3">
                 <SafeImage src={fabric.imageUrl ?? fabric.imageUrls[0] ?? null} alt={fabric.name} className="aspect-[4/3] w-full rounded-[6px] object-cover" />
@@ -278,7 +278,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Provi
             ))}
           </div>
         ) : !isFabricProvider && provider.showcaseItems.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {provider.showcaseItems.map((item) => {
               return (
                 <Link key={item.id} href={`/providers/${provider.slug ?? provider.id}/showcase/${item.id}`} className="rounded-[8px] border border-black/8 bg-white p-3">
@@ -317,6 +317,15 @@ export default async function ProviderDetailPage({ params, searchParams }: Provi
             </div>
           )}
         </section>
+      ) : null}
+
+      {!showOwnerControls && contactEnabled ? (
+        <a
+          href="#inquiry"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-4 right-4 z-30 inline-flex h-12 items-center justify-center rounded-full bg-ink px-6 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(16,16,16,0.22)] md:left-auto md:right-8 md:w-auto"
+        >
+          发起询盘
+        </a>
       ) : null}
     </div>
   );
