@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { displayDateRange, exhibitionCoverUrl } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
 import { getPublicQualityWorkIds } from "@/lib/works/queries";
@@ -31,6 +32,9 @@ export default async function ExhibitionsPage() {
     orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }]
   });
 
+  const visibleExhibitions = exhibitions.filter((exhibition) => exhibition._count.works > 0);
+  if (!visibleExhibitions.length) redirect("/works");
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
       <header className="mb-8">
@@ -39,9 +43,9 @@ export default async function ExhibitionsPage() {
         <p className="mt-4 max-w-2xl text-sm leading-6 text-ink/58">承接课程作业、毕业设计展、院校专题展，让作品以班级和课程为单位被展示。</p>
       </header>
 
-      {exhibitions.length ? (
+      {visibleExhibitions.length ? (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {exhibitions.map((exhibition) => (
+          {visibleExhibitions.map((exhibition) => (
             <Link key={exhibition.id} href={`/exhibitions/${exhibition.slug ?? exhibition.id}`} className="overflow-hidden rounded-[8px] bg-white shadow-[0_16px_48px_rgba(16,16,16,0.08)]">
               <img src={exhibitionCoverUrl(exhibition.coverUrl)} alt={exhibition.title} className="aspect-[16/9] w-full object-cover" />
               <div className="space-y-3 p-5">

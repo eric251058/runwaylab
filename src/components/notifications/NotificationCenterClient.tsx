@@ -48,6 +48,8 @@ export function NotificationCenterClient({
   const [isPending, startTransition] = useTransition();
 
   const hasUnread = unreadCount > 0;
+  const hasMessages = items.length > 0;
+  const showCategories = activeCategory !== "ALL" || hasMessages;
   const unreadLabel = unreadCount > 99 ? "99+" : String(unreadCount);
   const filteredItems = useMemo(
     () => items.filter((item) => activeCategory === "ALL" || item.category === activeCategory),
@@ -101,33 +103,37 @@ export function NotificationCenterClient({
             <h1 className="text-3xl font-semibold text-ink md:text-5xl">消息中心</h1>
           </div>
           <p className="mt-3 text-sm text-ink/58">
-            {hasUnread ? `还有 ${unreadLabel} 条未读消息。` : "所有消息都已读。"}
+            {!hasMessages ? "暂无需要处理的消息。" : hasUnread ? `还有 ${unreadLabel} 条未读消息。` : "所有消息都已读。"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={markAllRead}
-          disabled={!hasUnread || isPending}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink transition hover:border-ink/30 disabled:pointer-events-none disabled:text-ink/35"
-        >
-          {isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Check className="h-4 w-4" aria-hidden="true" />}
-          全部已读
-        </button>
+        {hasMessages ? (
+          <button
+            type="button"
+            onClick={markAllRead}
+            disabled={!hasUnread || isPending}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-ink transition hover:border-ink/30 disabled:pointer-events-none disabled:text-ink/35"
+          >
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Check className="h-4 w-4" aria-hidden="true" />}
+            全部已读
+          </button>
+        ) : null}
       </header>
 
-      <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
-        {visibleCategories.map((category) => (
-          <Link
-            key={category}
-            href={category === "ALL" ? "/notifications" : `/notifications?category=${category}`}
-            className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
-              activeCategory === category ? "bg-ink text-white" : "bg-white text-ink/55 hover:text-ink"
-            }`}
-          >
-            {categoryLabels[category]}
-          </Link>
-        ))}
-      </div>
+      {showCategories ? (
+        <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
+          {visibleCategories.map((category) => (
+            <Link
+              key={category}
+              href={category === "ALL" ? "/notifications" : `/notifications?category=${category}`}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                activeCategory === category ? "bg-ink text-white" : "bg-white text-ink/55 hover:text-ink"
+              }`}
+            >
+              {categoryLabels[category]}
+            </Link>
+          ))}
+        </div>
+      ) : null}
 
       {error ? <p className="mb-4 rounded-[8px] bg-white px-4 py-3 text-sm text-red-600">{error}</p> : null}
 

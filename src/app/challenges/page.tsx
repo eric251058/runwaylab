@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { challengeCoverUrl, displayDateRange } from "@/lib/school-activity";
 import { prisma } from "@/lib/prisma";
@@ -52,7 +53,9 @@ export default async function ChallengesPage() {
     const isCurrentOrUpcoming = challenge.endAt >= now;
     const normalizedTitle = challenge.title.trim().replace(/\s+/g, "").toLowerCase();
     const firstMatchingIndex = items.findIndex((item) => item.title.trim().replace(/\s+/g, "").toLowerCase() === normalizedTitle);
-    return (hasPublicWork || isCurrentOrUpcoming) && firstMatchingIndex === index;
+    if (!visibleChallenges.length) redirect("/works");
+
+  return (hasPublicWork || isCurrentOrUpcoming) && firstMatchingIndex === index;
   });
 
   return (

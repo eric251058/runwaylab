@@ -58,7 +58,7 @@ function navItems(providerMode: boolean): Array<{ label: string; href: string; p
     { label: "服务商", href: "/providers" }
   ];
   return providerMode
-    ? [...shared, { label: "业务机会", href: "/providers/opportunities" }, { label: "服务商工作台", href: "/provider-center", primary: true }]
+    ? [...shared, { label: "服务商工作台", href: "/provider-center", primary: true }]
     : [...shared, { label: "发布作品", href: "/publish", primary: true }];
 }
 
@@ -210,17 +210,11 @@ export function AuthNav() {
                 <>
                   {notificationLink}
                   <Link href="/me" className="rounded-full px-3 py-2 text-ink/55 transition hover:bg-paper hover:text-ink">
-                    我的
+                    我的工作台
                   </Link>
                   <details className="group relative">
                     <summary className="list-none rounded-full px-3 py-2 transition hover:bg-paper [&::-webkit-details-marker]:hidden">{accountLabel}</summary>
                     <div className="absolute right-0 mt-2 grid min-w-40 gap-1 rounded-[12px] border border-black/8 bg-white p-2 shadow-[0_18px_50px_rgba(16,16,16,0.10)]">
-                  <Link href="/me/platform" className="rounded-[8px] px-3 py-2 text-ink/65 hover:bg-paper hover:text-ink">
-                    全链路工作台
-                  </Link>
-                      <Link href="/me/dashboard" className="rounded-[8px] px-3 py-2 text-ink/65 hover:bg-paper hover:text-ink">
-                        个人工作台
-                      </Link>
                       <Link href="/me/profile" className="rounded-[8px] px-3 py-2 text-ink/65 hover:bg-paper hover:text-ink">
                         账号设置
                       </Link>
@@ -258,7 +252,7 @@ export function AuthNav() {
               {unreadCount > 0 ? <span className="ml-1 rounded-full bg-ink px-1.5 py-0.5 text-[10px] leading-4 text-white">{unreadLabel}</span> : null}
             </Link>
             <Link href={providerMode ? "/provider-center" : "/me"} className="rounded-full px-3 py-2 transition hover:bg-paper">
-              {providerMode ? "工作台" : "我的"}
+              "工作台"
             </Link>
             <button type="button" onClick={logout} disabled={loggingOut} className="rounded-full px-3 py-2 text-ink/70 transition hover:bg-paper hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:pointer-events-none disabled:text-ink/35 disabled:opacity-60">
               {loggingOut ? "退出中…" : "退出"}

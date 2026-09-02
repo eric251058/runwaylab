@@ -1,19 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { PROVIDER_MEMBERSHIP_PLANS } from "@/lib/provider-membership";
 import { QuickProviderOnboardingForm } from "./QuickProviderOnboardingForm";
 
 export const metadata: Metadata = {
   title: "服务商入驻",
   description: "加入 RunwayLab 服务商网络，展示真实产品、案例与可承接能力。"
 };
-
-const steps = [
-  ["01", "提交真实资料", "填写服务能力、地区、MOQ、周期与联系方式。"],
-  ["02", "进入私有工作台", "立即完善资料、产品、案例和可承接范围。"],
-  ["03", "自助公开主页", "达到最低可信标准即可开通；异常才由平台核验。"],
-  ["04", "接收真实需求", "通过站内询盘沟通，双方自行确认报价与履约。"]
-] as const;
 
 export default function ProviderJoinPage() {
   return (
@@ -31,18 +23,6 @@ export default function ProviderJoinPage() {
             <p className="mt-3 text-sm leading-6 text-white/65">首批完成自助开通的真实服务商享 90 天共创期。我们会用询盘、响应与合作结果验证平台价值，不用虚假流量证明成功。</p>
             <Link href="#quick-apply" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-ink">3 分钟创建工作台</Link>
           </div>
-        </div>
-      </section>
-
-      <section className="border-y border-black/8 bg-white">
-        <div className="mx-auto grid max-w-6xl gap-px bg-black/8 md:grid-cols-4">
-          {steps.map(([number, title, description]) => (
-            <article key={number} className="bg-white p-6">
-              <p className="text-xs font-semibold text-ink/30">{number}</p>
-              <h2 className="mt-6 text-xl font-semibold">{title}</h2>
-              <p className="mt-3 text-sm leading-6 text-ink/55">{description}</p>
-            </article>
-          ))}
         </div>
       </section>
 
@@ -64,36 +44,17 @@ export default function ProviderJoinPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-14 md:px-8 md:py-20">
-        <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/35">Pricing</p>
-          <h2 className="mt-4 text-4xl font-semibold md:text-5xl">清楚收费，不出售虚假曝光</h2>
-          <p className="mt-4 text-sm leading-7 text-ink/55">正式收费前，平台会公布权益、周期和退出规则。在线支付尚未开放，当前不会自动扣款。</p>
-        </div>
-        <div className="mt-9 grid gap-4 lg:grid-cols-4">
-          {PROVIDER_MEMBERSHIP_PLANS.map((plan) => (
-            <article key={plan.id} className={`flex flex-col rounded-[16px] border p-5 ${plan.recommended ? "border-ink bg-ink text-white" : "border-black/10 bg-white"}`}>
-              <div className="min-h-36">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold">{plan.name}</h3>
-                  {plan.recommended ? <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-ink">推荐</span> : null}
-                </div>
-                <p className={`mt-4 text-2xl font-semibold ${plan.recommended ? "text-white" : "text-ink"}`}>{plan.priceLabel}</p>
-                <p className={`mt-3 text-sm leading-6 ${plan.recommended ? "text-white/65" : "text-ink/52"}`}>{plan.description}</p>
-              </div>
-              <ul className={`mt-5 space-y-2 border-t pt-5 text-sm ${plan.recommended ? "border-white/15 text-white/80" : "border-black/8 text-ink/65"}`}>
-                {plan.benefits.map((benefit) => <li key={benefit}>✓ {benefit}</li>)}
-              </ul>
-              <ul className={`mt-5 space-y-2 text-xs leading-5 ${plan.recommended ? "text-white/45" : "text-ink/42"}`}>
-                {plan.limits.map((limit) => <li key={limit}>— {limit}</li>)}
-              </ul>
-            </article>
-          ))}
-        </div>
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Link href="#quick-apply" className="inline-flex h-12 items-center justify-center rounded-full bg-ink px-6 text-sm font-semibold text-white">创建服务商工作台</Link>
-          <Link href="/providers/apply" className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white px-6 text-sm font-semibold text-ink">填写完整申请</Link>
-          <Link href="/providers" className="inline-flex h-12 items-center justify-center rounded-full border border-black/10 bg-white px-6 text-sm font-semibold text-ink">查看服务商网络</Link>
+      <section className="mx-auto max-w-6xl px-4 py-12 md:px-8 md:py-16">
+        <div className="rounded-[18px] border border-black/8 bg-white p-6 md:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/35">First collaboration</p>
+          <h2 className="mt-3 text-3xl font-semibold text-ink md:text-4xl">先验证一次真实合作</h2>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-ink/58">
+            当前阶段不收取会员费。先完善真实能力、产品和案例，再用询盘、响应与合作结果判断平台是否值得长期使用。
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/providers" className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white">查看服务商网络</Link>
+            <Link href="/providers/apply" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 px-5 text-sm font-semibold text-ink">填写完整资料</Link>
+          </div>
         </div>
       </section>
     </main>

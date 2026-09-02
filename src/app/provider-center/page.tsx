@@ -229,7 +229,6 @@ export default async function ProviderCenterPage({ searchParams }: ProviderCente
       <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {actionCard(workbenchCopy.primaryLabel, fullProvider.type === "FABRIC_SUPPLIER" ? "上传可公开展示的面料产品。" : "上传可公开展示的服务案例。", workbenchCopy.primaryHref)}
         {actionCard(workbenchCopy.secondaryLabel, fullProvider.type === "FABRIC_SUPPLIER" ? "维护面料产品和公开状态。" : "维护打样或生产案例。", workbenchCopy.secondaryHref)}
-        {actionCard(workbenchCopy.opportunityLabel, fullProvider.type === "FABRIC_SUPPLIER" ? "查看推荐给设计师的产品和反馈。" : "查看适合参与的作品机会。", workbenchCopy.opportunityHref)}
         {actionCard("收到的合作需求", "查看并回应设计师发来的需求。", "/provider-center/inquiries")}
         {actionCard("服务商资料", "更新品牌形象和联系方式。", "/provider-center/profile")}
         {actionCard("会员与权益", "查看当前额度、套餐申请与审核记录。", "/provider-center/membership")}

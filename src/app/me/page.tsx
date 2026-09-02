@@ -243,8 +243,8 @@ export default async function MePage({ searchParams }: MePageProps) {
     <div className="mx-auto max-w-5xl px-3 py-5 md:px-8 md:py-12">
       <header className="mb-5 flex flex-col gap-4 md:mb-8 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-ink md:text-5xl">我的</h1>
-          <p className="mt-3 text-sm text-ink/58 md:mt-4">管理作品、进展、收藏和个人资料。</p>
+          <h1 className="text-3xl font-semibold text-ink md:text-5xl">我的工作台</h1>
+          <p className="mt-3 text-sm text-ink/58 md:mt-4">作品、项目、消息和个人资料都从这里进入。</p>
         </div>
         <div className="grid gap-2 sm:flex sm:flex-wrap">
           <Link href="/notifications" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink sm:px-5">
@@ -370,10 +370,6 @@ export default async function MePage({ searchParams }: MePageProps) {
           <Link href="/me/onboarding" className="rounded-[8px] border border-black/8 bg-white p-4">
             <h2 className="font-semibold text-ink">切换身份</h2>
             <p className="mt-2 text-sm text-ink/52">调整你在 RunwayLab 的个人工作台。</p>
-          </Link>
-          <Link href="/me/dashboard" className="rounded-[8px] border border-black/8 bg-white p-4">
-            <h2 className="font-semibold text-ink">个人工作台</h2>
-            <p className="mt-2 text-sm text-ink/52">查看与你身份相关的任务入口。</p>
           </Link>
         </section>
       ) : null}
