@@ -53,10 +53,10 @@ export default async function ChallengesPage() {
     const isCurrentOrUpcoming = challenge.endAt >= now;
     const normalizedTitle = challenge.title.trim().replace(/\s+/g, "").toLowerCase();
     const firstMatchingIndex = items.findIndex((item) => item.title.trim().replace(/\s+/g, "").toLowerCase() === normalizedTitle);
-    if (!visibleChallenges.length) redirect("/works");
-
-  return (hasPublicWork || isCurrentOrUpcoming) && firstMatchingIndex === index;
+    return (hasPublicWork || isCurrentOrUpcoming) && firstMatchingIndex === index;
   });
+
+  if (!visibleChallenges.length) redirect("/works");
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
