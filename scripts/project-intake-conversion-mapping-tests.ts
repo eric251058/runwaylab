@@ -11,8 +11,8 @@ assert.match(schema, /projectIntake\s+ProjectIntake\?\s+@relation\("ProjectIntak
 assert.match(conversionCreateBlock, /title:\s*projectIntakeTitle\(current\)/, "converted project title should come from intake data");
 assert.match(conversionCreateBlock, /ownerUserId:\s*current\.ownerId/, "converted project owner should be the intake owner");
 assert.match(conversionCreateBlock, /createdById:\s*admin\.id/, "converted project creator should be session admin");
-assert.match(conversionCreateBlock, /status:\s*CollaborationProjectStatus\.DRAFT/, "converted project should start as DRAFT");
-assert.match(conversionCreateBlock, /visibility:\s*CollaborationProjectVisibility\.PRIVATE/, "converted project should start PRIVATE");
+assert.match(conversionCreateBlock, /status:\s*current\.demandMode === "PUBLIC_COCREATION" \? CollaborationProjectStatus\.SEEKING_PROPOSALS : CollaborationProjectStatus\.DRAFT/, "public co-creation should open for proposals while personal projects remain drafts");
+assert.match(conversionCreateBlock, /visibility:\s*current\.demandMode === "PUBLIC_COCREATION" \? CollaborationProjectVisibility\.PUBLIC : CollaborationProjectVisibility\.PRIVATE/, "only explicit public co-creation should publish during conversion");
 assert.doesNotMatch(conversionCreateBlock, /workId:/, "conversion must not invent a Work link");
 assert.doesNotMatch(conversionCreateBlock, /incubationProject|ProviderProposal|ProjectOrder/, "conversion must not create downstream business objects");
 

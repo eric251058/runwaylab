@@ -4,9 +4,8 @@ import { readFileSync } from "node:fs";
 const homePage = readFileSync("src/app/page.tsx", "utf8");
 const homeFeed = readFileSync("src/components/works/HomeFeed.tsx", "utf8");
 
-assert.match(homePage, /view=inspiration/, "home page should expose inspiration mode");
-assert.match(homePage, /view=activity/, "home page should expose activity mode");
-assert.match(homePage, /return isLoggedIn \? "activity" : "inspiration"/, "home page should default guests to inspiration and logged-in users to activity");
+assert.match(homePage, /mode="inspiration"/, "home page should use the compact inspiration gallery");
+assert.doesNotMatch(homePage, /view=activity|return isLoggedIn \? "activity" : "inspiration"/, "home page should not expose the retired social activity mode");
 assert.match(homeFeed, /mode === "inspiration"/, "home feed should render inspiration mode separately");
 assert.match(homeFeed, /return \(\s*<div className="mx-auto max-w-\[700px\] space-y-5">/, "home feed should render activity mode as a separate single column");
 assert.match(homeFeed, /grid grid-cols-2/, "inspiration mode should use a two-column mobile grid");

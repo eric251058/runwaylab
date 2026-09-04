@@ -4,14 +4,9 @@ import { readFileSync } from "node:fs";
 const homePage = readFileSync("src/app/page.tsx", "utf8");
 const homeFeed = readFileSync("src/components/works/HomeFeed.tsx", "utf8");
 const commentsRoute = readFileSync("src/app/api/works/[id]/comments/route.ts", "utf8");
-const previewFunction = homePage.slice(homePage.indexOf("async function getHomeCommentPreviews"), homePage.indexOf("type HomePageProps"));
-
-assert.match(homePage, /getHomeCommentPreviews/, "home page should batch-load comment previews");
-assert.match(homePage, /activeFeedMode === "activity" \? await getHomeCommentPreviews/, "comments should only load for activity mode");
-assert.match(homePage, /workId:\s*\{\s*in:\s*workIds\s*\}/, "comment previews should avoid one request per card");
-assert.match(homePage, /take:\s*workIds\.length \* 6/, "comment preview query should only load the current page subset");
-assert.match(homePage, /select:[\s\S]*nickname: true/, "comment preview DTO should select only public author name");
-assert.doesNotMatch(previewFunction, /email|phone|passwordHash|session|contactEmail/i, "comment preview DTO must not include private fields");
+assert.doesNotMatch(homePage, /getHomeCommentPreviews|activeFeedMode|view=activity/, "home page should not load or expose comment activity");
+assert.match(homePage, /commentPreviews=\{\{\}\}/, "home page should pass an empty comment preview set");
+assert.match(homePage, /mode="inspiration"/, "home page should render the inspiration-only gallery");
 assert.match(homeFeed, /preview\.slice\(0,\s*2\)/, "activity card should show at most two comments");
 assert.match(homeFeed, /查看全部 \{work\.commentCount\} 条评论/, "activity card should show full comment count");
 assert.match(homeFeed, /还没有评论，说说你最喜欢的细节。/, "empty comment state should be calm and specific");

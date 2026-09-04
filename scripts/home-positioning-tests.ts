@@ -11,8 +11,8 @@ assert.doesNotMatch(homePage, /两种开始方式|\/start\?source=design|\/start
 assert.match(homePage, /帮助新锐设计师和品牌主理人/, "homepage should not target only students");
 assert.doesNotMatch(homePage, /保证订单|保证融资|免费帮你做品牌|已帮助数百位/, "homepage must not make unsupported success promises");
 assert.doesNotMatch(homePage, /机会池正在积累中|正在积累中，可以先发布作品/, "empty opportunity shell should not be rendered");
-assert.match(homePage, /qualityOpportunityWorks\.length \?/, "opportunity section should only render when real data exists");
-assert.match(homePage, /publicFabricWhere\(\)/, "homepage fabrics should come only from public provider contexts");
-assert.match(homePage, /return isLoggedIn \? "activity" : "inspiration"/, "existing homepage feed mode behavior should remain");
+assert.match(homePage, /return works\.filter\(isPublicQualityWork\)\.slice\(0, 6\)/, "homepage should show at most six quality works");
+assert.match(homePage, /commentPreviews=\{\{\}\}[\s\S]*mode="inspiration"/, "homepage should use a fixed inspiration gallery without comment previews");
+assert.doesNotMatch(homePage, /qualityOpportunityWorks|publicFabricWhere|getHomeCommentPreviews|view=activity/, "homepage should not restore removed opportunity, fabric, or social-feed sections");
 
 console.log("home positioning tests passed");

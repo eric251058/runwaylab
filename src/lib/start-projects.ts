@@ -118,7 +118,7 @@ export const PROJECT_INTAKE_STATUS_LABELS: Record<ProjectIntakeStatus, string> =
 };
 
 export const PROJECT_INTAKE_EVENT_LABELS: Record<ProjectIntakeEventType, string> = {
-  CREATED: "项目已启动",
+  CREATED: "草稿已保存",
   DETAILS_UPDATED: "项目资料已更新",
   SUBMITTED: "已提交平台评估",
   WITHDRAWN: "已撤回评估",
