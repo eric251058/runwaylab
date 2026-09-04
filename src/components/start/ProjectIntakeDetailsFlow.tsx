@@ -64,7 +64,7 @@ type ProjectIntakeDetailsFlowProps = {
 };
 
 const statusLabels: Record<IntakeStatus, string> = {
-  DRAFT: "想法",
+  DRAFT: "草稿已保存",
   READY_FOR_REVIEW: "可以启动",
   SUBMITTED: "正在准备项目",
   NEEDS_INFO: "需要补充资料",
@@ -73,7 +73,7 @@ const statusLabels: Record<IntakeStatus, string> = {
 };
 
 const eventLabels: Record<EventType, string> = {
-  CREATED: "项目已启动",
+  CREATED: "草稿已保存",
   DETAILS_UPDATED: "项目资料已更新",
   SUBMITTED: "已启动项目",
   WITHDRAWN: "已撤回评估",

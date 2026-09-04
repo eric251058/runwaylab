@@ -14,6 +14,6 @@ assert.doesNotMatch(validation, /projectIntakeConversionSchema[\s\S]*(ownerId|st
 assert.match(service, /ownerUserId:\s*current\.ownerId/, "formal project owner should come from the intake owner");
 assert.match(service, /convertedById:\s*admin\.id/, "converter should come from session admin");
 assert.match(privateProjectService, /canViewPrivateProject/, "private project access should be centralized");
-assert.match(privateProjectService, /project\.ownerUserId === user\.id \|\| project\.projectIntake\?\.ownerId === user\.id/, "private project should only be visible to owner or admin");
+assert.match(privateProjectService, /project\.ownerUserId === user\.id[\s\S]*project\.designerId === user\.id[\s\S]*project\.provider\?\.ownerId === user\.id[\s\S]*project\.projectIntake\?\.ownerId === user\.id/, "private project should be limited to the owner, assigned collaborators, or an active admin");
 
 console.log("project intake conversion permission tests passed");
