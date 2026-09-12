@@ -73,12 +73,12 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
       </header>
 
       <form className="mt-5 grid gap-3 rounded-[10px] border border-black/8 bg-white p-4 md:grid-cols-[minmax(0,1fr)_220px_220px_auto]">
-        <input name="q" defaultValue={query} maxLength={60} placeholder="搜索项目、作品或合作方向" className="min-h-11 rounded-[8px] border border-black/10 px-3 text-sm outline-none focus:border-ink/40" />
-        <select name="stage" defaultValue={stage ?? ""} className="min-h-11 rounded-[8px] border border-black/10 bg-white px-3 text-sm text-ink">
+        <input aria-label="搜索项目、作品或合作方向" name="q" defaultValue={query} maxLength={60} placeholder="搜索项目、作品或合作方向" className="min-h-11 rounded-[8px] border border-black/10 px-3 text-sm outline-none focus:border-ink/40" />
+        <select aria-label="项目阶段" name="stage" defaultValue={stage ?? ""} className="min-h-11 rounded-[8px] border border-black/10 bg-white px-3 text-sm text-ink">
           <option value="">全部项目阶段</option>
           {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
-        <select name="need" defaultValue={need ?? ""} className="min-h-11 rounded-[8px] border border-black/10 bg-white px-3 text-sm text-ink">
+        <select aria-label="合作机会" name="need" defaultValue={need ?? ""} className="min-h-11 rounded-[8px] border border-black/10 bg-white px-3 text-sm text-ink">
           <option value="">全部合作机会</option>
           {NEED_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
@@ -114,7 +114,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
           })}
         </div>
       ) : (
-        <div className="mt-5 rounded-[10px] border border-dashed border-black/10 bg-white p-8 text-center text-sm text-ink/55">当前筛选下没有项目，可以清除筛选或发起新的合作项目。</div>
+        <div className="mt-5 rounded-[10px] border border-dashed border-black/10 bg-white p-8 text-center text-sm text-ink/55">{query || stage || need ? "没有符合当前筛选条件的项目，请清除筛选后再查看。" : "暂时没有开放项目。保存草稿不会自动进入市场，请补齐项目资料，并明确选择公开共创。"}<div className="mt-4 flex flex-wrap justify-center gap-4"><Link href={query || stage || need ? "/projects" : "/me"} className="font-semibold text-ink underline">{query || stage || need ? "清除筛选" : "进入我的工作台完善草稿"}</Link><Link href="/start" className="font-semibold text-ink underline">发起项目</Link></div></div>
       )}
     </div>
   );
