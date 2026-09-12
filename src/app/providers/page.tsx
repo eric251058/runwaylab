@@ -82,11 +82,11 @@ function providerPublicFacts(provider: {
   const facts: Array<string | null> = [];
 
   if (provider.type === ProviderType.FABRIC_SUPPLIER) {
-    facts.push(material ? `主营 ${material}` : null, provider.sampleSupported ?? provider.acceptsSampling ? "支持寄样" : null, provider.minimumOrder || (moq ? `MOQ ${moq}` : null));
+    facts.push(material ? `主营 ${material}` : null, provider.sampleSupported ?? provider.acceptsSampling ? "支持寄样" : null, provider.minimumOrder ? `起订量：${provider.minimumOrder}${/^\d+(\.\d+)?$/.test(provider.minimumOrder.trim()) ? "（单位需咨询）" : ""}` : moq != null ? `起订量：${moq}（单位需咨询）` : "起订量需咨询");
   } else if (provider.type === ProviderType.SAMPLE_STUDIO) {
     facts.push(category ? `擅长 ${category}` : null, provider.singleSampleSupported ? "单件打样" : null, provider.leadTime || (provider.sampleLeadDays ? `打样 ${provider.sampleLeadDays} 天` : null), provider.priceRange);
   } else if (provider.type === ProviderType.FACTORY) {
-    facts.push(category ? `擅长 ${category}` : null, provider.acceptsSmallBatch ? "可接小单" : null, provider.minimumOrder || (moq ? `MOQ ${moq}` : null), provider.monthlyCapacity, provider.leadTime || (provider.productionLeadDays ? `生产 ${provider.productionLeadDays} 天` : null));
+    facts.push(category ? `擅长 ${category}` : null, provider.acceptsSmallBatch ? "可接小单" : null, provider.minimumOrder ? `起订量：${provider.minimumOrder}${/^\d+(\.\d+)?$/.test(provider.minimumOrder.trim()) ? "（单位需咨询）" : ""}` : moq != null ? `起订量：${moq}（单位需咨询）` : "起订量需咨询", provider.monthlyCapacity, provider.leadTime || (provider.productionLeadDays ? `生产 ${provider.productionLeadDays} 天` : null));
   } else {
     facts.push(category ? `服务 ${category}` : null, technique ? `擅长 ${technique}` : null, provider.sampleLeadDays ? `周期 ${provider.sampleLeadDays} 天` : null);
   }
@@ -306,7 +306,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
         </section>
       ) : (
         <div className="rounded-[8px] border border-black/8 bg-white p-6 text-sm leading-6 text-ink/58">
-          暂无符合条件的服务商。可以减少筛选条件，或稍后查看平台新增服务商。
+          {q || city || category || verified || acceptsSample || acceptsSmallBatch || acceptsBulk || page > 1 ? "没有符合当前条件的服务商，请查看全部服务商或返回第一页。" : type ? "该类别暂时没有公开服务商，当前无法保证匹配。你可以先记录项目需求，或查看其他服务商。" : "暂时没有公开服务商。你可以先记录项目需求，之后再寻找合作伙伴。"}<div className="mt-4 flex flex-wrap gap-4"><Link href="/providers" className="font-semibold text-ink underline">查看全部服务商</Link><Link href="/start" className="font-semibold text-ink underline">记录项目需求</Link></div>
         </div>
       )}
 
