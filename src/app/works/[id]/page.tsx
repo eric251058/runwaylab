@@ -86,7 +86,7 @@ export async function generateMetadata({ params }: WorkDetailPageProps): Promise
     const imageUrl = `${SITE_URL}/works/${encodeURIComponent(shareInfo.id)}/opengraph-image`;
 
     return {
-      title,
+      title: { absolute: title },
       description,
       alternates: { canonical: url },
       openGraph: {
@@ -215,7 +215,7 @@ function nextActionCopy({
       description: "点赞、收藏或提交预售意向都不会产生付款。",
       actions: [
         { label: "登录后表达意向", href: `/login?next=/works/${workId}`, primary: true },
-        { label: "看预售", href: presaleHref }
+        ...(hasActivePresale ? [{ label: "看预售", href: presaleHref }] : [])
       ]
     };
   }

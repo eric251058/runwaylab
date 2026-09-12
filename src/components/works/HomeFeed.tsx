@@ -1,5 +1,6 @@
 "use client";
 
+import { uploadImageSrcSet } from "@/lib/responsive-image";
 import Link from "next/link";
 import { useState } from "react";
 import { Bookmark, Heart, MessageCircle, Share2, ShoppingBag } from "lucide-react";
@@ -167,7 +168,7 @@ export function HomeFeed({ works, commentPreviews, mode, isLoggedIn }: HomeFeedP
         {items.map((work, index) => (
           <Link key={work.id} href={`/works/${work.id}`} className="group overflow-hidden rounded-[8px] bg-white shadow-[0_10px_28px_rgba(16,16,16,0.08)]" id={`work-${work.id}`}>
             <div className="relative aspect-[3/4] bg-paper">
-              <img src={visualFor(index, work.images[0])} alt={`${work.title} 作品封面`} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" sizes="(max-width: 640px) 48vw, (max-width: 1024px) 31vw, 280px" loading="lazy" />
+              <img src={visualFor(index, work.images[0])} srcSet={uploadImageSrcSet(visualFor(index, work.images[0]))} decoding="async" alt={`${work.title} 作品封面`} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" sizes="(max-width: 640px) 48vw, (max-width: 1024px) 31vw, 280px" loading="lazy" />
             </div>
             <div className="p-2.5 md:p-3">
               <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-ink">{work.title}</h3>
@@ -199,7 +200,7 @@ export function HomeFeed({ works, commentPreviews, mode, isLoggedIn }: HomeFeedP
             </div>
             <Link href={`/works/${work.id}`} className="block">
               <div className="relative aspect-[4/5] bg-paper sm:aspect-[3/4]">
-                <img src={visualFor(index, work.images[0])} alt={`${work.title} 作品封面`} className="h-full w-full object-cover" sizes="(max-width: 768px) 100vw, 700px" loading="lazy" />
+                <img src={visualFor(index, work.images[0])} srcSet={uploadImageSrcSet(visualFor(index, work.images[0]))} decoding="async" alt={`${work.title} 作品封面`} className="h-full w-full object-cover" sizes="(max-width: 768px) 100vw, 700px" loading="lazy" />
               </div>
             </Link>
             <div className="p-4">

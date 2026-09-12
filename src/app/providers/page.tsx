@@ -177,7 +177,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
   };
 
   const currentUser = await getCurrentUser();
-  const [providers, total, currentProvider, currentApplication] = await Promise.all([
+  const [providers, total, currentProvider, currentApplication, typeCounts] = await Promise.all([
     prisma.provider.findMany({
       where,
       include: {
@@ -199,7 +199,8 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
     }),
     prisma.provider.count({ where }),
     getAnyProviderForUser(currentUser),
-    getProviderApplicationForUser(currentUser)
+    getProviderApplicationForUser(currentUser),
+    prisma.provider.groupBy({ by: ["type"], where: publicProviderWhere(), _count: { _all: true } })
   ]);
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
@@ -226,7 +227,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
 
       <nav className="mb-6 flex gap-2 overflow-x-auto pb-1" aria-label="服务商类型">
         <Link href="/providers" className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${!type ? "bg-ink text-white" : "bg-white text-ink/60"}`}>
-          全部服务
+          全部服务（{typeCounts.reduce((sum, item) => sum + item._count._all, 0)}）
         </Link>
         {[ProviderType.FABRIC_SUPPLIER, ProviderType.SAMPLE_STUDIO, ProviderType.FACTORY].map((item) => (
           <Link
@@ -234,7 +235,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
             href={queryHref(new URLSearchParams(), "type", item)}
             className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${type === item ? "bg-ink text-white" : "bg-white text-ink/60"}`}
           >
-            {item === ProviderType.FABRIC_SUPPLIER ? "面料" : item === ProviderType.SAMPLE_STUDIO ? "打样" : "生产"}
+            {item === ProviderType.FABRIC_SUPPLIER ? "面料" : item === ProviderType.SAMPLE_STUDIO ? "打样" : "生产"}（{typeCounts.find((row) => row.type === item)?._count._all ?? 0}）
           </Link>
         ))}
       </nav>

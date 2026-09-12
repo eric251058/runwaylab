@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FabricStatus, ProjectOrderStatus, ProviderShowcaseStatus, ProviderType, ReviewStatus, ReviewTargetType } from "@prisma/client";
 import { SafeImage } from "@/components/media/SafeImage";
@@ -26,6 +27,17 @@ type ProviderDetailPageProps = {
   params: Promise<{ id: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata({ params }: ProviderDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const provider = await prisma.provider.findFirst({
+    where: { OR: [{ id }, { slug: id }], ...publicProviderWhere() },
+    select: { name: true, tagline: true }
+  });
+  return provider
+    ? { title: provider.name, description: provider.tagline || `了解${provider.name}的公开产品与合作信息。` }
+    : { title: "服务商暂不可访问", robots: { index: false, follow: false } };
+}
 
 function infoItem(label: string, value?: string | number | null) {
   if (value === null || value === undefined || value === "") return null;
@@ -125,7 +137,7 @@ export default async function ProviderDetailPage({ params, searchParams }: Provi
   const heroFacts = [
     provider._count.projectOrders ? heroFact("", provider._count.projectOrders + " 次已完成合作") : null,
     averageRating ? heroFact("", averageRating.toFixed(1) + " / 5 · " + verifiedReputation._count + " 条成交评价") : null,
-    heroFact("MOQ", provider.moqMin ?? provider.minimumOrderQuantity),
+    heroFact("起订量", provider.minimumOrder ? `${provider.minimumOrder}${/^\d+(\.\d+)?$/.test(provider.minimumOrder.trim()) ? "（单位需咨询）" : ""}` : (provider.moqMin ?? provider.minimumOrderQuantity) != null ? `${provider.moqMin ?? provider.minimumOrderQuantity}（单位需咨询）` : "需咨询"),
     heroFact("打样", provider.sampleLeadDays ? `${provider.sampleLeadDays} 天` : null),
     heroFact("生产", provider.productionLeadDays ? `${provider.productionLeadDays} 天` : null),
     provider.acceptsSmallBatch ? heroFact("", "可接小单") : null,
