@@ -26,7 +26,7 @@ assert.match(workDetail, /provider:\s*\{\s*is:\s*publicProviderWhere\(\)/);
 const home = source("src/app/page.tsx");
 assert.doesNotMatch(home, /两种开始方式/);
 assert.doesNotMatch(home, /我有设计作品/);
-assert.match(home, /启动服装项目/);
+assert.match(home, /发起项目/);
 assert.match(home, /精选作品/);
 assert.match(home, /\.slice\(0,\s*6\)/);
 assert.match(home, /commentPreviews=\{\{\}\}/);

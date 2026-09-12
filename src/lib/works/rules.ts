@@ -59,6 +59,8 @@ export function isPublicQualityWork(work: PublicQualityWorkLike) {
     work.contentStatus === ContentStatus.VISIBLE &&
     work.visibility === WorkVisibility.PUBLIC &&
     hasUsableCover(work.images) &&
+    !description.startsWith("平台示例作品：") &&
+    !work.images?.some((image) => /(?:^|\/)uploads\/seed\//.test(image.imageUrl ?? "")) &&
     !isWeakTitle(work.title) &&
     description.length >= 16 &&
     description.length <= 5000

@@ -360,7 +360,7 @@ export function WorkInteractionBar({
               <div key={comment.id} className="border-t border-black/8 pt-4 first:border-t-0 first:pt-0">
                 <p className="text-sm leading-6 text-ink/66">{comment.content}</p>
                 <p className="mt-2 text-xs font-semibold text-ink/40">
-                  {comment.user.nickname} · {new Intl.DateTimeFormat("zh-CN").format(new Date(comment.createdAt))}
+                  {comment.user.nickname} · {new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai" }).format(new Date(comment.createdAt))}
                 </p>
               </div>
             ))

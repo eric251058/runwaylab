@@ -1,5 +1,6 @@
 "use client";
 
+import { uploadImageSrcSet } from "@/lib/responsive-image";
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getWorkImageUrl, visualFor } from "@/components/works/work-visuals";
@@ -36,7 +37,7 @@ export function WorkImageCarousel({ images, title }: WorkImageCarouselProps) {
   return (
     <section className="-mx-4 space-y-3 md:mx-0">
       <div className="relative aspect-[4/5] overflow-hidden bg-zinc-200 md:aspect-[4/3] md:rounded-[6px]">
-        <img src={active.src} alt={title} className="h-full w-full object-cover object-center" />
+        <img src={active.src} srcSet={uploadImageSrcSet(active.src)} sizes="(max-width: 768px) 100vw, 65vw" decoding="async" alt={title} className="h-full w-full object-cover object-center" />
         {slides.length > 1 ? (
           <>
             <button
@@ -69,7 +70,7 @@ export function WorkImageCarousel({ images, title }: WorkImageCarouselProps) {
               className={`aspect-square w-16 shrink-0 overflow-hidden rounded-[4px] border md:w-auto ${activeIndex === index ? "border-ink" : "border-transparent"}`}
               aria-label={`查看第 ${index + 1} 张作品图`}
             >
-              <img src={slide.src} alt="" className="h-full w-full object-cover object-center" />
+              <img src={slide.src} srcSet={uploadImageSrcSet(slide.src)} sizes="80px" loading="lazy" decoding="async" alt="" className="h-full w-full object-cover object-center" />
             </button>
           ))}
         </div>

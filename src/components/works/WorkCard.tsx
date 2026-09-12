@@ -1,3 +1,4 @@
+import { uploadImageSrcSet } from "@/lib/responsive-image";
 import Link from "next/link";
 import type { IncubationStatus } from "@prisma/client";
 import { WorkQuickActions } from "@/components/works/WorkQuickActions";
@@ -90,7 +91,7 @@ export function WorkCard({ work, index = 0, compact = false }: WorkCardProps) {
     <article className="mb-2 break-inside-avoid overflow-hidden rounded-[6px] bg-white shadow-[0_10px_30px_rgba(16,16,16,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(16,16,16,0.14)] md:mb-5 md:shadow-[0_18px_50px_rgba(16,16,16,0.08)]">
       <Link href={`/works/${work.id}`} className="group block">
         <div className={compact ? "relative aspect-[4/5] overflow-hidden bg-zinc-200" : "relative aspect-[3/4] overflow-hidden bg-zinc-200 md:aspect-[4/5]"}>
-          <img src={imageUrl} alt={work.title} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-105" />
+          <img src={imageUrl} srcSet={uploadImageSrcSet(imageUrl)} sizes="(max-width: 640px) 48vw, (max-width: 1024px) 31vw, 320px" loading="lazy" decoding="async" alt={work.title} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-105" />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent p-2 md:p-3">
             {primaryBadge ? (
               <span className="inline-flex rounded-full border border-white/25 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-ink">{primaryBadge}</span>

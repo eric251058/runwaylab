@@ -65,7 +65,7 @@ export default async function HomePage() {
           </p>
           <div className="mt-7 grid gap-3 sm:flex sm:flex-wrap sm:items-center">
             <Link href="/start" className="inline-flex h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-ink">
-              启动服装项目
+              发起项目
             </Link>
             <Link href="/works" className="inline-flex h-12 items-center justify-center rounded-full border border-white/22 px-6 text-sm font-semibold text-white">
               浏览新锐设计
@@ -81,9 +81,9 @@ export default async function HomePage() {
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold text-ink md:text-3xl">精选作品</h2>
-            <p className="mt-2 text-sm text-ink/52">首页只展示 6 个真实、完整的作品，不直接展开评论。</p>
+            <p className="mt-2 text-sm text-ink/52">发现设计灵感，了解作品背后的创作思路。</p>
           </div>
-          <Link href="/works" className="hidden items-center gap-1 text-sm font-semibold text-ink/55 hover:text-ink sm:inline-flex">
+          <Link href="/works" className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-ink/55 hover:text-ink">
             查看全部 <ArrowRight size={15} />
           </Link>
         </div>

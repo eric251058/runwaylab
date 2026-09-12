@@ -24,6 +24,9 @@ function assertQuality(label: string, work: WorkLike, expected: boolean) {
 
 function main() {
   assertQuality("valid public work", makeWork(), true);
+  assertQuality("seed image excluded", makeWork({ images: [{ imageUrl: "/uploads/seed/work-01-1.webp" }] }), false);
+  assertQuality("seed description excluded", makeWork({ description: "平台示例作品：这是一条完整的开发演示作品说明，不应作为真实作品展示。" }), false);
+  assertQuality("numbered real work retained", makeWork({ title: "雾线廓形实验 01" }), true);
   assertQuality("valid Chinese title", makeWork({ title: "都市通勤风衣" }), true);
   assertQuality("valid English title", makeWork({ title: "Modular evening dress" }), true);
   assertQuality("valid remote cover", makeWork({ images: [{ imageUrl: "https://example.com/work.jpg" }] }), true);

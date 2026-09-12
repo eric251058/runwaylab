@@ -44,8 +44,8 @@ const draftTtlMs = 1000 * 60 * 60 * 24 * 7;
 
 const sourceOptions: Array<{ value: StartSourceType; label: string; description: string }> = [
   { value: "DESIGN", label: "选择已有作品", description: "从设计稿、效果图或已发布作品继续推进。" },
-  { value: "IDEA", label: "创建产品想法", description: "还没有完整设计也没关系，先记录产品方向。" }
-  ,{ value: "NEED", label: "我想要一件衣服", description: "从真实穿着场景出发，由设计、面料和打样服务商依次响应。" }
+  { value: "IDEA", label: "创建产品想法", description: "适合设计师或主理人：例如开发一个通勤服装系列，先记录产品方向。" }
+  ,{ value: "NEED", label: "我想要一件衣服", description: "适合有穿着需求的用户：例如旅行时穿的长裙，先说明场景、预算和偏好。" }
 ];
 
 const categoryOptions: Array<{ value: StartCategory; label: string }> = [

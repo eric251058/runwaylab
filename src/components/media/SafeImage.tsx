@@ -1,5 +1,6 @@
 "use client";
 
+import { uploadImageSrcSet } from "@/lib/responsive-image";
 import { useEffect, useState, type ReactNode } from "react";
 
 type SafeImageProps = {
@@ -42,6 +43,8 @@ export function SafeImage({
   return (
     <img
       src={image}
+      srcSet={uploadImageSrcSet(image)}
+      sizes="(max-width: 768px) 100vw, 480px"
       alt={alt}
       className={className}
       onLoad={() => {
@@ -53,6 +56,7 @@ export function SafeImage({
         onError?.();
       }}
       loading="lazy"
+      decoding="async"
     />
   );
 }
