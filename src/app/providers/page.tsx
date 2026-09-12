@@ -297,7 +297,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
                   {countText ? <p className="mt-3 text-xs text-ink/42">{countText}</p> : null}
                   <div className="mt-5 grid gap-2 sm:grid-cols-2">
                     <Link href={providerPublicUrl(provider)} className="inline-flex h-10 items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold text-ink">查看详情</Link>
-                    <Link href={`${providerPublicUrl(provider)}#inquiry`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">联系服务商</Link>
+                    {provider.publicContactEnabled ? <Link href={`${providerPublicUrl(provider)}#inquiry`} className="inline-flex h-10 items-center justify-center rounded-full bg-ink px-4 text-sm font-semibold text-white">联系服务商</Link> : <span className="inline-flex min-h-10 items-center justify-center px-4 text-sm text-ink/55">暂未开启站内询盘</span>}
                   </div>
                 </div>
               </article>
