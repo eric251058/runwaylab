@@ -23,6 +23,7 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 const adminLinks = [
+  ["/admin/support", "帮助与隐私申请", "处理用户反馈与资料修改、删除申请"],
   ["/admin/works", "作品管理", "审核、下架、精选和孵化候选"],
   ["/admin/project-intakes", "启动项目评估", "处理用户提交的 60 秒启动项目"],
   ["/admin/editorial", "编辑推荐", "首页精选、榜单和运营推荐"],

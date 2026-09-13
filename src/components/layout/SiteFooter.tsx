@@ -9,6 +9,7 @@ export function SiteFooter() {
           <p className="font-semibold text-ink/55">{SITE_NAME}</p>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 font-semibold">
             <Link href="/legal/terms" className="hover:text-ink/65">平台规则</Link>
+            <Link href="/support" className="hover:text-ink/65">帮助与隐私申请</Link>
             <Link href="/legal/privacy" className="hover:text-ink/65">隐私政策</Link>
             <Link href="/legal/copyright" className="hover:text-ink/65">版权规则</Link>
             <Link href="/legal/presale-rules" className="hover:text-ink/65">预售规则</Link>

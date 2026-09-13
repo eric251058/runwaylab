@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { inquirySubmissionId } from "@/lib/inquiry-submission";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { CONTACT_AUTH_OPTIONS, PROVIDER_INQUIRY_TYPE_COPY } from "@/lib/provider-experience";
 
@@ -43,6 +44,7 @@ export function ProviderInquiryForm({
   description = "发送站内询盘，先说明你需要的服务。联系方式默认不公开。",
   disabledReason
 }: ProviderInquiryFormProps) {
+  const submitting = useRef(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -60,6 +62,7 @@ export function ProviderInquiryForm({
   }
 
   function onSubmit(formData: FormData) {
+    if (submitting.current) return;
     setMessage("");
     setSuccess("");
     if (disabledReason) {
@@ -77,30 +80,38 @@ export function ProviderInquiryForm({
       message: formData.get("message")?.toString() || ""
     };
 
+    submitting.current = true;
     startTransition(async () => {
+      try {
+      const body = JSON.stringify(payload);
+      const clientId = await inquirySubmissionId(`provider:${providerId}`, body);
       const response = await fetch("/api/cooperation-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ ...JSON.parse(body), clientId })
       });
       const result = await response.json().catch(() => null);
       if (!response.ok) {
         setMessage(result?.message || "发送失败，请稍后再试。");
         return;
       }
-      setSuccess(result?.message || "已发送。服务商回复后，我们会通知你。");
+      setSuccess(result?.message || "询盘已保存，请在我的询盘中查看回复。");
+      } catch {
+        setMessage("连接中断，内容已保留。可直接重试同一内容，系统会避免重复保存。");
+      } finally { submitting.current = false; }
     });
   }
 
   return (
-    <form action={onSubmit} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-4">
+    <form onSubmit={(event) => { event.preventDefault(); onSubmit(new FormData(event.currentTarget)); }} className="grid gap-3 rounded-[8px] border border-black/8 bg-white p-4">
       <div>
         <h3 className="text-lg font-semibold text-ink">{title}</h3>
         <p className="mt-1 text-sm leading-6 text-ink/55">{description}</p>
       </div>
-      {message ? <p className="rounded-[6px] bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p> : null}
-      {success ? <p className="rounded-[6px] bg-green-50 px-3 py-2 text-sm text-green-700">{success}</p> : null}
-      <select name="requestType" defaultValue={defaultRequestType} className="h-12 rounded-[6px] border border-black/10 px-3 text-sm">
+      {message ? <p role="alert" className="rounded-[6px] bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p> : null}
+      {success ? <p role="status" className="rounded-[6px] bg-green-50 px-3 py-2 text-sm text-green-700">{success}</p> : null}
+      <Link href="/me/inquiries" className="text-sm underline">查看我的询盘与回复</Link>
+      <select aria-label="询盘类型" name="requestType" defaultValue={defaultRequestType} className="h-12 rounded-[6px] border border-black/10 px-3 text-sm">
         {inquiryTypes.map(([value, label]) => (
           <option key={value} value={value}>
             {label}
@@ -108,6 +119,7 @@ export function ProviderInquiryForm({
         ))}
       </select>
       <textarea
+        aria-label="询盘需求说明"
         name="message"
         required
         maxLength={2000}
@@ -115,7 +127,7 @@ export function ProviderInquiryForm({
         className="min-h-32 rounded-[6px] border border-black/10 px-3 py-3 text-sm"
       />
       {workOptions.length ? (
-        <select name="workId" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm">
+        <select aria-label="关联作品" name="workId" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm">
           <option value="">不关联作品</option>
           {workOptions.map((work) => (
             <option key={work.id} value={work.id}>
@@ -124,7 +136,7 @@ export function ProviderInquiryForm({
           ))}
         </select>
       ) : null}
-      <input name="expectedDate" type="date" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" />
+      <input aria-label="期望交付日期" name="expectedDate" type="date" className="h-12 rounded-[6px] border border-black/10 px-3 text-sm" />
       <fieldset className="rounded-[8px] bg-paper p-3">
         <legend className="text-sm font-semibold text-ink">联系方式授权</legend>
         <div className="mt-2 grid gap-2">

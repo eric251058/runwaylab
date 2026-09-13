@@ -47,3 +47,31 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+  database:
+    name: PostgreSQL migrations and concurrency
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: runwaylab
+          POSTGRES_PASSWORD: runwaylab
+          POSTGRES_DB: runwaylab_acceptance
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U runwaylab -d runwaylab_acceptance"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://runwaylab:runwaylab@127.0.0.1:5432/runwaylab_acceptance?schema=public
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: node --import tsx scripts/postgres-acceptance.ts

@@ -759,6 +759,7 @@ model User {
   persona          UserPersona @default(CONSUMER)
   personaCompleted Boolean     @default(false)
 
+  supportRequests              SupportRequest[]
   designerProfile              DesignerProfile?
   sessions                     AuthSession[]
   works                        Work[]
@@ -2860,6 +2861,8 @@ model SampleRequest {
 }
 
 model CooperationRequest {
+  clientId String?
+  requestHash String?
   id                String              @id @default(cuid())
   userId            String
   workId            String?
@@ -2893,6 +2896,7 @@ model CooperationRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([userId, clientId])
   @@index([userId])
   @@index([workId])
   @@index([providerId])
@@ -2904,6 +2908,8 @@ model CooperationRequest {
 }
 
 model CooperationRequestReply {
+  clientId String?
+  requestHash String?
   id         String  @id @default(cuid())
   inquiryId  String
   senderId   String
@@ -2917,6 +2923,7 @@ model CooperationRequestReply {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([senderId, clientId])
   @@index([inquiryId, createdAt])
   @@index([senderId])
   @@index([isRead])
@@ -3107,4 +3114,22 @@ model CommerceStateEvent {
   @@index([aggregateType, aggregateId, createdAt])
   @@index([actorId])
   @@index([createdAt])
+}
+
+model SupportRequest {
+  id          String   @id @default(cuid())
+  requesterId String
+  clientId    String
+  category    String
+  message     String
+  status      String   @default("PENDING")
+  reply       String?
+  handledById String?
+  handledAt   DateTime?
+  version     Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  requester   User     @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  @@unique([requesterId, clientId])
+  @@index([status, createdAt])
 }

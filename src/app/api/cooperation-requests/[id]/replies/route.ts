@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { z } from "zod";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { RequestStatus } from "@prisma/client";
@@ -66,38 +68,63 @@ export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const { inquiry, side } = await getInquiryForUser(id, user);
   if (!inquiry || !side) return jsonError("询盘不存在或没有权限回复。", 404);
-  if (inquiry.status === RequestStatus.CLOSED || inquiry.status === RequestStatus.COMPLETED) {
-    return jsonError("询盘已结束，不能继续回复。", 409);
-  }
 
-  const body = (await request.json().catch(() => null)) as { content?: unknown; intent?: string } | null;
+  const body = (await request.json().catch(() => null)) as { content?: unknown; intent?: string; clientId?: unknown } | null;
   const content = cleanReplyContent(body?.content);
   if (!content) return jsonError("请填写回复内容。", 422);
   if (content.length > 1000) return jsonError("回复最多 1000 个字。", 422);
 
+  const key = z.string().uuid().optional().safeParse(body?.clientId);
+  if (!key.success) return jsonError("提交编号无效。", 422);
+  if (body?.intent !== undefined && body.intent !== "close") return jsonError("回复操作无效。", 422);
+  const clientId = key.data;
+  const requestHash = createHash("sha256").update(JSON.stringify({ id, content, intent: body?.intent ?? null })).digest("hex");
+  const requesterId = user.id;
+  async function replay() {
+    if (!clientId) return null;
+    const existing = await prisma.cooperationRequestReply.findUnique({
+      where: { senderId_clientId: { senderId: requesterId, clientId } },
+      include: { sender: { select: { id: true, nickname: true, avatarUrl: true } } }
+    });
+    if (!existing) return null;
+    if (existing.requestHash !== requestHash) return jsonError("此提交编号已用于其他回复。", 409);
+    const { clientId: _key, requestHash: _hash, ...reply } = existing;
+    return NextResponse.json({ reply, message: "回复已发送。" });
+  }
+  try {
+    const saved = await replay();
+    if (saved) return saved;
+  } catch { return jsonError("暂时无法确认回复，请稍后重试。", 503); }
+  if (inquiry.status === RequestStatus.CLOSED || inquiry.status === RequestStatus.COMPLETED) {
+    return jsonError("询盘已结束，不能继续回复。", 409);
+  }
   const now = new Date();
-  const reply = await prisma.cooperationRequestReply.create({
-    data: {
-      inquiryId: inquiry.id,
-      senderId: user.id,
-      senderRole: side,
-      content,
-      isRead: false
-    },
-    include: { sender: { select: { id: true, nickname: true, avatarUrl: true } } }
-  });
-
-  const nextStatus = side === "PROVIDER" ? RequestStatus.QUOTED : RequestStatus.EVALUATED;
-  await prisma.cooperationRequest.update({
-    where: { id: inquiry.id },
-    data: {
-      status: body?.intent === "close" ? RequestStatus.CLOSED : nextStatus,
-      providerResponse: side === "PROVIDER" ? content : inquiry.providerResponse,
-      viewedAt: inquiry.viewedAt ?? now,
-      respondedAt: side === "PROVIDER" ? now : inquiry.respondedAt,
-      handledAt: body?.intent === "close" ? now : inquiry.handledAt
-    }
-  });
+  let reply;
+  try {
+    reply = await prisma.$transaction(async (tx) => {
+      const changed = await tx.cooperationRequest.updateMany({
+        where: { id: inquiry.id, updatedAt: inquiry.updatedAt, status: { notIn: [RequestStatus.CLOSED, RequestStatus.COMPLETED] } },
+        data: {
+          status: body?.intent === "close" ? RequestStatus.CLOSED : side === "PROVIDER" ? RequestStatus.QUOTED : RequestStatus.EVALUATED,
+          providerResponse: side === "PROVIDER" ? content : inquiry.providerResponse,
+          viewedAt: inquiry.viewedAt ?? now,
+          respondedAt: side === "PROVIDER" ? now : inquiry.respondedAt,
+          handledAt: body?.intent === "close" ? now : inquiry.handledAt
+        }
+      });
+      if (!changed.count) throw new Error("INQUIRY_CONFLICT");
+      return tx.cooperationRequestReply.create({
+        data: { inquiryId: inquiry.id, senderId: user.id, senderRole: side, content, clientId, requestHash, isRead: false },
+        include: { sender: { select: { id: true, nickname: true, avatarUrl: true } } }
+      });
+    });
+  } catch (error) {
+    // A concurrent identical request may have committed while we waited for the row lock.
+    const saved = await replay().catch(() => null);
+    if (saved) return saved;
+    if (error instanceof Error && error.message === "INQUIRY_CONFLICT") return jsonError("询盘状态已改变，请刷新后再回复。", 409);
+    return jsonError("回复暂未保存，请保留内容并稍后重试。", 503);
+  }
 
   if (side === "PROVIDER") {
     await createNotificationSafe({
