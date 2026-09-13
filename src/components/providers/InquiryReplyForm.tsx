@@ -1,5 +1,6 @@
 "use client";
 
+import { inquirySubmissionId } from "@/lib/inquiry-submission";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
@@ -18,7 +19,6 @@ async function readMessage(response: Response) {
 export function InquiryReplyForm({ inquiryId, placeholder = "写下回复内容", buttonLabel = "发送回复", disabled = false }: InquiryReplyFormProps) {
   const router = useRouter();
   const submitting = useRef(false);
-  const submission = useRef<{ body: string; clientId: string } | null>(null);
   const [content, setContent] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -38,11 +38,11 @@ export function InquiryReplyForm({ inquiryId, placeholder = "写下回复内容"
     startTransition(async () => {
       try {
       const body = JSON.stringify({ content: text });
-      if (submission.current?.body !== body) submission.current = { body, clientId: crypto.randomUUID() };
+      const clientId = await inquirySubmissionId(`reply:${inquiryId}`, body);
       const response = await fetch(`/api/cooperation-requests/${inquiryId}/replies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...JSON.parse(body), clientId: submission.current.clientId })
+        body: JSON.stringify({ ...JSON.parse(body), clientId })
       });
 
       if (!response.ok) {
@@ -50,7 +50,7 @@ export function InquiryReplyForm({ inquiryId, placeholder = "写下回复内容"
         return;
       }
 
-      submission.current = null;
+      await inquirySubmissionId(`reply:${inquiryId}`, body, true);
       setContent("");
       setMessage("回复已发送。");
       router.refresh();

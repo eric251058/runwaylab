@@ -1,5 +1,6 @@
 "use client";
 
+import { inquirySubmissionId } from "@/lib/inquiry-submission";
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { CONTACT_AUTH_OPTIONS, PROVIDER_INQUIRY_TYPE_COPY } from "@/lib/provider-experience";
@@ -44,7 +45,6 @@ export function ProviderInquiryForm({
   disabledReason
 }: ProviderInquiryFormProps) {
   const submitting = useRef(false);
-  const submission = useRef<{ body: string; clientId: string } | null>(null);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -84,11 +84,11 @@ export function ProviderInquiryForm({
     startTransition(async () => {
       try {
       const body = JSON.stringify(payload);
-      if (submission.current?.body !== body) submission.current = { body, clientId: crypto.randomUUID() };
+      const clientId = await inquirySubmissionId(`provider:${providerId}`, body);
       const response = await fetch("/api/cooperation-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...JSON.parse(body), clientId: submission.current.clientId })
+        body: JSON.stringify({ ...JSON.parse(body), clientId })
       });
       const result = await response.json().catch(() => null);
       if (!response.ok) {
