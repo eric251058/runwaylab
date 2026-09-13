@@ -247,6 +247,7 @@ export default async function MePage({ searchParams }: MePageProps) {
           <p className="mt-3 text-sm text-ink/58 md:mt-4">作品、项目、消息和个人资料都从这里进入。</p>
         </div>
         <div className="grid gap-2 sm:flex sm:flex-wrap">
+          <Link href="/support" className="inline-flex min-h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold">帮助与申请记录</Link>
           <Link href="/notifications" className="inline-flex h-11 items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-ink sm:px-5">
             {unreadNotificationCount > 0 ? `消息中心（${unreadNotificationLabel} 条未读）` : "消息中心"}
           </Link>
