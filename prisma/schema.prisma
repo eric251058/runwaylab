@@ -2861,6 +2861,8 @@ model SampleRequest {
 }
 
 model CooperationRequest {
+  clientId String?
+  requestHash String?
   id                String              @id @default(cuid())
   userId            String
   workId            String?
@@ -2894,6 +2896,7 @@ model CooperationRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([userId, clientId])
   @@index([userId])
   @@index([workId])
   @@index([providerId])
@@ -2905,6 +2908,8 @@ model CooperationRequest {
 }
 
 model CooperationRequestReply {
+  clientId String?
+  requestHash String?
   id         String  @id @default(cuid())
   inquiryId  String
   senderId   String
@@ -2918,6 +2923,7 @@ model CooperationRequestReply {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([senderId, clientId])
   @@index([inquiryId, createdAt])
   @@index([senderId])
   @@index([isRead])

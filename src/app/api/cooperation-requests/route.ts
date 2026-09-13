@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { CooperationType, ProviderInquiryType, RequestStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -12,6 +13,7 @@ import { providerBelongsToUser, publicProviderWhere } from "@/lib/supply-network
 import { isPublicWorkAccessible, publicQualityWorkCheckSelect, publicWorkWhere } from "@/lib/works/public";
 
 const cooperationRequestSchema = z.object({
+  clientId: z.string().uuid().optional(),
   workId: z.string().trim().optional().nullable(),
   providerId: z.string().trim().optional().nullable(),
   fabricId: z.string().trim().optional().nullable(),
@@ -59,8 +61,6 @@ export async function POST(request: Request) {
     return jsonError("请先登录后再发送询盘。", 401);
   }
 
-  const limit = checkRateLimit(`cooperation-request:${user.id}:1h`, { windowMs: 60 * 60 * 1000, limit: 10 });
-  if (limit.limited) return tooManyRequests("提交较频繁，请稍后再试。", limit.retryAfter);
 
   const parsed = cooperationRequestSchema.safeParse(await request.json().catch(() => null));
 
@@ -69,6 +69,25 @@ export async function POST(request: Request) {
   }
 
   const data = parsed.data;
+  const requestHash = createHash("sha256").update(JSON.stringify(data)).digest("hex");
+  const requesterId = user.id;
+  async function replay() {
+    if (!data.clientId) return null;
+    const existing = await prisma.cooperationRequest.findUnique({
+      where: { userId_clientId: { userId: requesterId, clientId: data.clientId } },
+      select: { id: true, status: true, createdAt: true, requestHash: true }
+    });
+    if (!existing) return null;
+    if (existing.requestHash !== requestHash) return jsonError("此提交编号已用于其他内容，请重新发起询盘。", 409);
+    const { requestHash: _hash, ...item } = existing;
+    return NextResponse.json({ request: item, message: "询盘已保存，请在我的询盘中查看。" });
+  }
+  try {
+    const saved = await replay();
+    if (saved) return saved;
+  const limit = checkRateLimit(`cooperation-request:${user.id}:1h`, { windowMs: 60 * 60 * 1000, limit: 10 });
+  if (limit.limited) return tooManyRequests("提交较频繁，请稍后再试。", limit.retryAfter);
+
   const requestType = inquiryTypeFromInput(data.requestType);
   const isProviderInquiry = Boolean(data.providerId);
   let workId: string | null = null;
@@ -129,6 +148,7 @@ export async function POST(request: Request) {
     const item = await prisma.cooperationRequest.create({
       data: {
         userId: user.id,
+        clientId: data.clientId, requestHash,
         workId,
         providerId: provider.id,
         fabricId: data.fabricId || null,
@@ -175,6 +195,7 @@ export async function POST(request: Request) {
   const item = await prisma.cooperationRequest.create({
     data: {
       userId: user.id,
+      clientId: data.clientId, requestHash,
       workId: work.id,
       type: data.type,
       requestType: requestType as ProviderInquiryType,
@@ -195,4 +216,11 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ request: item, message: "已发送。服务商回复后，我们会通知你。" }, { status: 201 });
+  } catch (error) {
+    if ((error as { code?: string })?.code === "P2002") {
+      const saved = await replay().catch(() => null);
+      if (saved) return saved;
+    }
+    return jsonError("询盘暂未确认保存，请保留内容并重试。", 503);
+  }
 }

@@ -18,6 +18,7 @@ async function readMessage(response: Response) {
 export function InquiryReplyForm({ inquiryId, placeholder = "写下回复内容", buttonLabel = "发送回复", disabled = false }: InquiryReplyFormProps) {
   const router = useRouter();
   const submitting = useRef(false);
+  const submission = useRef<{ body: string; clientId: string } | null>(null);
   const [content, setContent] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -36,10 +37,12 @@ export function InquiryReplyForm({ inquiryId, placeholder = "写下回复内容"
     submitting.current = true;
     startTransition(async () => {
       try {
+      const body = JSON.stringify({ content: text });
+      if (submission.current?.body !== body) submission.current = { body, clientId: crypto.randomUUID() };
       const response = await fetch(`/api/cooperation-requests/${inquiryId}/replies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text })
+        body: JSON.stringify({ ...JSON.parse(body), clientId: submission.current.clientId })
       });
 
       if (!response.ok) {
@@ -47,11 +50,12 @@ export function InquiryReplyForm({ inquiryId, placeholder = "写下回复内容"
         return;
       }
 
+      submission.current = null;
       setContent("");
       setMessage("回复已发送。");
       router.refresh();
       } catch {
-        setError("连接中断，回复内容已保留。请刷新确认是否已送达后再重试。");
+        setError("连接中断，回复内容已保留。可直接重试同一内容，系统会避免重复保存。");
       } finally { submitting.current = false; }
     });
   }
