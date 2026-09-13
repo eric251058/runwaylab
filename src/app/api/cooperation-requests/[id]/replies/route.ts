@@ -76,28 +76,29 @@ export async function POST(request: Request, context: RouteContext) {
   if (content.length > 1000) return jsonError("回复最多 1000 个字。", 422);
 
   const now = new Date();
-  const reply = await prisma.cooperationRequestReply.create({
-    data: {
-      inquiryId: inquiry.id,
-      senderId: user.id,
-      senderRole: side,
-      content,
-      isRead: false
-    },
-    include: { sender: { select: { id: true, nickname: true, avatarUrl: true } } }
-  });
-
-  const nextStatus = side === "PROVIDER" ? RequestStatus.QUOTED : RequestStatus.EVALUATED;
-  await prisma.cooperationRequest.update({
-    where: { id: inquiry.id },
-    data: {
-      status: body?.intent === "close" ? RequestStatus.CLOSED : nextStatus,
-      providerResponse: side === "PROVIDER" ? content : inquiry.providerResponse,
-      viewedAt: inquiry.viewedAt ?? now,
-      respondedAt: side === "PROVIDER" ? now : inquiry.respondedAt,
-      handledAt: body?.intent === "close" ? now : inquiry.handledAt
-    }
-  });
+  let reply;
+  try {
+    reply = await prisma.$transaction(async (tx) => {
+      const changed = await tx.cooperationRequest.updateMany({
+        where: { id: inquiry.id, updatedAt: inquiry.updatedAt, status: { notIn: [RequestStatus.CLOSED, RequestStatus.COMPLETED] } },
+        data: {
+          status: body?.intent === "close" ? RequestStatus.CLOSED : side === "PROVIDER" ? RequestStatus.QUOTED : RequestStatus.EVALUATED,
+          providerResponse: side === "PROVIDER" ? content : inquiry.providerResponse,
+          viewedAt: inquiry.viewedAt ?? now,
+          respondedAt: side === "PROVIDER" ? now : inquiry.respondedAt,
+          handledAt: body?.intent === "close" ? now : inquiry.handledAt
+        }
+      });
+      if (!changed.count) throw new Error("INQUIRY_CONFLICT");
+      return tx.cooperationRequestReply.create({
+        data: { inquiryId: inquiry.id, senderId: user.id, senderRole: side, content, isRead: false },
+        include: { sender: { select: { id: true, nickname: true, avatarUrl: true } } }
+      });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "INQUIRY_CONFLICT") return jsonError("询盘状态已改变，请刷新后再回复。", 409);
+    return jsonError("回复暂未保存，请保留内容并稍后重试。", 503);
+  }
 
   if (side === "PROVIDER") {
     await createNotificationSafe({

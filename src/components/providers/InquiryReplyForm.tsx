@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 type InquiryReplyFormProps = {
@@ -17,12 +17,14 @@ async function readMessage(response: Response) {
 
 export function InquiryReplyForm({ inquiryId, placeholder = "写下回复内容", buttonLabel = "发送回复", disabled = false }: InquiryReplyFormProps) {
   const router = useRouter();
+  const submitting = useRef(false);
   const [content, setContent] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
   function submit() {
+    if (disabled || submitting.current) return;
     setMessage("");
     setError("");
     const text = content.trim();
@@ -31,7 +33,9 @@ export function InquiryReplyForm({ inquiryId, placeholder = "写下回复内容"
       return;
     }
 
+    submitting.current = true;
     startTransition(async () => {
+      try {
       const response = await fetch(`/api/cooperation-requests/${inquiryId}/replies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -46,12 +50,16 @@ export function InquiryReplyForm({ inquiryId, placeholder = "写下回复内容"
       setContent("");
       setMessage("回复已发送。");
       router.refresh();
+      } catch {
+        setError("连接中断，回复内容已保留。请刷新确认是否已送达后再重试。");
+      } finally { submitting.current = false; }
     });
   }
 
   return (
     <div className="grid gap-2">
       <textarea
+        aria-label="询盘回复内容"
         value={content}
         onChange={(event) => setContent(event.target.value)}
         disabled={disabled || isPending}
@@ -70,8 +78,8 @@ export function InquiryReplyForm({ inquiryId, placeholder = "写下回复内容"
           {isPending ? "发送中..." : buttonLabel}
         </button>
       </div>
-      {message ? <p className="rounded-[6px] bg-lime-50 px-3 py-2 text-xs font-semibold text-lime-800">{message}</p> : null}
-      {error ? <p className="rounded-[6px] bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{error}</p> : null}
+      {message ? <p role="status" className="rounded-[6px] bg-lime-50 px-3 py-2 text-xs font-semibold text-lime-800">{message}</p> : null}
+      {error ? <p role="alert" className="rounded-[6px] bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{error}</p> : null}
     </div>
   );
 }
