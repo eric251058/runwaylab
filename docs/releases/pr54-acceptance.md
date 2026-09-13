@@ -4,12 +4,12 @@ This is a draft candidate for the single final deployment. No production changes
 
 ## Code validation
 
-- 132 contract files pass, including actual route handlers with mocked authentication and database operations.
+- 133 contract files pass, including actual route handlers with mocked authentication and database operations.
 - TypeScript passes. The production build is checked separately in CI.
 - Inquiry creation uses `(userId, clientId)` uniqueness; reply creation uses `(senderId, clientId)` uniqueness.
 - Matching retries return the existing record before rate counting or terminal-state rejection; changed payloads return 409.
 - Reply status mutation and reply insertion remain in one transaction. Notifications run only for a new committed record.
-- New clients retain submission IDs in memory. Refreshing the page loses the ID; older callers without a key remain supported and are not deduplicated. Notification delivery is not a transactional outbox and is not guaranteed after a process crash.
+- New clients retain hashed-payload submission IDs in session storage for 24 hours, with an in-memory fallback when storage is blocked. Confirmed replies rotate their IDs. Closing the tab or blocked storage limits refresh protection; older callers without a key remain supported and are not deduplicated. Notification delivery is not a transactional outbox and is not guaranteed after a process crash.
 
 ## Required before release
 

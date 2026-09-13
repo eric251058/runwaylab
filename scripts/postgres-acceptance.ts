@@ -4,8 +4,8 @@ const url = new URL(process.env.DATABASE_URL ?? "http://missing");
 if (process.env.CI !== "true" || url.hostname !== "127.0.0.1" || url.pathname !== "/runwaylab_acceptance") throw Error("Only the disposable CI database is allowed");
 const db = new PrismaClient();
 async function main() {
- const user = await db.user.create({ data: { nickname: "CI buyer", passwordHash: "not-a-login-password" } });
- const other = await db.user.create({ data: { nickname: "CI other", passwordHash: "not-a-login-password" } });
+ const user = await db.user.create({ data: { email: "buyer@acceptance.invalid", nickname: "CI buyer", passwordHash: "not-a-login-password" } });
+ const other = await db.user.create({ data: { email: "other@acceptance.invalid", nickname: "CI other", passwordHash: "not-a-login-password" } });
  const data = { userId: user.id, type: "OPEN_COOP" as const, contact: "site only", clientId: crypto.randomUUID(), requestHash: "same" };
  const inserts = await Promise.allSettled(Array.from({ length: 8 }, () => db.cooperationRequest.create({ data })));
  assert.equal(inserts.filter(r => r.status === "fulfilled").length, 1);
